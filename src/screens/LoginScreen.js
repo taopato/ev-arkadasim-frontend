@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, Alert, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, Button, Alert, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import api from '../services/api';
@@ -7,16 +7,17 @@ import api from '../services/api';
 export default function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
 
+  // Validation schema
   const LoginSchema = Yup.object().shape({
-    username: Yup.string().required('Kullanıcı adı gerekli'),
+    email: Yup.string().email('Geçerli bir e-posta adresi girin').required('E-posta gerekli'),
     password: Yup.string().required('Şifre gerekli'),
   });
 
+  // Handle login submission
   const handleLogin = async (values) => {
     setLoading(true);
     try {
       const response = await api.post('/login', values);
-      console.log(response);
       if (response.status === 200) {
         Alert.alert('Başarılı', 'Giriş başarılı!');
         navigation.navigate('Home');
@@ -40,20 +41,27 @@ export default function LoginScreen({ navigation }) {
           <Text>Giriş yapılıyor...</Text>
         </View>
       )}
-      <Formik initialValues={{ username: '', password: '' }} validationSchema={LoginSchema} onSubmit={handleLogin}>
+      <Formik
+        initialValues={{ email: '', password: '' }}
+        validationSchema={LoginSchema}
+        onSubmit={handleLogin}
+      >
         {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
           <View>
-            <Text style={styles.label}>Kullanıcı Adı:</Text>
+            {/* Email Input */}
+            <Text style={styles.label}>E-posta:</Text>
             <TextInput
               style={styles.input}
-              onChangeText={handleChange('username')}
-              onBlur={handleBlur('username')}
-              value={values.username}
-              placeholder="Kullanıcı adınızı girin"
+              onChangeText={handleChange('email')}
+              onBlur={handleBlur('email')}
+              value={values.email}
+              placeholder="E-posta adresinizi girin"
+              keyboardType="email-address"
               autoCapitalize="none"
             />
-            {errors.username && touched.username ? <Text style={styles.errorText}>{errors.username}</Text> : null}
+            {errors.email && touched.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
 
+            {/* Password Input */}
             <Text style={styles.label}>Şifre:</Text>
             <TextInput
               style={styles.input}
@@ -65,10 +73,21 @@ export default function LoginScreen({ navigation }) {
             />
             {errors.password && touched.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
 
+            {/* Login Button */}
             <Button title="Giriş Yap" onPress={handleSubmit} disabled={loading} />
           </View>
         )}
       </Formik>
+
+      {/* Register and Forgot Password Buttons */}
+      <View style={styles.footer}>
+        <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+          <Text style={styles.linkText}>Kayıt Ol</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
+          <Text style={styles.linkText}>Şifremi Unuttum</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -80,4 +99,6 @@ const styles = StyleSheet.create({
   input: { height: 40, borderColor: '#ccc', borderWidth: 1, marginBottom: 16, paddingHorizontal: 8, borderRadius: 5 },
   loadingContainer: { alignItems: 'center', marginBottom: 16 },
   errorText: { color: 'red', fontSize: 14, marginBottom: 8 },
+  footer: { marginTop: 20, alignItems: 'center' },
+  linkText: { color: 'blue', fontSize: 16, marginTop: 10, textDecorationLine: 'underline' },
 });
