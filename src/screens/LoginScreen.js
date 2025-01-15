@@ -7,17 +7,15 @@ import api from '../services/api';
 export default function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
 
-  // Validation schema
   const LoginSchema = Yup.object().shape({
     email: Yup.string().email('Geçerli bir e-posta adresi girin').required('E-posta gerekli'),
     password: Yup.string().required('Şifre gerekli'),
   });
 
-  // Handle login submission
   const handleLogin = async (values) => {
     setLoading(true);
     try {
-      const response = await api.post('/login', values);
+      const response = await api.post('/Users/login', values);
       if (response.status === 200) {
         Alert.alert('Başarılı', 'Giriş başarılı!');
         navigation.navigate('Home');
@@ -25,7 +23,8 @@ export default function LoginScreen({ navigation }) {
         Alert.alert('Hata', response.data.message || 'Giriş bilgileri hatalı');
       }
     } catch (error) {
-      console.error(error);
+      console.log('error',error);
+      console.error(error.response ? error.response.data : error.message);
       Alert.alert('Hata', 'Giriş yapılırken bir hata oluştu.');
     } finally {
       setLoading(false);

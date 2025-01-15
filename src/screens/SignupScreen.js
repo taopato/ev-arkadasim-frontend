@@ -9,22 +9,26 @@ export default function SignupScreen({ navigation }) {
   const handleSendCode = async () => {
     setLoading(true);
     try {
-      const payload = { email }; // Email verisini JSON formatına dönüştürüyoruz
-      const response = await api.post('/SendVerificationCode', payload, {
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (response.status === 200) {
+        const response = await api.post(
+            '/Auth/SendVerificationCode',
+            JSON.stringify(email), // JSON.stringify kullanarak düz string gönderiyoruz
+            {
+                headers: { 'Content-Type': 'application/json' },
+            }
+        );
         Alert.alert('Başarılı', 'Doğrulama kodu e-posta adresinize gönderildi.');
-        navigation.navigate('Verification', { email });
-      }
     } catch (error) {
-      console.error('API Error:', error.response?.data || error.message);
-      Alert.alert('Hata', 'Doğrulama kodu gönderilemedi. Lütfen tekrar deneyin.');
+        console.error('Error:', error.response || error.message);
+        Alert.alert('Hata', 'Doğrulama kodu gönderilemedi. Lütfen tekrar deneyin.');
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
-  
+};
+
+
+
+
+
   
 
   return (
