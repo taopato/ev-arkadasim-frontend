@@ -27,18 +27,24 @@ export default function VerificationScreen({ route, navigation }) {
   }, [timer]);
 
   const handleResendCode = async () => {
-    setCanResend(false);
-    setTimer(180);
+    setCanResend(false); // Kod yeniden gönder butonunu devre dışı bırak
+    setTimer(180); // 3 dakikalık sayaç başlat
     try {
-      await api.post('/Auth/SendVerificationCode', { email }, {
-        headers: { 'Content-Type': 'application/json' },
-      });
+      // E-posta adresini düz bir string olarak backend'e gönderiyoruz
+      await api.post(
+        '/Auth/SendVerificationCode',
+        JSON.stringify(email), // E-posta JSON formatında düz string olarak gönderiliyor
+        {
+          headers: { 'Content-Type': 'application/json' }, // JSON formatını belirtiyoruz
+        }
+      );
       Alert.alert('Başarılı', 'Doğrulama kodu yeniden gönderildi.');
     } catch (error) {
-      console.error(error);
+      console.error('Hata:', error.response?.data || error.message); // Hata detaylarını konsola yazdır
       Alert.alert('Hata', 'Kod yeniden gönderilemedi. Lütfen tekrar deneyin.');
     }
   };
+  
 
   const handleVerifyAndRegister = async () => {
     if (password !== confirmPassword) {

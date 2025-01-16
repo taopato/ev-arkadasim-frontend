@@ -10,20 +10,22 @@ export default function SignupScreen({ navigation }) {
     setLoading(true);
     try {
         const response = await api.post(
-            '/Auth/SendVerificationCode',
-            JSON.stringify(email), // JSON.stringify kullanarak düz string gönderiyoruz
+            '/Auth/SendVerificationCode', // Endpoint URL'si
+            JSON.stringify(email), // Email'i düz string olarak JSON formatında gönderiyoruz
             {
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json' }, // JSON header'ını belirtiyoruz
             }
         );
         Alert.alert('Başarılı', 'Doğrulama kodu e-posta adresinize gönderildi.');
     } catch (error) {
-        console.error('Error:', error.response || error.message);
+        console.error('Error:', error.response?.data || error.message); // Hata detaylarını logla
         Alert.alert('Hata', 'Doğrulama kodu gönderilemedi. Lütfen tekrar deneyin.');
     } finally {
-        setLoading(false);
+        setLoading(false); // Yükleniyor durumunu sıfırla
     }
 };
+
+
 
 
 

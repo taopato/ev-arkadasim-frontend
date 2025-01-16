@@ -19,21 +19,29 @@ export default function RegisterScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
 
   const sendVerificationCode = async () => {
-    setLoading(true);
+    setLoading(true); // Yüklenme durumunu başlat
     try {
-      await api.post('/SendVerificationCode', { email });
+      // E-posta adresini backend'e düz string olarak JSON formatında gönderiyoruz
+      await api.post(
+        '/Auth/SendVerificationCode',
+        JSON.stringify(email), // Email'i JSON string formatında gönder
+        {
+          headers: { 'Content-Type': 'application/json' }, // JSON formatını belirt
+        }
+      );
       Alert.alert(
         'Kod Gönderildi',
         'Doğrulama kodu e-posta adresinize gönderildi.'
       );
-      setCodeSent(true);
+      setCodeSent(true); // Kod gönderildi durumunu güncelle
     } catch (error) {
-      console.error(error);
+      console.error('Hata:', error.response?.data || error.message); // Hata detaylarını logla
       Alert.alert('Hata', 'Kod gönderilemedi. Lütfen tekrar deneyin.');
     } finally {
-      setLoading(false);
+      setLoading(false); // Yüklenme durumunu sıfırla
     }
   };
+  
 
   const registerUser = async () => {
     if (password !== confirmPassword) {
@@ -43,7 +51,7 @@ export default function RegisterScreen({ navigation }) {
 
     setLoading(true);
     try {
-      await api.post('/VerifyCodeAndRegister', {
+      await api.post('/Auth/VerifyCodeAndRegister', {
         email,
         code: verificationCode,
         password,
