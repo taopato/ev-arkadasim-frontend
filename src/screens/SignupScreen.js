@@ -10,7 +10,7 @@ export default function SignupScreen({ navigation }) {
     setLoading(true);
     try {
         const response = await api.post(
-            '/Auth/SendVerificationCode', // Endpoint URL'si
+            '/SendVerificationCode', // Endpoint URL'si
             JSON.stringify(email), // Email'i düz string olarak JSON formatında gönderiyoruz
             {
                 headers: { 'Content-Type': 'application/json' }, // JSON header'ını belirtiyoruz

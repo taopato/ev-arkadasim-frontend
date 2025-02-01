@@ -15,7 +15,11 @@ export default function LoginScreen({ navigation }) {
   const handleLogin = async (values) => {
     setLoading(true);
     try {
+      console.log('Giriş denemesi yapılıyor:', values.email);
+      
       const response = await api.post('/Users/login', values);
+      console.log('Sunucu yanıtı:', response.data);
+      
       if (response.status === 200) {
         Alert.alert('Başarılı', 'Giriş başarılı!');
         navigation.navigate('Home');
@@ -23,9 +27,26 @@ export default function LoginScreen({ navigation }) {
         Alert.alert('Hata', response.data.message || 'Giriş bilgileri hatalı');
       }
     } catch (error) {
-      console.log('error',error);
-      console.error(error.response ? error.response.data : error.message);
-      Alert.alert('Hata', 'Giriş yapılırken bir hata oluştu.');
+      console.log('Giriş hatası:', {
+        message: error.message,
+        code: error.code,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+
+      let errorMessage = 'Giriş yapılırken bir hata oluştu.';
+      
+      if (error.message === 'Network Error') {
+        errorMessage = 'Sunucuya bağlanılamadı. Lütfen internet bağlantınızı ve sunucunun çalıştığından emin olun.';
+      } else if (error.response) {
+        if (error.response.status === 401) {
+          errorMessage = 'E-posta veya şifre hatalı.';
+        } else if (error.response.data && error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      }
+      
+      Alert.alert('Bağlantı Hatası', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -47,7 +68,6 @@ export default function LoginScreen({ navigation }) {
       >
         {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
           <View>
-            {/* Email Input */}
             <Text style={styles.label}>E-posta:</Text>
             <TextInput
               style={styles.input}
@@ -60,7 +80,6 @@ export default function LoginScreen({ navigation }) {
             />
             {errors.email && touched.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
 
-            {/* Password Input */}
             <Text style={styles.label}>Şifre:</Text>
             <TextInput
               style={styles.input}
@@ -72,13 +91,11 @@ export default function LoginScreen({ navigation }) {
             />
             {errors.password && touched.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
 
-            {/* Login Button */}
             <Button title="Giriş Yap" onPress={handleSubmit} disabled={loading} />
           </View>
         )}
       </Formik>
 
-      {/* Register and Forgot Password Buttons */}
       <View style={styles.footer}>
         <TouchableOpacity onPress={() => navigation.navigate('Register')}>
           <Text style={styles.linkText}>Kayıt Ol</Text>
@@ -92,12 +109,47 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, justifyContent: 'center', backgroundColor: '#fff' },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' },
-  label: { fontSize: 18, marginBottom: 8 },
-  input: { height: 40, borderColor: '#ccc', borderWidth: 1, marginBottom: 16, paddingHorizontal: 8, borderRadius: 5 },
-  loadingContainer: { alignItems: 'center', marginBottom: 16 },
-  errorText: { color: 'red', fontSize: 14, marginBottom: 8 },
-  footer: { marginTop: 20, alignItems: 'center' },
-  linkText: { color: 'blue', fontSize: 16, marginTop: 10, textDecorationLine: 'underline' },
+  container: { 
+    flex: 1, 
+    padding: 16, 
+    justifyContent: 'center', 
+    backgroundColor: '#fff' 
+  },
+  title: { 
+    fontSize: 24, 
+    fontWeight: 'bold', 
+    marginBottom: 16, 
+    textAlign: 'center' 
+  },
+  label: { 
+    fontSize: 18, 
+    marginBottom: 8 
+  },
+  input: { 
+    height: 40, 
+    borderColor: '#ccc', 
+    borderWidth: 1, 
+    marginBottom: 16, 
+    paddingHorizontal: 8, 
+    borderRadius: 5 
+  },
+  loadingContainer: { 
+    alignItems: 'center', 
+    marginBottom: 16 
+  },
+  errorText: { 
+    color: 'red', 
+    fontSize: 14, 
+    marginBottom: 8 
+  },
+  footer: { 
+    marginTop: 20, 
+    alignItems: 'center' 
+  },
+  linkText: { 
+    color: 'blue', 
+    fontSize: 16, 
+    marginTop: 10, 
+    textDecorationLine: 'underline' 
+  },
 });

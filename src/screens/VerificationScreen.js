@@ -30,14 +30,9 @@ export default function VerificationScreen({ route, navigation }) {
     setCanResend(false); // Kod yeniden gönder butonunu devre dışı bırak
     setTimer(180); // 3 dakikalık sayaç başlat
     try {
-      // E-posta adresini düz bir string olarak backend'e gönderiyoruz
-      await api.post(
-        '/Auth/SendVerificationCode',
-        JSON.stringify(email), // E-posta JSON formatında düz string olarak gönderiliyor
-        {
-          headers: { 'Content-Type': 'application/json' }, // JSON formatını belirtiyoruz
-        }
-      );
+      await api.post('/Auth/SendVerificationCode', { email }, {
+        headers: { 'Content-Type': 'application/json' },
+      });
       Alert.alert('Başarılı', 'Doğrulama kodu yeniden gönderildi.');
     } catch (error) {
       console.error('Hata:', error.response?.data || error.message); // Hata detaylarını konsola yazdır

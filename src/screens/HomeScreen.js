@@ -1,11 +1,14 @@
 import React from 'react';
-import { View, Text, Button, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 
 const HomeScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
-      {/* Ev Arkadaşlarım */}
-      <TouchableOpacity style={styles.headerButton} onPress={() => navigation.navigate('EvArkadaslarim')}>
+      {/* Sadece bu "Ev Arkadaşlarım" butonu kalacak */}
+      <TouchableOpacity 
+        style={styles.headerButton} 
+        onPress={() => navigation.navigate('GroupListScreen')} // Ev Gruplarım ekranına yönlendirme
+      >
         <Text style={styles.headerButtonText}>Ev Arkadaşlarım</Text>
       </TouchableOpacity>
 

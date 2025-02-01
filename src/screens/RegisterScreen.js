@@ -19,16 +19,9 @@ export default function RegisterScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
 
   const sendVerificationCode = async () => {
-    setLoading(true); // Yüklenme durumunu başlat
+    setLoading(true);
     try {
-      // E-posta adresini backend'e düz string olarak JSON formatında gönderiyoruz
-      await api.post(
-        '/Auth/SendVerificationCode',
-        JSON.stringify(email), // Email'i JSON string formatında gönder
-        {
-          headers: { 'Content-Type': 'application/json' }, // JSON formatını belirt
-        }
-      );
+      await api.post('/SendVerificationCode', { email });
       Alert.alert(
         'Kod Gönderildi',
         'Doğrulama kodu e-posta adresinize gönderildi.'
@@ -51,7 +44,7 @@ export default function RegisterScreen({ navigation }) {
 
     setLoading(true);
     try {
-      await api.post('/Auth/VerifyCodeAndRegister', {
+      await api.post('/VerifyCodeAndRegister', {
         email,
         code: verificationCode,
         password,
