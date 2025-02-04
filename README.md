@@ -48,3 +48,63 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+# Ev Arkadaşım Uygulaması
+
+## Harcama Ekleme Özelliği
+
+### Endpoint'ler
+
+1. `/House/Friends/${houseId}`
+   - Ev üyelerinin listesini getirir
+   - Dönen veri: `{ fullName, email }`
+
+2. `/Users`
+   - Tüm kullanıcıların listesini getirir
+   - Dönen veri: `{ id, fullName, email }`
+
+3. `/Expenses/AddExpense`
+   - Yeni harcama ekler
+   - Gönderilen veri:
+     ```javascript
+     {
+       tur: string,       // Harcama türü
+       tutar: number,     // Harcama tutarı
+       houseId: number,   // Ev ID'si
+       odeyenUserId: number, // Ödemeyi yapan kişinin ID'si
+       kaydedenUserId: number // Kaydeden kişinin ID'si
+     }
+     ```
+
+### Özellikler
+
+1. Harcama Türü Seçimi
+   - Market
+   - Fatura
+   - Kira
+   - Manav
+   - Diğer
+
+2. Harcama Tutarı
+   - Sayısal değer girişi
+   - Sıfırdan büyük olmalı
+
+3. Ödemeyi Yapan Kişi
+   - Ev üyeleri listesinden seçim
+   - Email eşleştirmesi ile doğru ID bulunur
+
+4. Kaydeden Kişi
+   - Otomatik olarak giriş yapan kullanıcı
+
+### Veri Akışı
+
+1. Sayfa açıldığında:
+   - Ev üyeleri listesi alınır
+   - Kullanıcı ID'leri alınır
+   - İki liste email'e göre eşleştirilir
+
+2. Harcama eklenirken:
+   - Tüm alanların doluluğu kontrol edilir
+   - Sayısal değerler doğrulanır
+   - API'ye gönderilir
+   - Başarılı/başarısız durumu kullanıcıya bildirilir

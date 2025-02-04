@@ -6,44 +6,32 @@ console.log('API URL:', BASE_URL);
 
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 30000,
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    'Connection': 'keep-alive'
-  },
-  validateStatus: function (status) {
-    return status >= 200 && status < 500; // Hata durumunda daha iyi kontrol
-  },
-  // SSL sertifika doğrulamasını devre dışı bırak
-  proxy: false,
-  withCredentials: false
+    'Accept': 'application/json'
+  }
 });
 
-// SSL güvenlik ayarlarını devre dışı bırak
-if (process.env.NODE_ENV !== 'production') {
+// SSL sertifika hatalarını yoksay (sadece geliştirme ortamında)
+if (process.env.NODE_ENV === 'development') {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 }
 
 // İstek interceptor'ı
 api.interceptors.request.use(
   async config => {
-    // SSL sertifika hatalarını yoksay
-    if (process.env.NODE_ENV !== 'production') {
-      config.insecure = true;
-      config.rejectUnauthorized = false;
+    // Debug için istek detaylarını logla
+    if (process.env.NODE_ENV === 'development') {
+      console.log('API İsteği:', {
+        url: config.url,
+        method: config.method,
+        data: config.data
+      });
     }
-    
-    console.log('API İsteği Gönderiliyor:', {
-      fullUrl: config.baseURL + config.url,
-      method: config.method,
-      data: config.data,
-      headers: config.headers
-    });
     return config;
   },
   error => {
-    console.log('API İstek Hatası:', error);
     return Promise.reject(error);
   }
 );
@@ -51,30 +39,22 @@ api.interceptors.request.use(
 // Yanıt interceptor'ı
 api.interceptors.response.use(
   response => {
-    console.log('API Yanıtı Alındı:', {
-      status: response.status,
-      data: response.data,
-      headers: response.headers
-    });
+    // Debug için yanıt detaylarını logla
+    if (process.env.NODE_ENV === 'development') {
+      console.log('API Yanıtı:', {
+        status: response.status,
+        data: response.data
+      });
+    }
     return response;
   },
   error => {
-    if (error.response) {
-      // Sunucudan yanıt geldi ama hata kodu döndü
-      console.log('Sunucu Hatası:', {
-        status: error.response.status,
-        data: error.response.data,
-        headers: error.response.headers
-      });
-    } else if (error.request) {
-      // İstek yapıldı ama yanıt alınamadı
-      console.log('Yanıt Alınamadı:', {
-        request: error.request
-      });
-    } else {
-      // İstek yapılırken bir hata oluştu
-      console.log('İstek Hatası:', {
-        message: error.message
+    // Hata detaylarını logla
+    if (process.env.NODE_ENV === 'development') {
+      console.error('API Hatası:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
       });
     }
     return Promise.reject(error);

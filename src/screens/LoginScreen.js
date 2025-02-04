@@ -3,9 +3,11 @@ import { View, Text, TextInput, Button, Alert, StyleSheet, ActivityIndicator, To
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 export default function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
 
   const LoginSchema = Yup.object().shape({
     email: Yup.string().email('Geçerli bir e-posta adresi girin').required('E-posta gerekli'),
@@ -21,6 +23,8 @@ export default function LoginScreen({ navigation }) {
       console.log('Sunucu yanıtı:', response.data);
       
       if (response.status === 200) {
+        // Kullanıcı bilgisini AuthContext'e kaydet
+        login(response.data);
         Alert.alert('Başarılı', 'Giriş başarılı!');
         navigation.navigate('Home');
       } else {
