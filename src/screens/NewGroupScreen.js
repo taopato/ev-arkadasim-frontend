@@ -1,66 +1,112 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, Alert, StyleSheet } from 'react-native';
-import api from '../services/api';
+import { View, Text, TextInput, Alert, StyleSheet, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
+import { houseApi } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
+import { Colors } from '../../constants/Colors';
 
 const NewGroupScreen = ({ navigation, route }) => {
   const [houseName, setHouseName] = useState('');
-  const [userId, setUserId] = useState(1); // Kullanıcının ID'si
+  const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
 
   const handleCreateGroup = async () => {
     if (!houseName.trim()) {
-      Alert.alert('Hata', 'Grup adı boş bırakılamaz.');
+      Alert.alert('Hata', 'Lütfen ev grubu adını giriniz.');
       return;
     }
 
+    setLoading(true);
     try {
-      const response = await api.post('/House/CreateHouse', {
-        HouseName: houseName,
-        UserId: userId,
-      });
+      const requestData = {
+        name: houseName.trim(),
+        description: '',
+        createdBy: user.id
+      };
 
+      const response = await houseApi.createHouse(requestData);
+      
       if (response.status === 200 || response.status === 201) {
-        Alert.alert('Başarılı', 'Grup başarıyla oluşturuldu.');
-
-        // Callback ile listeyi güncelle
-        if (route.params?.onGroupAdded) {
-          route.params.onGroupAdded();
-        }
-
-        // "Ev Gruplarım" ekranına geri dön
-        navigation.goBack(); // Önceki sayfaya dön (Ev Gruplarım)
-      } else {
-        Alert.alert('Hata', 'Grup oluşturulamadı. Lütfen bilgileri kontrol edin.');
+        Alert.alert(
+          'Başarılı', 
+          'Ev grubu başarıyla oluşturuldu!',
+          [{ text: 'Tamam', onPress: () => navigation.navigate('GroupListScreen') }]
+        );
       }
     } catch (error) {
-      console.error('Grup oluşturulurken hata oluştu:', error);
-      Alert.alert('Hata', 'Sunucuya ulaşılamadı. Lütfen internet bağlantınızı kontrol edin.');
+      console.error('Ev grubu oluşturma hatası:', error);
+      Alert.alert('Hata', 'Ev grubu oluşturulamadı: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Yeni Grup Oluştur</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Grup Adı"
-        value={houseName}
-        onChangeText={setHouseName}
-      />
-      <Button title="Oluştur" onPress={handleCreateGroup} />
+    <View style={CommonStyles.container}>
+      <ScrollView style={CommonStyles.content}>
+        <View style={CommonStyles.header}>
+          <Text style={CommonStyles.title}>Yeni Ev Grubu</Text>
+          <Text style={CommonStyles.subtitle}>Yeni bir ev grubu oluşturun</Text>
+        </View>
+
+        <View style={CommonStyles.card}>
+          <View style={CommonStyles.inputContainer}>
+            <Text style={CommonStyles.label}>Ev Grubu Adı</Text>
+            <TextInput
+              style={{
+                borderWidth: 1,
+                borderColor: Colors.neutral[300],
+                borderRadius: 8,
+                padding: 12,
+                backgroundColor: Colors.background,
+                fontSize: 16,
+              }}
+              placeholder="Ev grubu adını girin"
+              value={houseName}
+              onChangeText={setHouseName}
+            />
+          </View>
+        </View>
+
+        <TouchableOpacity 
+          style={[
+            CommonStyles.menuButton,
+            (!houseName.trim() || loading) && { opacity: 0.5 }
+          ]}
+          onPress={handleCreateGroup}
+          disabled={!houseName.trim() || loading}
+          activeOpacity={0.8}
+        >
+          <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.success.background }]}>
+            <Text style={CommonStyles.buttonIcon}>🏠</Text>
+            <Text style={CommonStyles.buttonText}>
+              {loading ? "Oluşturuluyor..." : "Ev Grubu Oluştur"}
+            </Text>
+            <Text style={CommonStyles.buttonSubtext}>Yeni ev grubunuzu oluşturun</Text>
+          </View>
+        </TouchableOpacity>
+
+        {loading && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color={Colors.primary[500]} />
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#fff' },
-  title: { fontSize: 20, fontWeight: 'bold', marginBottom: 16 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 8,
-    marginBottom: 16,
-    borderRadius: 4,
-  },
+  loadingOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.7)'
+  }
 });
 
 export default NewGroupScreen;

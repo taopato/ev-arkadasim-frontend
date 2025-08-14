@@ -1,159 +1,341 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Button, Alert, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { Formik } from 'formik';
-import * as Yup from 'yup';
-import api from '../services/api';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Alert,
+  Animated,
+  Platform,
+  KeyboardAvoidingView,
+  ScrollView,
+} from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { authApi } from '../services/api';
+import { Button } from '../shared/ui/Button';
+import { Card } from '../shared/ui/Card';
+import { TextInput } from '../shared/ui/TextInput';
+import { Colors } from '../../constants/Colors';
+import Toast from '../components/Toast';
 
-export default function LoginScreen({ navigation }) {
-  const [loading, setLoading] = useState(false);
+const LoginScreen = ({ navigation }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const { login } = useAuth();
+  const [loading, setLoading] = useState(false);
 
-  const LoginSchema = Yup.object().shape({
-    email: Yup.string().email('Geçerli bir e-posta adresi girin').required('E-posta gerekli'),
-    password: Yup.string().required('Şifre gerekli'),
+  // Toast state
+  const [toast, setToast] = useState({
+    visible: false,
+    message: '',
+    type: 'success'
   });
 
-  const handleLogin = async (values) => {
+  // Animasyonlar
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [slideAnim] = useState(new Animated.Value(50));
+  const [scaleAnim] = useState(new Animated.Value(0.8));
+
+  useEffect(() => {
+    // Sayfa açılış animasyonu
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: Platform.OS !== 'web',
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: Platform.OS !== 'web',
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: Platform.OS !== 'web',
+      }),
+    ]).start();
+  }, []);
+
+  const showToast = (message, type = 'success') => {
+    setToast({
+      visible: true,
+      message,
+      type
+    });
+  };
+
+  const hideToast = () => {
+    setToast(prev => ({ ...prev, visible: false }));
+  };
+
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      showToast('Lütfen tüm alanları doldurun', 'error');
+      return;
+    }
+
     setLoading(true);
     try {
-      console.log('Giriş denemesi yapılıyor:', values.email);
-      
-      const response = await api.post('/Users/login', values);
-      console.log('Sunucu yanıtı:', response.data);
-      
-      if (response.status === 200) {
-        // Kullanıcı bilgisini AuthContext'e kaydet
-        login(response.data);
-        Alert.alert('Başarılı', 'Giriş başarılı!');
-        navigation.navigate('Home');
+      const response = await authApi.login({ email: email.trim(), password });
+      const envelope = response?.data;
+      // Olası sarmalayıcılar: data, result, value
+      const payload = envelope?.data ?? envelope?.result ?? envelope?.value ?? envelope;
+
+      // Derin arama yardımcıları: token ve user alanlarını iç içe yanıtlarda yakala
+      const isObject = (val) => val !== null && typeof val === 'object';
+      const findDeepByKeys = (obj, keys) => {
+        if (!isObject(obj)) return null;
+        const stack = [obj];
+        while (stack.length) {
+          const current = stack.pop();
+          if (!isObject(current)) continue;
+          for (const k of Object.keys(current)) {
+            if (keys.includes(k) && current[k]) {
+              return current[k];
+            }
+            const child = current[k];
+            if (isObject(child)) stack.push(child);
+            if (Array.isArray(child)) {
+              for (const item of child) if (isObject(item)) stack.push(item);
+            }
+          }
+        }
+        return null;
+      };
+
+      // Düz objeden kullanıcı oluştur (backend user alanını sarmalamadıysa)
+      const buildUserFromFlatObject = (obj) => {
+        if (!isObject(obj)) return null;
+        const id = obj.id ?? obj.userId ?? obj.Id ?? obj.UserId;
+        const fullName = obj.fullName ?? obj.name ?? obj.FullName ?? obj.Name;
+        const email = obj.email ?? obj.Email ?? obj.username ?? obj.userName ?? obj.UserName;
+        if (id != null && (fullName || email)) {
+          return { id, fullName: fullName || '', email: email || '' };
+        }
+        return null;
+      };
+
+      const tokenKeys = [
+        'token', 'Token', 'accessToken', 'access_token', 'access-token', 'jwt', 'jwtToken', 'idToken',
+        'authToken', 'bearerToken', 'tokenString', 'Authorization', 'authorization'
+      ];
+      const userKeys = ['user', 'User', 'userInfo', 'profile', 'userDto', 'userDTO', 'userModel', 'userData'];
+
+      let extractedToken =
+        payload?.token ?? payload?.Token ?? envelope?.token ?? envelope?.Token ??
+        payload?.accessToken ?? envelope?.accessToken ??
+        findDeepByKeys(payload, tokenKeys) ?? findDeepByKeys(envelope, tokenKeys);
+      let extractedUser =
+        payload?.user ?? payload?.User ?? envelope?.user ?? envelope?.User ??
+        findDeepByKeys(payload, userKeys) ?? findDeepByKeys(envelope, userKeys);
+
+      // user anahtarı yoksa, kök objeden türetmeyi dene
+      if (!extractedUser) {
+        extractedUser = buildUserFromFlatObject(payload) ?? buildUserFromFlatObject(envelope);
+      }
+
+      if (extractedToken && extractedUser) {
+        await login(extractedUser, extractedToken);
+        showToast('Giriş başarılı!', 'success');
+        
+        setTimeout(() => {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Home' }],
+          });
+        }, 1500);
+      } else if (envelope?.success === false) {
+        showToast(envelope?.message || 'Giriş başarısız', 'error');
       } else {
-        Alert.alert('Hata', response.data.message || 'Giriş bilgileri hatalı');
+        console.warn('Giriş yanıtı beklenen formatta değil:', envelope);
+        showToast('Giriş başarısız', 'error');
       }
     } catch (error) {
-      console.log('Giriş hatası:', {
-        message: error.message,
-        code: error.code,
-        response: error.response?.data,
-        status: error.response?.status
-      });
-
-      let errorMessage = 'Giriş yapılırken bir hata oluştu.';
+      console.error('Login hatası:', error);
       
-      if (error.message === 'Network Error') {
-        errorMessage = 'Sunucuya bağlanılamadı. Lütfen internet bağlantınızı ve sunucunun çalıştığından emin olun.';
-      } else if (error.response) {
-        if (error.response.status === 401) {
-          errorMessage = 'E-posta veya şifre hatalı.';
-        } else if (error.response.data && error.response.data.message) {
-          errorMessage = error.response.data.message;
+      // Backend'den gelen hata mesajını al
+      let errorMessage = 'Giriş başarısız';
+      
+      if (error.response?.status === 401) {
+        errorMessage = 'E-posta veya şifre hatalı';
+      } else 
+      if (error.response?.status === 500) {
+        // Backend'den gelen detaylı hata mesajı
+        const serverError = error.response.data;
+        if (serverError && typeof serverError === 'string') {
+          // System.UnauthorizedAccessException mesajını temizle
+          if (serverError.includes('E-posta veya şifre hatalı')) {
+            errorMessage = 'E-posta veya şifre hatalı';
+          } else {
+            errorMessage = serverError;
+          }
         }
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
       }
       
-      Alert.alert('Bağlantı Hatası', errorMessage);
+      showToast(errorMessage, 'error');
     } finally {
       setLoading(false);
     }
   };
 
+
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Giriş Yap</Text>
-      {loading && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0000ff" />
-          <Text>Giriş yapılıyor...</Text>
-        </View>
-      )}
-      <Formik
-        initialValues={{ email: '', password: '' }}
-        validationSchema={LoginSchema}
-        onSubmit={handleLogin}
+    <KeyboardAvoidingView 
+      style={styles.container} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
       >
-        {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
-          <View>
-            <Text style={styles.label}>E-posta:</Text>
-            <TextInput
-              style={styles.input}
-              onChangeText={handleChange('email')}
-              onBlur={handleBlur('email')}
-              value={values.email}
-              placeholder="E-posta adresinizi girin"
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            {errors.email && touched.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
-
-            <Text style={styles.label}>Şifre:</Text>
-            <TextInput
-              style={styles.input}
-              onChangeText={handleChange('password')}
-              onBlur={handleBlur('password')}
-              value={values.password}
-              placeholder="Şifrenizi girin"
-              secureTextEntry
-            />
-            {errors.password && touched.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
-
-            <Button title="Giriş Yap" onPress={handleSubmit} disabled={loading} />
+        <Animated.View
+          style={[
+            styles.content,
+            {
+              opacity: fadeAnim,
+              transform: [
+                { translateY: slideAnim },
+                { scale: scaleAnim }
+              ],
+            },
+          ]}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Ev Arkadaşım</Text>
+            <Text style={styles.subtitle}>Hesabınıza giriş yapın</Text>
           </View>
-        )}
-      </Formik>
 
-      <View style={styles.footer}>
-        <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-          <Text style={styles.linkText}>Kayıt Ol</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
-          <Text style={styles.linkText}>Şifremi Unuttum</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+          {/* Login Form */}
+          <Card style={styles.formCard}>
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>E-posta</Text>
+              <TextInput
+                value={email}
+                onChangeText={setEmail}
+                placeholder="E-posta adresinizi girin"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Şifre</Text>
+              <TextInput
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Şifrenizi girin"
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+
+                         <View style={styles.buttonContainer}>
+               <Button
+                 title="Giriş Yap"
+                 onPress={handleLogin}
+                 loading={loading}
+                 style={styles.loginButton}
+               />
+             </View>
+          </Card>
+
+          {/* Navigation Links */}
+          <View style={styles.navigationLinks}>
+            <Text 
+              style={styles.linkText}
+              onPress={() => navigation.navigate('ForgotPasswordScreen')}
+            >
+              Şifremi Unuttum
+            </Text>
+            
+            <Text 
+              style={styles.linkText}
+              onPress={() => navigation.navigate('SignupScreen')}
+            >
+              Hesap Oluştur
+            </Text>
+          </View>
+        </Animated.View>
+      </ScrollView>
+
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={hideToast}
+      />
+    </KeyboardAvoidingView>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    padding: 16, 
-    justifyContent: 'center', 
-    backgroundColor: '#fff' 
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
   },
-  title: { 
-    fontSize: 24, 
-    fontWeight: 'bold', 
-    marginBottom: 16, 
-    textAlign: 'center' 
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
   },
-  label: { 
-    fontSize: 18, 
-    marginBottom: 8 
+  content: {
+    padding: 20,
   },
-  input: { 
-    height: 40, 
-    borderColor: '#ccc', 
-    borderWidth: 1, 
-    marginBottom: 16, 
-    paddingHorizontal: 8, 
-    borderRadius: 5 
+  header: {
+    alignItems: 'center',
+    marginBottom: 32,
   },
-  loadingContainer: { 
-    alignItems: 'center', 
-    marginBottom: 16 
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: Colors.text.primary,
+    marginBottom: 8,
   },
-  errorText: { 
-    color: 'red', 
-    fontSize: 14, 
-    marginBottom: 8 
+  subtitle: {
+    fontSize: 16,
+    color: Colors.text.secondary,
+    textAlign: 'center',
   },
-  footer: { 
-    marginTop: 20, 
-    alignItems: 'center' 
+  formCard: {
+    marginBottom: 24,
   },
-  linkText: { 
-    color: 'blue', 
-    fontSize: 16, 
-    marginTop: 10, 
-    textDecorationLine: 'underline' 
+  inputContainer: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    marginBottom: 8,
+  },
+  buttonContainer: {
+    gap: 12,
+    marginTop: 8,
+  },
+  loginButton: {
+    marginBottom: 8,
+  },
+  testButton: {
+    marginBottom: 8,
+  },
+  navigationLinks: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  linkText: {
+    fontSize: 14,
+    color: Colors.primary[500],
+    fontWeight: '500',
   },
 });
+
+export default LoginScreen;

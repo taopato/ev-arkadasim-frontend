@@ -1,133 +1,385 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Button, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import api from '../services/api';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  ScrollView,
+  Platform
+} from 'react-native';
+import { useAuth } from '../context/AuthContext';
+import { houseApi } from '../services/api';
+import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
+import { Colors } from '../../constants/Colors';
+import Toast from '../components/Toast';
 
 const EvGrubuArkadaslarimScreen = ({ route, navigation }) => {
-  // route.params'tan houseId parametresini al
-  const { houseId } = route.params || {}; // Varsayılan değer ekledik
+  const { houseId, houseName } = route.params || {};
+  const { user } = useAuth();
+  const [friends, setFriends] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
 
-  // Eğer houseId yoksa hata mesajı ver ve geri dön
-  if (!houseId) {
-    Alert.alert("Hata", "Geçerli bir ev ID'si bulunamadı.");
-    navigation.goBack(); // Geri dön
-    return null; // Boş bir ekran göster
-  }
+  const showToast = (message, type = 'success') => {
+    setToast({ visible: true, message, type });
+  };
 
-  const [friends, setFriends] = useState([]); // Ev arkadaşları listesi
-  const [loading, setLoading] = useState(false); // Yüklenme durumu
+  const hideToast = () => {
+    setToast(prev => ({ ...prev, visible: false }));
+  };
 
-  // İlk render sırasında ev arkadaşlarını getir
   useEffect(() => {
-    fetchFriends();
-  }, []);
+    if (!houseId) {
+      showToast('Geçerli bir ev ID\'si bulunamadı', 'error');
+      navigation.goBack();
+      return;
+    }
+    
+    fetchMembers();
+  }, [houseId]);
 
-  // Ev arkadaşlarını sunucudan al
-  const fetchFriends = async () => {
-    setLoading(true); // Yüklenme durumunu başlat
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchMembers();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
+  const fetchMembers = async () => {
+    setLoading(true);
     try {
-      const response = await api.get(`/House/Friends/${houseId}`);
-      if (response.data && Array.isArray(response.data)) {
-        setFriends(response.data); // Arkadaş listesini güncelle
+      const membersResponse = await houseApi.getMembers(houseId);
+      
+      if (membersResponse.data && Array.isArray(membersResponse.data)) {
+        const members = membersResponse.data;
+        
+        const membersWithDebts = await Promise.all(
+          members.map(async (member) => {
+            try {
+              const userId = member.userId || member.id;
+              const debtResponse = await houseApi.getUserDebts(userId, houseId);
+              
+              const debtData = debtResponse.data;
+              const netBalance = debtData.netBalance || 0;
+              const pairwise = debtData.pairwise || [];
+              
+              let debtStatus = 'Nötr';
+              if (netBalance > 0) {
+                debtStatus = 'Alacaklı';
+              } else if (netBalance < 0) {
+                debtStatus = 'Borçlu';
+              }
+              
+              return {
+                id: userId,
+                fullName: member.name || member.fullName || 'İsimsiz Kullanıcı',
+                email: member.email,
+                debtStatus: debtStatus,
+                balance: netBalance,
+                pairwise: pairwise
+              };
+            } catch (error) {
+              console.error(`${member.name} için borç/alacak bilgisi alınamadı:`, error);
+              return {
+                id: member.userId || member.id,
+                fullName: member.name || member.fullName || 'İsimsiz Kullanıcı',
+                email: member.email,
+                debtStatus: 'Nötr',
+                balance: 0,
+                pairwise: []
+              };
+            }
+          })
+        );
+        
+        setFriends(membersWithDebts);
       } else {
-        setFriends([]); // Veri yoksa boş liste
+        setFriends([]);
       }
     } catch (error) {
-      console.error(error);
-      Alert.alert('Hata', 'Ev arkadaşları alınamadı. Lütfen tekrar deneyin.');
+      console.error('API Hatası:', error);
+      setFriends([]);
     } finally {
-      setLoading(false); // Yüklenme durumunu bitir
+      setLoading(false);
     }
   };
 
-  // Bir arkadaşa tıklanınca yapılacak işlem
-  const handleFriendPress = (friend) => {
-    navigation.navigate('AlacakBorcIcmiScreen', { userId: friend.id }); // Borç/Alacak ekranına yönlendir
+  const getStatusText = (balance) => {
+    if (balance > 0) {
+      return `Alacağı: ${balance.toFixed(0)} ₺`;
+    } else if (balance < 0) {
+      return `Borcu: ${Math.abs(balance).toFixed(0)} ₺`;
+    } else {
+      return 'Nötr';
+    }
   };
 
-  // Harcama ekleme ekranına geçiş
-  const handleAddExpense = () => {
-    navigation.navigate('HarcamaEkleScreen', { houseId }); // Harcama ekleme ekranına houseId gönder
+  const getStatusColor = (balance) => {
+    if (balance > 0) return Colors.success[600];
+    if (balance < 0) return Colors.error[600];
+    return Colors.neutral[600];
   };
+
+  const handleCategoryPress = (utilityType, categoryName) => {
+    navigation.navigate('BillListScreen', {
+      houseId: houseId,
+      houseName: houseName,
+      utilityType: utilityType,
+      categoryName: categoryName
+    });
+  };
+
+  const handleAddExpense = () => {
+    navigation.navigate('HarcamaEkleScreen', {
+      houseId: houseId,
+      houseName: houseName
+    });
+  };
+
+  const handleMemberPress = (member) => {
+    navigation.navigate('AlacakBorcIcmiScreen', {
+      userId: member.id,
+      houseId: houseId
+    });
+  };
+
+  if (loading) {
+    return (
+      <View style={CommonStyles.container}>
+        <View style={CommonStyles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary[500]} />
+          <Text style={CommonStyles.loadingText}>Ev arkadaşları yükleniyor...</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Ev Arkadaşlarım</Text>
-      {/* Harcama ekleme butonu */}
-      <Button title="Harcama Ekle" onPress={handleAddExpense} />
-      {/* Yüklenme durumunda gösterilecek gösterge */}
-      {loading ? (
-        <ActivityIndicator size="large" color="#0000ff" />
-      ) : (
-        <FlatList
-          data={friends} // Arkadaş listesini ver
-          keyExtractor={(item, index) =>
-            item?.id ? item.id.toString() : index.toString()
-          } // Her bir öğeye benzersiz bir anahtar
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() => handleFriendPress(item)} // Arkadaşa tıklandığında
+    <View style={CommonStyles.container}>
+      <ScrollView style={CommonStyles.content}>
+        <View style={CommonStyles.header}>
+          <Text style={CommonStyles.title}>{houseName || 'Ev'} - Ev Arkadaşlarım</Text>
+          <Text style={CommonStyles.subtitle}>
+            {friends.length} üye • Harcama kategorilerini görüntüleyin
+          </Text>
+        </View>
+
+        {/* Ev Arkadaşları Listesi */}
+        <View style={CommonStyles.card}>
+          <Text style={styles.sectionTitle}>👥 Ev Arkadaşları</Text>
+          <View style={CommonStyles.listContainer}>
+            {friends.map((item) => {
+              const isCurrentUser = user && user.id === item.id;
+              const statusColor = getStatusColor(item.balance);
+              const statusText = getStatusText(item.balance);
+
+              return (
+                <TouchableOpacity
+                  key={item.id.toString()}
+                  style={[
+                    CommonStyles.listItem,
+                    isCurrentUser && styles.currentUserCard
+                  ]}
+                  onPress={() => handleMemberPress(item)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.avatarContainer}>
+                    <Text style={styles.avatarText}>
+                      {item.fullName ? item.fullName.charAt(0).toUpperCase() : '?'}
+                    </Text>
+                  </View>
+                  <View style={CommonStyles.listItemContent}>
+                    <Text style={CommonStyles.listItemTitle}>
+                      {item.fullName} {isCurrentUser && '(Sen)'}
+                    </Text>
+                    <Text style={CommonStyles.listItemSubtitle}>{item.email || 'Email yok'}</Text>
+                  </View>
+                  <View style={styles.balanceInfo}>
+                    <Text style={[styles.balanceText, { color: statusColor }]}>
+                      {statusText}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Harcama Kategorileri */}
+        <View style={CommonStyles.card}>
+          <Text style={styles.sectionTitle}>💰 Harcama Kategorileri</Text>
+          <View style={styles.categoriesGrid}>
+            <TouchableOpacity 
+              style={CommonStyles.menuButton}
+              onPress={() => handleCategoryPress(1, 'Kira')}
+              activeOpacity={0.8}
             >
-              <Text style={styles.name}>
-                {item.fullName} {item.isUser && '(Siz)'}
-              </Text>
-              <View style={styles.amounts}>
-                <Text style={styles.alacak}>Alacağı: {item.alacak || 0} TL</Text>
-                <Text style={styles.borc}>Borcu: {item.borc || 0} TL</Text>
+              <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.primary.background }]}>
+                <Text style={CommonStyles.buttonIcon}>🏠</Text>
+                <Text style={CommonStyles.buttonText}>Kira</Text>
+                <Text style={CommonStyles.buttonSubtext}>Kira ödemeleri</Text>
               </View>
             </TouchableOpacity>
-          )}
-          // Liste boşsa gösterilecek metin
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>Ev arkadaşlarınız bulunmamaktadır.</Text>
-          }
+            
+            <TouchableOpacity 
+              style={CommonStyles.menuButton}
+              onPress={() => handleCategoryPress(2, 'Elektrik')}
+              activeOpacity={0.8}
+            >
+              <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.warning.background }]}>
+                <Text style={CommonStyles.buttonIcon}>⚡</Text>
+                <Text style={CommonStyles.buttonText}>Elektrik</Text>
+                <Text style={CommonStyles.buttonSubtext}>Elektrik faturaları</Text>
+              </View>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={CommonStyles.menuButton}
+              onPress={() => handleCategoryPress(3, 'Su')}
+              activeOpacity={0.8}
+            >
+              <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.primary.background }]}>
+                <Text style={CommonStyles.buttonIcon}>💧</Text>
+                <Text style={CommonStyles.buttonText}>Su</Text>
+                <Text style={CommonStyles.buttonSubtext}>Su faturaları</Text>
+              </View>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={CommonStyles.menuButton}
+              onPress={() => handleCategoryPress(4, 'Doğalgaz')}
+              activeOpacity={0.8}
+            >
+              <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.warning.background }]}>
+                <Text style={CommonStyles.buttonIcon}>🔥</Text>
+                <Text style={CommonStyles.buttonText}>Doğalgaz</Text>
+                <Text style={CommonStyles.buttonSubtext}>Doğalgaz faturaları</Text>
+              </View>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={CommonStyles.menuButton}
+              onPress={() => handleCategoryPress(5, 'İnternet')}
+              activeOpacity={0.8}
+            >
+              <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.neutral.background }]}>
+                <Text style={CommonStyles.buttonIcon}>🌐</Text>
+                <Text style={CommonStyles.buttonText}>İnternet</Text>
+                <Text style={CommonStyles.buttonSubtext}>İnternet faturaları</Text>
+              </View>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={CommonStyles.menuButton}
+              onPress={handleAddExpense}
+              activeOpacity={0.8}
+            >
+              <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.success.background }]}>
+                <Text style={CommonStyles.buttonIcon}>🛒</Text>
+                <Text style={CommonStyles.buttonText}>Market</Text>
+                <Text style={CommonStyles.buttonSubtext}>Market harcamaları</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Alt Butonlar */}
+        <View style={styles.footerButtons}>
+          <TouchableOpacity 
+            style={CommonStyles.menuButton}
+            onPress={() => navigation.navigate('ReceivablesScreen', { houseId, houseName })}
+            activeOpacity={0.8}
+          >
+            <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.success.background }]}>
+              <Text style={CommonStyles.buttonIcon}>💚</Text>
+              <Text style={CommonStyles.buttonText}>Alacaklarım</Text>
+              <Text style={CommonStyles.buttonSubtext}>Alacak durumunuz</Text>
+            </View>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={CommonStyles.menuButton}
+            onPress={() => navigation.navigate('DebtsScreen', { houseId, houseName })}
+            activeOpacity={0.8}
+          >
+            <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.error.background }]}>
+              <Text style={CommonStyles.buttonIcon}>💔</Text>
+              <Text style={CommonStyles.buttonText}>Borçlarım</Text>
+              <Text style={CommonStyles.buttonSubtext}>Borç durumunuz</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Harcama Özeti Butonu */}
+        <TouchableOpacity 
+          style={CommonStyles.menuButton}
+          onPress={() => navigation.navigate('HouseSpendingOverviewScreen', { houseId, houseName })}
+          activeOpacity={0.8}
+        >
+          <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.primary.background }]}>
+            <Text style={CommonStyles.buttonIcon}>📊</Text>
+            <Text style={CommonStyles.buttonText}>Harcama Özeti</Text>
+            <Text style={CommonStyles.buttonSubtext}>Genel harcama durumu</Text>
+          </View>
+        </TouchableOpacity>
+
+        <Toast
+          visible={toast.visible}
+          message={toast.message}
+          type={toast.type}
+          onHide={hideToast}
         />
-      )}
+      </ScrollView>
     </View>
   );
 };
 
-// Stil dosyası
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-    backgroundColor: '#f8f8f8',
-  },
-  title: {
-    fontSize: 24,
+  sectionTitle: {
+    fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 16,
-    textAlign: 'center',
+    color: Colors.text.primary,
   },
-  card: {
-    backgroundColor: '#e9ecef',
-    padding: 16,
-    borderRadius: 8,
-    marginVertical: 8,
+  currentUserCard: {
+    borderWidth: 3,
+    borderColor: Colors.primary[500],
   },
-  name: {
-    fontSize: 18,
+  avatarContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: Colors.primary[500],
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  avatarText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: Colors.background,
+  },
+  balanceInfo: {
+    alignItems: 'flex-end',
+  },
+  balanceText: {
+    fontSize: 16,
     fontWeight: 'bold',
   },
-  amounts: {
+  categoriesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  footerButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  alacak: {
-    color: 'green',
-    fontWeight: 'bold',
-  },
-  borc: {
-    color: 'red',
-    fontWeight: 'bold',
-  },
-  emptyText: {
-    textAlign: 'center',
-    fontSize: 16,
-    color: '#999',
-    marginTop: 20,
+    gap: 12,
+    marginBottom: 20,
   },
 });
 

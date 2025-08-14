@@ -7,11 +7,14 @@ import {
   ActivityIndicator,
   Alert,
   TouchableOpacity,
+  ScrollView,
 } from 'react-native';
-import api from '../services/api';
+import { houseApi } from '../services/api';
+import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
+import { Colors } from '../../constants/Colors';
 
 export default function AlacakBorcIcmiScreen({ route, navigation }) {
-  const { userId } = route.params; // Seçilen kullanıcının ID'si
+  const { userId, houseId } = route.params; // Seçilen kullanıcının ID'si ve ev ID'si
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -22,7 +25,7 @@ export default function AlacakBorcIcmiScreen({ route, navigation }) {
   const fetchUserDetails = async () => {
     setLoading(true);
     try {
-      const response = await api.get(`/House/FriendsDetails/${userId}`);
+      const response = await houseApi.getUserDebts(userId, houseId);
       setData(response.data);
     } catch (error) {
       console.error(error);
@@ -59,69 +62,101 @@ export default function AlacakBorcIcmiScreen({ route, navigation }) {
   };
 
   return (
-    <View style={styles.container}>
-      {loading ? (
-        <ActivityIndicator size="large" color="#0000ff" />
-      ) : (
-        <>
-          <Text style={styles.title}>
-            {data?.user?.fullName} {data?.user?.isCurrentUser && '(Siz)'}
-          </Text>
-          <View style={styles.amountContainer}>
-            <Text style={styles.alacak}>Alacağı: {data?.user?.alacak} TL</Text>
-            <Text style={styles.borc}>Borcu: {data?.user?.borc} TL</Text>
+    <View style={CommonStyles.container}>
+      <ScrollView style={CommonStyles.content}>
+        {loading ? (
+          <View style={CommonStyles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.primary[500]} />
+            <Text style={CommonStyles.loadingText}>Borç/Alacak bilgileri yükleniyor...</Text>
           </View>
-          <FlatList
-            data={data?.friends}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => (
-              <View style={styles.card}>
-                <Text style={styles.name}>
-                  {item.fullName} {item.isCurrentUser && '(Siz)'}
-                </Text>
-                <View style={styles.amounts}>
-                  <Text style={styles.alacak}>
-                    Alacağı: {item.alacak} TL
-                  </Text>
-                  <Text style={styles.borc}>
-                    Borcu: {item.borc} TL
-                  </Text>
+        ) : (
+          <>
+            <View style={CommonStyles.header}>
+              <Text style={CommonStyles.title}>Borç/Alacak Detayı</Text>
+              <Text style={CommonStyles.subtitle}>Kullanıcının borç ve alacak durumu</Text>
+            </View>
+
+            <View style={CommonStyles.card}>
+              <View style={styles.amountContainer}>
+                <View style={[styles.amountItem, { backgroundColor: Colors.success[50] }]}>
+                  <Text style={styles.amountLabel}>Toplam Alacak</Text>
+                  <Text style={styles.alacak}>{data?.data?.toplamAlacak || 0} TL</Text>
+                </View>
+                <View style={[styles.amountItem, { backgroundColor: Colors.error[50] }]}>
+                  <Text style={styles.amountLabel}>Toplam Borç</Text>
+                  <Text style={styles.borc}>{data?.data?.toplamBorc || 0} TL</Text>
+                </View>
+                <View style={[styles.amountItem, { backgroundColor: Colors.primary[50] }]}>
+                  <Text style={styles.amountLabel}>Net Durum</Text>
+                  <Text style={styles.netDurum}>{data?.data?.netDurum || 0} TL</Text>
                 </View>
               </View>
-            )}
-          />
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={handleDeleteFriend}
-          >
-            <Text style={styles.deleteButtonText}>Ev Arkadaşı Sil</Text>
-          </TouchableOpacity>
-        </>
-      )}
+            </View>
+
+            <View style={CommonStyles.listContainer}>
+              {(data?.data?.detaylar || []).map((item, index) => (
+                <View key={index} style={CommonStyles.listItem}>
+                  <View style={CommonStyles.listItemContent}>
+                    <Text style={CommonStyles.listItemTitle}>{item.tur}</Text>
+                    <View style={styles.amounts}>
+                      <Text style={styles.alacak}>Tutar: {item.tutar} TL</Text>
+                      <Text style={styles.borc}>Paylaşım: {item.paylasimTutari} TL</Text>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={[CommonStyles.menuButton]}
+              onPress={handleDeleteFriend}
+              activeOpacity={0.8}
+            >
+              <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.error.background }]}>
+                <Text style={CommonStyles.buttonIcon}>🗑️</Text>
+                <Text style={CommonStyles.buttonText}>Ev Arkadaşı Sil</Text>
+                <Text style={CommonStyles.buttonSubtext}>Kullanıcıyı ev grubundan çıkar</Text>
+              </View>
+            </TouchableOpacity>
+          </>
+        )}
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#f8f8f8' },
-  title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 16 },
-  amountContainer: { marginBottom: 16 },
-  alacak: { color: 'green', fontSize: 16, fontWeight: 'bold' },
-  borc: { color: 'red', fontSize: 16, fontWeight: 'bold' },
-  card: {
-    backgroundColor: '#e9ecef',
-    padding: 16,
-    borderRadius: 8,
-    marginVertical: 8,
+  amountContainer: { 
+    gap: 12,
   },
-  name: { fontSize: 18, fontWeight: 'bold' },
-  amounts: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
-  deleteButton: {
-    backgroundColor: 'red',
+  amountItem: {
     padding: 16,
     borderRadius: 8,
-    marginTop: 16,
     alignItems: 'center',
   },
-  deleteButtonText: { color: 'white', fontWeight: 'bold' },
+  amountLabel: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    marginBottom: 4,
+  },
+  alacak: { 
+    color: Colors.success[600], 
+    fontSize: 18, 
+    fontWeight: 'bold' 
+  },
+  borc: { 
+    color: Colors.error[600], 
+    fontSize: 18, 
+    fontWeight: 'bold' 
+  },
+  netDurum: { 
+    color: Colors.primary[600], 
+    fontSize: 18, 
+    fontWeight: 'bold' 
+  },
+  amounts: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    marginTop: 8 
+  },
 });

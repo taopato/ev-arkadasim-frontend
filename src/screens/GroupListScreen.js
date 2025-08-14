@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, FlatList, Text, TouchableOpacity, ActivityIndicator, Alert, StyleSheet } from 'react-native';
-import api from '../services/api';
+import { View, FlatList, Text, TouchableOpacity, ActivityIndicator, Alert, StyleSheet, Platform, ScrollView } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { houseApi } from '../services/api';
+import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
+import { Colors } from '../../constants/Colors';
 
 export default function GroupListScreen({ navigation }) {
   const [houses, setHouses] = useState([]);
@@ -17,94 +19,94 @@ export default function GroupListScreen({ navigation }) {
   }, [user]);
 
   const fetchHouses = async () => {
+    setLoading(true);
     try {
-      console.log('Ev grupları getiriliyor. Kullanıcı ID:', user.id);
-      const response = await api.get(`/House/User/${user.id}`);
-      console.log('Gelen ev grupları (detaylı):', JSON.stringify(response.data, null, 2));
+      const response = await houseApi.getUserHouses(user.id);
       
       if (response.data && Array.isArray(response.data)) {
-        console.log('Ev grupları dizisi uzunluğu:', response.data.length);
-        console.log('İlk ev grubu örneği:', response.data[0]);
         setHouses(response.data);
-        
-        if (response.data.length === 0) {
-          Alert.alert('Bilgi', 'Henüz bir ev grubunuz bulunmamaktadır.');
-        }
       } else {
-        console.log('Gelen veri array değil:', typeof response.data);
+        console.error('Gelen veri array değil:', typeof response.data);
         setHouses([]);
-        Alert.alert('Bilgi', 'Ev grupları verisi beklenen formatta değil.');
       }
     } catch (error) {
-      console.error('Ev grupları getirilirken hata:', error);
-      Alert.alert('Hata', 'Ev bilgileri alınamadı.');
+      console.error('Ev grupları alınamadı:', error);
+      setHouses([]);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleCreateHouse = () => {
+    navigation.navigate('NewGroupScreen');
+  };
+
+  const handleHousePress = (house) => {
+    navigation.navigate('EvGrubuArkadaslarimScreen', {
+      houseId: house.id,
+      houseName: house.name
+    });
+  };
+
+  const renderHouseItem = ({ item }) => (
+    <TouchableOpacity
+      style={[CommonStyles.menuButton]}
+      onPress={() => handleHousePress(item)}
+      activeOpacity={0.8}
+    >
+      <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.primary.background }]}>
+        <Text style={CommonStyles.buttonIcon}>🏠</Text>
+        <Text style={CommonStyles.buttonText}>{item.name}</Text>
+        <Text style={CommonStyles.buttonSubtext}>
+          Oluşturulma: {new Date(item.createdAt).toLocaleDateString('tr-TR')}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Ev Gruplarım</Text>
-      {loading ? (
-        <ActivityIndicator size="large" color="#0000ff" />
-      ) : (
-        <FlatList
-          data={houses}
-          keyExtractor={(item) => item.houseId.toString()}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() =>
-                navigation.navigate('EvGrubuArkadaslarimScreen', { houseId: item.houseId })
-              }
-            >
-              <Text style={styles.name}>{item.houseName}</Text>
-            </TouchableOpacity>
-          )}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>Henüz bir ev grubunuz bulunmamaktadır.</Text>
-          }
-        />
-      )}
+    <View style={CommonStyles.container}>
+      <ScrollView style={CommonStyles.content}>
+        <View style={CommonStyles.header}>
+          <Text style={CommonStyles.title}>Ev Gruplarım</Text>
+          <Text style={CommonStyles.subtitle}>Ev gruplarınızı görüntüleyin ve yönetin</Text>
+        </View>
+        
+        <TouchableOpacity
+          style={[CommonStyles.menuButton]}
+          onPress={handleCreateHouse}
+          activeOpacity={0.8}
+        >
+          <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.success.background }]}>
+            <Text style={CommonStyles.buttonIcon}>➕</Text>
+            <Text style={CommonStyles.buttonText}>Yeni Ev Grubu Oluştur</Text>
+            <Text style={CommonStyles.buttonSubtext}>Yeni bir ev grubu oluşturun</Text>
+          </View>
+        </TouchableOpacity>
+        
+        {loading ? (
+          <View style={CommonStyles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.primary[500]} />
+            <Text style={CommonStyles.loadingText}>Ev grupları yükleniyor...</Text>
+          </View>
+        ) : houses.length > 0 ? (
+          <View style={CommonStyles.listContainer}>
+            {houses.map((item) => (
+              <View key={item.id.toString()}>
+                {renderHouseItem({ item })}
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={CommonStyles.emptyContainer}>
+            <Text style={CommonStyles.emptyIcon}>🏠</Text>
+            <Text style={CommonStyles.emptyText}>Henüz bir ev grubunuz bulunmamaktadır.</Text>
+            <Text style={CommonStyles.emptyText}>İlk ev grubunuzu oluşturmak için yukarıdaki butona tıklayın.</Text>
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    padding: 16, 
-    backgroundColor: "#f8f8f8" 
-  },
-  title: { 
-    fontSize: 24, 
-    fontWeight: "bold", 
-    textAlign: "center", 
-    marginBottom: 16 
-  },
-  card: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 8,
-    marginVertical: 8,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  name: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  emptyText: {
-    textAlign: 'center',
-    fontSize: 16,
-    color: '#666',
-    marginTop: 20,
-  }
-});
+

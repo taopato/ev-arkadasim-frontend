@@ -1,82 +1,212 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  ScrollView,
+  Alert
+} from 'react-native';
+import { useAuth } from '../context/AuthContext';
+import { useUserHouses } from '../features/houses/get-user-houses/hooks';
+import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
+import { Colors } from '../../constants/Colors';
 
 const HomeScreen = ({ navigation }) => {
+  const { user, logout } = useAuth();
+
+  // Yeni houses modülü hooks'u kullanıyoruz
+  const { data: userHouses = [], isLoading: housesLoading, error, refetch } = useUserHouses(user?.id);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      refetch();
+    });
+
+    return unsubscribe;
+  }, [navigation, refetch]);
+
+  // Hata durumunu kontrol et
+  useEffect(() => {
+    if (error) {
+      console.error('Ev listesi hatası:', error);
+    }
+  }, [error]);
+
+  const handleButtonPress = (screenName, params = {}) => {
+    navigation.navigate(screenName, params);
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Çıkış Yap',
+      'Çıkış yapmak istediğinizden emin misiniz?',
+      [
+        {
+          text: 'İptal',
+          style: 'cancel',
+        },
+        {
+          text: 'Çıkış Yap',
+          style: 'destructive',
+          onPress: logout,
+        },
+      ]
+    );
+  };
+
+  if (housesLoading) {
+    return (
+      <View style={CommonStyles.container}>
+        <View style={CommonStyles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary[500]} />
+          <Text style={CommonStyles.loadingText}>Ev grupları yükleniyor...</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      {/* Sadece bu "Ev Arkadaşlarım" butonu kalacak */}
-      <TouchableOpacity 
-        style={styles.headerButton} 
-        onPress={() => navigation.navigate('GroupListScreen')} // Ev Gruplarım ekranına yönlendirme
-      >
-        <Text style={styles.headerButtonText}>Ev Arkadaşlarım</Text>
-      </TouchableOpacity>
+    <View style={CommonStyles.container}>
+      <ScrollView style={CommonStyles.content}>
+        <View style={CommonStyles.header}>
+          <Text style={CommonStyles.title}>Hoş Geldiniz!</Text>
+          <Text style={CommonStyles.subtitle}>
+            {user?.fullName || 'Kullanıcı'} • {userHouses?.data?.length ?? userHouses.length} ev grubu
+          </Text>
+        </View>
 
-      {/* Orta Bölüm */}
-      <View style={styles.gridContainer}>
-        <TouchableOpacity style={styles.gridButton} onPress={() => navigation.navigate('Harcama')}>
-          <Text style={styles.gridButtonText}>Harcama</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.gridButton} onPress={() => navigation.navigate('BorcOdeme')}>
-          <Text style={styles.gridButtonText}>Borç Ödeme</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.gridButton} onPress={() => navigation.navigate('Kira')}>
-          <Text style={styles.gridButtonText}>Kira</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.gridButton} onPress={() => navigation.navigate('Aidat')}>
-          <Text style={styles.gridButtonText}>Aidat</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.gridButton} onPress={() => navigation.navigate('Elektrik')}>
-          <Text style={styles.gridButtonText}>Elektrik</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.gridButton} onPress={() => navigation.navigate('Su')}>
-          <Text style={styles.gridButtonText}>Su</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.gridButton} onPress={() => navigation.navigate('Dogalgaz')}>
-          <Text style={styles.gridButtonText}>Doğalgaz</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.gridButton} onPress={() => navigation.navigate('Internet')}>
-          <Text style={styles.gridButtonText}>İnternet</Text>
-        </TouchableOpacity>
-      </View>
+        {/* Ev Grupları */}
+        {(userHouses?.data?.length ?? userHouses.length) > 0 && (
+          <View style={CommonStyles.card}>
+            <Text style={styles.sectionTitle}>🏠 Ev Gruplarım</Text>
+            <View style={CommonStyles.listContainer}>
+              {(userHouses.data ?? userHouses).map((house) => (
+                <TouchableOpacity
+                  key={house.id.toString()}
+                  style={CommonStyles.listItem}
+                  onPress={() => handleButtonPress('EvGrubuArkadaslarimScreen', {
+                    houseId: house.id,
+                    houseName: house.name
+                  })}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.houseIconContainer}>
+                    <Text style={styles.houseIcon}>🏠</Text>
+                  </View>
+                  <View style={CommonStyles.listItemContent}>
+                    <Text style={CommonStyles.listItemTitle}>{house.name}</Text>
+                    <Text style={CommonStyles.listItemSubtitle}>
+                      {house.memberCount || 0} üye
+                    </Text>
+                  </View>
+                  <View style={styles.arrowContainer}>
+                    <Text style={styles.arrowText}>→</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
 
-      {/* Alt Bölüm */}
-      <View style={styles.footerContainer}>
-        <TouchableOpacity style={[styles.footerButton, styles.greenButton]} onPress={() => navigation.navigate('Alacaklarim')}>
-          <Text style={styles.footerButtonText}>Alacaklarım</Text>
+        {/* Ana Menü Butonları */}
+        <View style={CommonStyles.card}>
+          <Text style={styles.sectionTitle}>📱 Ana Menü</Text>
+          
+          <TouchableOpacity 
+            style={CommonStyles.menuButton}
+            onPress={() => handleButtonPress('GroupListScreen')}
+            activeOpacity={0.8}
+          >
+            <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.primary.background }]}>
+              <Text style={CommonStyles.buttonIcon}>🏘️</Text>
+              <Text style={CommonStyles.buttonText}>Ev Gruplarım</Text>
+              <Text style={CommonStyles.buttonSubtext}>Tüm ev gruplarını görüntüle</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={CommonStyles.menuButton}
+            onPress={() => handleButtonPress('NewGroupScreen')}
+            activeOpacity={0.8}
+          >
+            <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.success.background }]}>
+              <Text style={CommonStyles.buttonIcon}>➕</Text>
+              <Text style={CommonStyles.buttonText}>Yeni Grup Oluştur</Text>
+              <Text style={CommonStyles.buttonSubtext}>Yeni ev grubu ekle</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={CommonStyles.menuButton}
+            onPress={() => handleButtonPress('PaymentApproval')}
+            activeOpacity={0.8}
+          >
+            <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.warning.background }]}>
+              <Text style={CommonStyles.buttonIcon}>⏳</Text>
+              <Text style={CommonStyles.buttonText}>Bekleyen Ödemeler</Text>
+              <Text style={CommonStyles.buttonSubtext}>Onay bekleyen ödemeler</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={CommonStyles.menuButton}
+            onPress={() => handleButtonPress('CreatePayment')}
+            activeOpacity={0.8}
+          >
+            <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.primary.background }]}>
+              <Text style={CommonStyles.buttonIcon}>💳</Text>
+              <Text style={CommonStyles.buttonText}>Ödeme Yap</Text>
+              <Text style={CommonStyles.buttonSubtext}>Arkadaşınıza ödeme yapın</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Çıkış Butonu */}
+        <TouchableOpacity 
+          style={CommonStyles.menuButton}
+          onPress={handleLogout}
+          activeOpacity={0.8}
+        >
+          <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.error.background }]}>
+            <Text style={CommonStyles.buttonIcon}>🚪</Text>
+            <Text style={CommonStyles.buttonText}>Çıkış Yap</Text>
+            <Text style={CommonStyles.buttonSubtext}>Hesabınızdan çıkış yapın</Text>
+          </View>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.footerButton, styles.redButton]} onPress={() => navigation.navigate('Borclarim')}>
-          <Text style={styles.footerButtonText}>Borçlarım</Text>
-        </TouchableOpacity>
-      </View>
+      </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa' },
-  headerButton: {
-    backgroundColor: '#b0bec5',
-    padding: 15,
-    alignItems: 'center',
-    marginBottom: 20,
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    color: Colors.text.primary,
   },
-  headerButtonText: { fontSize: 20, fontWeight: 'bold', color: '#000' },
-  gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-evenly' },
-  gridButton: {
-    width: '40%',
-    backgroundColor: '#90caf9',
-    padding: 20,
-    marginVertical: 10,
+  houseIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: Colors.primary[100],
+    justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 10,
+    marginRight: 12,
   },
-  gridButtonText: { fontSize: 16, fontWeight: 'bold', color: '#fff' },
-  footerContainer: { flexDirection: 'row', justifyContent: 'space-evenly', marginVertical: 20 },
-  footerButton: { padding: 15, borderRadius: 10, width: '40%', alignItems: 'center' },
-  greenButton: { backgroundColor: '#4caf50' },
-  redButton: { backgroundColor: '#f44336' },
-  footerButtonText: { fontSize: 16, fontWeight: 'bold', color: '#fff' },
+  houseIcon: {
+    fontSize: 24,
+  },
+  arrowContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  arrowText: {
+    fontSize: 20,
+    color: Colors.text.secondary,
+  },
 });
 
 export default HomeScreen;
