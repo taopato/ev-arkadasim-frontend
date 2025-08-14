@@ -11,6 +11,7 @@ import {
 import { houseApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
+import eventBus from '../shared/events/bus';
 import { Colors } from '../../constants/Colors';
 
 const DebtsScreen = ({ route, navigation }) => {
@@ -31,7 +32,16 @@ const DebtsScreen = ({ route, navigation }) => {
       fetchAll();
     });
 
-    return unsubscribe;
+    // Payments değişince otomatik yenile
+    const off = eventBus.on('payments:updated', (p) => {
+      if (!p || !p.houseId || p.houseId !== houseId) return;
+      fetchAll();
+    });
+
+    return () => {
+      unsubscribe?.();
+      off?.();
+    };
   }, [houseId, user, navigation]);
 
   const fetchAll = async () => {
@@ -53,13 +63,15 @@ const DebtsScreen = ({ route, navigation }) => {
       const body = debtsRes?.data;
       const envelope = body?.data ?? body;
       const netBalance = envelope?.netBalance ?? envelope?.netDurum ?? 0;
+      const toplamBorc = envelope?.toplamBorc ?? 0;
+      const toplamAlacak = envelope?.toplamAlacak ?? 0;
       const byCounterpart = Array.isArray(envelope?.byCounterpart)
         ? envelope.byCounterpart
         : Array.isArray(envelope?.kullaniciBazliDurumlar)
           ? envelope.kullaniciBazliDurumlar
           : [];
 
-      setDebtInfo({ netBalance, byCounterpart });
+      setDebtInfo({ netBalance, byCounterpart, toplamBorc, toplamAlacak });
     } catch (error) {
       console.error('Borç bilgileri alınamadı:', error);
       setMembers([]);
@@ -96,7 +108,7 @@ const DebtsScreen = ({ route, navigation }) => {
       // item.fromUserId => ben alacaklıyım (karşıdan alacak)
       const counterUserIdRaw = item.toUserId ?? item.fromUserId ?? item.userId ?? item.counterUserId ?? item.karsiUserId ?? item.id;
       const counterUserId = counterUserIdRaw != null ? Number(counterUserIdRaw) : undefined;
-      const amount = Number(item.amount ?? 0);
+      const amount = Number(item.amount ?? item.tutar ?? 0);
       const type = item.toUserId ? 'debt' : item.fromUserId ? 'receivable' : (amount > 0 ? 'receivable' : 'debt');
       const member = membersMap[String(counterUserId)] ?? {};
       return {
@@ -108,6 +120,14 @@ const DebtsScreen = ({ route, navigation }) => {
       };
     });
   }, [debtInfo, membersMap]);
+
+  const debtRows = useMemo(() => (rows || []).filter(r => r.type === 'debt'), [rows]);
+  const totalDebt = useMemo(() => {
+    const apiVal = debtInfo?.toplamBorc;
+    const apiNum = Number(apiVal);
+    if (Number.isFinite(apiNum)) return apiNum;
+    return debtRows.reduce((sum, r) => sum + (Math.abs(Number(r.amount)) || 0), 0);
+  }, [debtInfo, debtRows]);
 
   const handleCreatePayment = (row) => {
     if (row.type !== 'debt') return;
@@ -138,28 +158,35 @@ const DebtsScreen = ({ route, navigation }) => {
           <Text style={CommonStyles.subtitle}>
             {houseName} • Toplam borcunuz
           </Text>
+          <TouchableOpacity
+            style={[CommonStyles.menuButton, { marginTop: 8 }]}
+            onPress={fetchAll}
+            activeOpacity={0.8}
+          >
+            <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.neutral.background }]}>
+              <Text style={CommonStyles.buttonIcon}>🔁</Text>
+              <Text style={CommonStyles.buttonText}>Yenile</Text>
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* Net Durum Kartı */}
         <View style={CommonStyles.card}>
-          <Text style={styles.sectionTitle}>💔 Net Durum</Text>
+          <Text style={styles.sectionTitle}>💔 Toplam Borç</Text>
           <View style={styles.netStatusContainer}>
-            <Text style={[styles.netAmount, { color: getStatusColor(debtInfo?.netBalance || 0) }]}>
-              {formatAmount(debtInfo?.netBalance || 0)}
+            <Text style={[styles.netAmount, { color: Colors.error[600] }]}>
+              {formatAmount(totalDebt)}
             </Text>
-            <Text style={styles.netLabel}>
-              {debtInfo?.netBalance > 0 ? 'Toplam Alacağınız' : 
-               debtInfo?.netBalance < 0 ? 'Toplam Borcunuz' : 'Net Durum'}
-            </Text>
+            <Text style={styles.netLabel}>Toplam Borcunuz</Text>
           </View>
         </View>
 
         {/* Karşı Kullanıcılar */}
-        {rows && rows.length > 0 ? (
+        {debtRows && debtRows.length > 0 ? (
           <View style={CommonStyles.card}>
             <Text style={styles.sectionTitle}>👥 Ev Arkadaşları</Text>
             <View style={CommonStyles.listContainer}>
-              {rows.map((row, index) => {
+              {debtRows.map((row, index) => {
                 const statusColor = getStatusColor(row.type === 'debt' ? -1 : 1);
                 const statusText = row.type === 'debt' ? 'Borçlu (Öde)' : 'Alacaklı';
 
@@ -183,7 +210,7 @@ const DebtsScreen = ({ route, navigation }) => {
                     </View>
                     <View style={styles.amountContainer}>
                       <Text style={[styles.amountText, { color: statusColor }]}>
-                        {formatAmount(row.amount)}
+                        {formatAmount(Math.abs(row.amount))}
                       </Text>
                       <Text style={[styles.statusText, { color: statusColor }]}>
                         {statusText}

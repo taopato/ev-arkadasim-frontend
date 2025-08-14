@@ -285,14 +285,29 @@ export const billsApi = {
 // Payments işlemleri
 export const paymentsApi = {
   create: async (paymentData) => {
-    // Plan: JSON body { houseId, borcluUserId, alacakliUserId, tutar, method, note }
+    // JSON veya multipart (IBAN/Havale için dekont zorunlu)
+    if (paymentData.method === 'BankTransfer' && paymentData.slipFile) {
+      const formData = new FormData();
+      // Swagger alan adları ile uyumlu gönderim
+      formData.append('HouseId', String(paymentData.houseId));
+      formData.append('BorcluUserId', String(paymentData.borcluUserId));
+      formData.append('AlacakliUserId', String(paymentData.alacakliUserId));
+      formData.append('Tutar', String(paymentData.tutar));
+      formData.append('PaymentMethod', paymentData.method || 'BankTransfer');
+      formData.append('Aciklama', paymentData.note || '');
+      formData.append('Dekont', paymentData.slipFile);
+      return await api.post('/Payments/CreatePayment', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    }
+    // JSON gönderimi (nakit)
     return await api.post('/Payments/CreatePayment', {
-      houseId: paymentData.houseId,
-      borcluUserId: paymentData.borcluUserId,
-      alacakliUserId: paymentData.alacakliUserId,
-      tutar: paymentData.tutar,
-      method: paymentData.method || 'BankTransfer',
-      note: paymentData.note,
+      HouseId: paymentData.houseId,
+      BorcluUserId: paymentData.borcluUserId,
+      AlacakliUserId: paymentData.alacakliUserId,
+      Tutar: paymentData.tutar,
+      PaymentMethod: paymentData.method || 'Cash',
+      Aciklama: paymentData.note,
     });
   },
   getByHouse: async (houseId) => {

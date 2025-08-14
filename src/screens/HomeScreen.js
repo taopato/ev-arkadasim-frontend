@@ -50,7 +50,16 @@ const HomeScreen = ({ navigation }) => {
         {
           text: 'Çıkış Yap',
           style: 'destructive',
-          onPress: logout,
+          onPress: async () => {
+            try {
+              await logout();
+            } finally {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Login' }],
+              });
+            }
+          },
         },
       ]
     );

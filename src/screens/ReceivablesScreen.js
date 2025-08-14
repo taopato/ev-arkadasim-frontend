@@ -11,6 +11,7 @@ import {
 import { houseApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
+import eventBus from '../shared/events/bus';
 import { Colors } from '../../constants/Colors';
 
 const ReceivablesScreen = ({ route, navigation }) => {
@@ -31,7 +32,15 @@ const ReceivablesScreen = ({ route, navigation }) => {
       fetchAll();
     });
 
-    return unsubscribe;
+    const off = eventBus.on('payments:updated', (p) => {
+      if (!p || !p.houseId || p.houseId !== houseId) return;
+      fetchAll();
+    });
+
+    return () => {
+      unsubscribe?.();
+      off?.();
+    };
   }, [houseId, user, navigation]);
 
   const fetchAll = async () => {
@@ -52,13 +61,15 @@ const ReceivablesScreen = ({ route, navigation }) => {
       const body = debtsRes?.data;
       const envelope = body?.data ?? body;
       const netBalance = envelope?.netBalance ?? envelope?.netDurum ?? 0;
+      const toplamBorc = envelope?.toplamBorc ?? 0;
+      const toplamAlacak = envelope?.toplamAlacak ?? 0;
       const byCounterpart = Array.isArray(envelope?.byCounterpart)
         ? envelope.byCounterpart
         : Array.isArray(envelope?.kullaniciBazliDurumlar)
           ? envelope.kullaniciBazliDurumlar
           : [];
 
-      setReceivableInfo({ netBalance, byCounterpart });
+      setReceivableInfo({ netBalance, byCounterpart, toplamBorc, toplamAlacak });
     } catch (error) {
       console.error('Alacak bilgileri alınamadı:', error);
       setMembers([]);
@@ -93,7 +104,7 @@ const ReceivablesScreen = ({ route, navigation }) => {
     return list.map((item) => {
       const counterUserIdRaw = item.toUserId ?? item.fromUserId ?? item.userId ?? item.counterUserId ?? item.karsiUserId ?? item.id;
       const counterUserId = counterUserIdRaw != null ? Number(counterUserIdRaw) : undefined;
-      const amount = Number(item.amount ?? 0);
+      const amount = Number(item.amount ?? item.tutar ?? 0);
       const type = item.toUserId ? 'debt' : item.fromUserId ? 'receivable' : (amount > 0 ? 'receivable' : 'debt');
       const member = membersMap[String(counterUserId)] ?? {};
       return {
@@ -105,6 +116,14 @@ const ReceivablesScreen = ({ route, navigation }) => {
       };
     });
   }, [receivableInfo, membersMap]);
+
+  const receivableRows = useMemo(() => (rows || []).filter(r => r.type === 'receivable'), [rows]);
+  const totalReceivable = useMemo(() => {
+    const apiVal = receivableInfo?.toplamAlacak;
+    const apiNum = Number(apiVal);
+    if (Number.isFinite(apiNum)) return apiNum;
+    return receivableRows.reduce((sum, r) => sum + (Math.abs(Number(r.amount)) || 0), 0);
+  }, [receivableInfo, receivableRows]);
 
   if (loading) {
     return (
@@ -125,28 +144,35 @@ const ReceivablesScreen = ({ route, navigation }) => {
           <Text style={CommonStyles.subtitle}>
             {houseName} • Toplam alacağınız
           </Text>
+          <TouchableOpacity
+            style={[CommonStyles.menuButton, { marginTop: 8 }]}
+            onPress={fetchAll}
+            activeOpacity={0.8}
+          >
+            <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.neutral.background }]}>
+              <Text style={CommonStyles.buttonIcon}>🔁</Text>
+              <Text style={CommonStyles.buttonText}>Yenile</Text>
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* Net Durum Kartı */}
         <View style={CommonStyles.card}>
-          <Text style={styles.sectionTitle}>💰 Net Durum</Text>
+          <Text style={styles.sectionTitle}>💰 Toplam Alacak</Text>
           <View style={styles.netStatusContainer}>
-            <Text style={[styles.netAmount, { color: getStatusColor(receivableInfo?.netBalance || 0) }]}>
-              {formatAmount(receivableInfo?.netBalance || 0)}
+            <Text style={[styles.netAmount, { color: Colors.success[600] }]}>
+              {formatAmount(totalReceivable)}
             </Text>
-            <Text style={styles.netLabel}>
-              {receivableInfo?.netBalance > 0 ? 'Toplam Alacağınız' : 
-               receivableInfo?.netBalance < 0 ? 'Toplam Borcunuz' : 'Net Durum'}
-            </Text>
+            <Text style={styles.netLabel}>Toplam Alacağınız</Text>
           </View>
         </View>
 
         {/* Kullanıcı Bazlı Durumlar */}
-        {rows && rows.length > 0 ? (
+        {receivableRows && receivableRows.length > 0 ? (
           <View style={CommonStyles.card}>
             <Text style={styles.sectionTitle}>👥 Ev Arkadaşları</Text>
             <View style={CommonStyles.listContainer}>
-              {rows.map((row, index) => {
+              {receivableRows.map((row, index) => {
                 const statusColor = getStatusColor(row.type === 'debt' ? -1 : 1);
                 const statusText = row.type === 'debt' ? 'Borçlu' : 'Alacaklı';
 
@@ -170,7 +196,7 @@ const ReceivablesScreen = ({ route, navigation }) => {
                     </View>
                     <View style={styles.amountContainer}>
                       <Text style={[styles.amountText, { color: statusColor }]}>
-                        {formatAmount(row.amount)}
+                        {formatAmount(Math.abs(row.amount))}
                       </Text>
                       <Text style={[styles.statusText, { color: statusColor }]}>
                         {statusText}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,8 @@ import {
   Modal
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { paymentsApi } from '../services/api';
+import { paymentsApi, houseApi } from '../services/api';
+import eventBus from '../shared/events/bus';
 import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
 import { Colors } from '../../constants/Colors';
 
@@ -23,6 +24,7 @@ const PaymentApprovalScreen = ({ navigation }) => {
   const [approveLoading, setApproveLoading] = useState(false);
   const [rejectLoading, setRejectLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [membersMap, setMembersMap] = useState({});
 
   useEffect(() => {
     if (user?.id) {
@@ -47,15 +49,33 @@ const PaymentApprovalScreen = ({ navigation }) => {
     setError(null);
     try {
       const response = await paymentsApi.getPendingPayments(user.id);
-      if (response.data) {
-        setPendingPayments(response.data);
+      const list = response?.data ?? [];
+      if (Array.isArray(list)) {
+        setPendingPayments(list);
+        // İsimler için ilgili evlerin üyelerini yükleyip map oluştur
+        const uniqueHouseIds = Array.from(new Set(list.map(p => p.houseId).filter(Boolean)));
+        const maps = {};
+        for (const hid of uniqueHouseIds) {
+          try {
+            const res = await houseApi.getMembers(hid);
+            const body = res?.data;
+            const arr = Array.isArray(body) ? body : Array.isArray(body?.data) ? body.data : [];
+            for (const m of arr) {
+              const key = String(m.userId ?? m.id);
+              if (!maps[key]) maps[key] = m;
+            }
+          } catch (_) {}
+        }
+        setMembersMap(maps);
       } else {
         setPendingPayments([]);
+        setMembersMap({});
       }
     } catch (error) {
       console.error('Bekleyen ödemeler alınamadı:', error);
       setError(error.message);
       setPendingPayments([]);
+      setMembersMap({});
     } finally {
       setLoading(false);
     }
@@ -77,6 +97,8 @@ const PaymentApprovalScreen = ({ navigation }) => {
         setModalVisible(false);
         setSelectedPayment(null);
         fetchPendingPayments();
+        // Borç/Alacak ekranlarını tetikle
+        eventBus.emit('payments:updated', { houseId: selectedPayment.houseId });
       } else {
         throw new Error('Ödeme onaylanamadı');
       }
@@ -99,6 +121,7 @@ const PaymentApprovalScreen = ({ navigation }) => {
         setModalVisible(false);
         setSelectedPayment(null);
         fetchPendingPayments();
+        eventBus.emit('payments:updated', { houseId: selectedPayment.houseId });
       } else {
         throw new Error('Ödeme reddedilemedi');
       }
@@ -111,7 +134,9 @@ const PaymentApprovalScreen = ({ navigation }) => {
   };
 
   const formatAmount = (amount) => {
-    return `${parseFloat(amount).toFixed(2)} ₺`;
+    const n = Number(amount);
+    if (Number.isNaN(n)) return 'NaN ₺';
+    return `${n.toFixed(2)} ₺`;
   };
 
   const formatDate = (dateString) => {
@@ -159,18 +184,18 @@ const PaymentApprovalScreen = ({ navigation }) => {
                 </View>
                 <View style={CommonStyles.listItemContent}>
                   <Text style={CommonStyles.listItemTitle}>
-                    {payment.description || 'Ödeme'}
+                    {payment.aciklama || payment.description || 'Ödeme'}
                   </Text>
                   <Text style={CommonStyles.listItemSubtitle}>
-                    {payment.fromUser?.fullName || 'Bilinmeyen'} → {payment.toUser?.fullName || 'Bilinmeyen'}
+                    {(payment.borcluUserName || membersMap[String(payment.borcluUserId)]?.fullName || 'Bilinmeyen')} → {(membersMap[String(payment.alacakliUserId)]?.fullName || 'Bilinmeyen')}
                   </Text>
                   <Text style={CommonStyles.listItemSubtitle}>
-                    Tarih: {formatDate(payment.createdAt)}
+                    Tarih: {formatDate(payment.odemeTarihi || payment.createdAt)}
                   </Text>
                 </View>
                 <View style={styles.paymentAmount}>
                   <Text style={[styles.amountText, { color: Colors.primary[600] }]}>
-                    {formatAmount(payment.amount)}
+                    {formatAmount(payment.tutar || payment.amount)}
                   </Text>
                   <Text style={[styles.statusText, { color: Colors.warning[600] }]}>
                     Bekliyor
@@ -205,19 +230,19 @@ const PaymentApprovalScreen = ({ navigation }) => {
               {selectedPayment && (
                 <View style={styles.paymentDetails}>
                   <Text style={styles.detailText}>
-                    <Text style={styles.detailLabel}>Açıklama:</Text> {selectedPayment.description}
+                    <Text style={styles.detailLabel}>Açıklama:</Text> {selectedPayment.aciklama || selectedPayment.description}
                   </Text>
                   <Text style={styles.detailText}>
-                    <Text style={styles.detailLabel}>Gönderen:</Text> {selectedPayment.fromUser?.fullName || 'Bilinmeyen'}
+                    <Text style={styles.detailLabel}>Gönderen:</Text> {selectedPayment.borcluUserName || membersMap[String(selectedPayment.borcluUserId)]?.fullName || 'Bilinmeyen'}
                   </Text>
                   <Text style={styles.detailText}>
-                    <Text style={styles.detailLabel}>Alıcı:</Text> {selectedPayment.toUser?.fullName || 'Bilinmeyen'}
+                    <Text style={styles.detailLabel}>Alıcı:</Text> {membersMap[String(selectedPayment.alacakliUserId)]?.fullName || 'Bilinmeyen'}
                   </Text>
                   <Text style={styles.detailText}>
-                    <Text style={styles.detailLabel}>Tutar:</Text> {formatAmount(selectedPayment.amount)}
+                    <Text style={styles.detailLabel}>Tutar:</Text> {formatAmount(selectedPayment.tutar || selectedPayment.amount)}
                   </Text>
                   <Text style={styles.detailText}>
-                    <Text style={styles.detailLabel}>Tarih:</Text> {formatDate(selectedPayment.createdAt)}
+                    <Text style={styles.detailLabel}>Tarih:</Text> {formatDate(selectedPayment.odemeTarihi || selectedPayment.createdAt)}
                   </Text>
                 </View>
               )}
