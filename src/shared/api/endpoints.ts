@@ -60,6 +60,16 @@ export const endpoints = {
     addPaymentWithAllocations: '/Payments/AddPaymentWithAllocations',
   },
 
+  // Recurring charges (contracts & cycles)
+  charges: {
+    list: (houseId: string | number, period: string) => `/Charges?houseId=${houseId}&period=${encodeURIComponent(period)}`,
+    setBill: (cycleId: string | number) => `/Charges/${cycleId}/SetBill`,
+    markPaid: (cycleId: string | number) => `/Charges/${cycleId}/MarkPaid`,
+  },
+  recurringCharges: {
+    create: '/RecurringCharges',
+  },
+
   // Users endpoints
   users: {
     getAll: '/Users',

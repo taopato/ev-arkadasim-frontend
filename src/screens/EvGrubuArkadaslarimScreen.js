@@ -113,7 +113,7 @@ const EvGrubuArkadaslarimScreen = ({ route, navigation }) => {
     } else if (balance < 0) {
       return `Borcu: ${Math.abs(balance).toFixed(0)} ₺`;
     } else {
-      return 'Nötr';
+      return '';
     }
   };
 
@@ -197,11 +197,13 @@ const EvGrubuArkadaslarimScreen = ({ route, navigation }) => {
                     </Text>
                     <Text style={CommonStyles.listItemSubtitle}>{item.email || 'Email yok'}</Text>
                   </View>
-                  <View style={styles.balanceInfo}>
-                    <Text style={[styles.balanceText, { color: statusColor }]}>
-                      {statusText}
-                    </Text>
-                  </View>
+                  {statusText ? (
+                    <View style={styles.balanceInfo}>
+                      <Text style={[styles.balanceText, { color: statusColor }]}>
+                        {statusText}
+                      </Text>
+                    </View>
+                  ) : null}
                 </TouchableOpacity>
               );
             })}
