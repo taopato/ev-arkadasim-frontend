@@ -295,6 +295,7 @@ export const paymentsApi = {
       formData.append('Tutar', String(paymentData.tutar));
       formData.append('PaymentMethod', paymentData.method || 'BankTransfer');
       formData.append('Aciklama', paymentData.note || '');
+      if (paymentData.chargeId) formData.append('ChargeId', String(paymentData.chargeId));
       formData.append('Dekont', paymentData.slipFile);
       return await api.post('/Payments/CreatePayment', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -308,6 +309,7 @@ export const paymentsApi = {
       Tutar: paymentData.tutar,
       PaymentMethod: paymentData.method || 'Cash',
       Aciklama: paymentData.note,
+      ChargeId: paymentData.chargeId,
     });
   },
   getByHouse: async (houseId) => {
@@ -333,6 +335,31 @@ export const paymentsApi = {
       note: paymentData.note,
       allocations: paymentData.allocations
     });
+  },
+};
+
+// Charges işlemleri (Recurring Charges)
+export const chargesApi = {
+  create: async (chargeData) => {
+    return await api.post('/Charges/CreateRecurringCharge', chargeData);
+  },
+  getByHouse: async (houseId) => {
+    return await api.get(`/Charges/GetRecurringCharges/${houseId}`);
+  },
+  getById: async (chargeId) => {
+    return await api.get(`/Charges/GetRecurringCharge/${chargeId}`);
+  },
+  update: async (chargeId, chargeData) => {
+    return await api.put(`/Charges/UpdateRecurringCharge/${chargeId}`, chargeData);
+  },
+  delete: async (chargeId) => {
+    return await api.delete(`/Charges/DeleteRecurringCharge/${chargeId}`);
+  },
+  activate: async (chargeId) => {
+    return await api.post(`/Charges/ActivateRecurringCharge/${chargeId}`);
+  },
+  deactivate: async (chargeId) => {
+    return await api.post(`/Charges/DeactivateRecurringCharge/${chargeId}`);
   },
 };
 

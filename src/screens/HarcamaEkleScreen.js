@@ -22,11 +22,12 @@ const HarcamaEkleScreen = ({ navigation, route }) => {
 
   const [expenseType, setExpenseType] = useState("");
   const [shareType, setShareType] = useState("");
-  const [commonAmount, setCommonAmount] = useState("");
   const [amount, setAmount] = useState("");
   const [payerId, setPayerId] = useState("");
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [personalExpenses, setPersonalExpenses] = useState({});
+  const [showPersonalExpenses, setShowPersonalExpenses] = useState(false);
 
   // Expenses API kullanıyoruz
 
@@ -48,8 +49,15 @@ const HarcamaEkleScreen = ({ navigation, route }) => {
       const data = response.data;
       if (data && Array.isArray(data)) {
         const validMembers = data.filter(member => 
-          member && (member.fullName || member.name)
-        );
+          member && 
+          (member.fullName || member.name) &&
+          (member.id || member.userId) // id veya userId kontrolü
+        ).map(member => ({
+          ...member,
+          id: member.id || member.userId, // id yoksa userId'yi kullan
+          fullName: member.fullName || member.name // fullName yoksa name'i kullan
+        }));
+
         setMembers(validMembers);
       } else {
         console.error('Üye bulunamadı');
@@ -79,6 +87,31 @@ const HarcamaEkleScreen = ({ navigation, route }) => {
     }
   };
 
+  const handlePersonalExpenseChange = (memberId, value) => {
+    setPersonalExpenses(prev => ({
+      ...prev,
+      [memberId]: value
+    }));
+  };
+
+  // Harcama türü değiştiğinde paylaşım türünü otomatik ayarla
+  useEffect(() => {
+    if (expenseType) {
+      setShareType(expenseType);
+    }
+  }, [expenseType]);
+
+  // Üyeler yüklendiğinde kişisel harcamaları sıfırla
+  useEffect(() => {
+    if (members.length > 0) {
+      const initialPersonalExpenses = {};
+      members.forEach(member => {
+        initialPersonalExpenses[member.id] = '';
+      });
+      setPersonalExpenses(initialPersonalExpenses);
+    }
+  }, [members]);
+
   const handleDevamEt = async () => {
     if (!expenseType || !amount || !payerId) {
         Alert.alert("Hata", "Lütfen tüm alanları doldurun.");
@@ -91,29 +124,39 @@ const HarcamaEkleScreen = ({ navigation, route }) => {
         return;
     }
 
-    // Ortak harcama tutarı kontrolü
-    const numericCommon = commonAmount ? parseFloat(commonAmount) : numericAmount;
-    if (isNaN(numericCommon) || numericCommon < 0) {
-      Alert.alert("Hata", "Geçerli bir ortak harcama tutarı giriniz.");
-      return;
-    }
-    if (numericCommon > numericAmount) {
-      Alert.alert("Hata", "Ortak harcama tutarı toplam tutardan büyük olamaz.");
+    // Kişisel harcamaları kontrol et
+    let totalPersonalExpenses = 0;
+    const personalExpensesArray = [];
+    
+    Object.keys(personalExpenses).forEach(memberId => {
+      const personalAmount = parseFloat(personalExpenses[memberId]) || 0;
+      if (personalAmount > 0) {
+        totalPersonalExpenses += personalAmount;
+        personalExpensesArray.push({
+          userId: parseInt(memberId),
+          amount: personalAmount
+        });
+      }
+    });
+
+    if (totalPersonalExpenses > numericAmount) {
+      Alert.alert("Hata", "Kişisel harcamalar toplam tutardan büyük olamaz.");
       return;
     }
 
-    try {
-      // Expenses API ile harcama oluştur
-      const response = await expensesApi.addExpense({
-        tur: expenseType === 'Kira' ? 'Kira' : expenseType,
-        tutar: numericAmount,
-        ortakHarcamaTutari: numericCommon,
-        houseId: parseInt(houseId),
-        odeyenUserId: parseInt(payerId),
-        kaydedenUserId: user.id,
-        paylasimTuru: expenseType === 'Kira' ? 'Kira' : (shareType || expenseType),
-        sahsiHarcamalar: []
-      });
+         try {
+       // Expenses API ile harcama oluştur
+       const expenseData = {
+         tur: expenseType,
+         tutar: numericAmount,
+         houseId: parseInt(houseId),
+         odeyenUserId: parseInt(payerId),
+         kaydedenUserId: user.id
+       };
+       
+       console.log('Gönderilen harcama verisi:', expenseData);
+       
+       const response = await expensesApi.addExpense(expenseData);
 
       if (response.data) {
         Alert.alert("Başarılı", "Harcama başarıyla eklendi!", [
@@ -125,19 +168,25 @@ const HarcamaEkleScreen = ({ navigation, route }) => {
       } else {
         throw new Error('Harcama eklenemedi');
       }
-    } catch (error) {
-      console.error('Harcama ekleme hatası:', error);
-      Alert.alert("Hata", "Harcama eklenirken bir sorun oluştu: " + (error.response?.data?.message || error.message));
-    }
+         } catch (error) {
+       console.error('Harcama ekleme hatası:', error);
+       console.error('Hata detayları:', {
+         status: error.response?.status,
+         data: error.response?.data,
+         message: error.message
+       });
+       Alert.alert("Hata", "Harcama eklenirken bir sorun oluştu: " + (error.response?.data?.message || error.message));
+     }
   };
 
   const expenseTypes = [
-    { label: "Ortak", value: "Ortak" },
-    { label: "Kira", value: "Kira" },
+    { label: "Market", value: "Market" },
+    { label: "Diğer", value: "Diğer" },
+    { label: "Yemek", value: "Yemek" },
+    { label: "Borç", value: "Borç" },
     { label: "Elektrik", value: "Elektrik" },
     { label: "Su", value: "Su" },
-    { label: "Yemek", value: "Yemek" },
-    { label: "Diğer", value: "Diğer" },
+    { label: "Doğalgaz", value: "Doğalgaz" },
   ];
 
   const pickerSelectStyles = {
@@ -224,130 +273,120 @@ const HarcamaEkleScreen = ({ navigation, route }) => {
             />
           </View>
 
-          <View style={CommonStyles.inputContainer}>
-            <Text style={CommonStyles.label}>Ödemeyi Yapan</Text>
-            {Platform.OS === 'web' ? (
-              <View style={styles.selectContainer}>
-                <select
-                  style={{
-                    width: '100%',
-                    height: 45,
-                    padding: '8px 12px',
-                    borderWidth: 1,
-                    borderColor: Colors.neutral[300],
-                    borderRadius: 8,
-                    backgroundColor: Colors.background,
-                    color: Colors.text.primary,
-                    fontSize: 16,
-                  }}
-                  value={payerId ? members.find(m => m.id.toString() === payerId)?.fullName || "" : ""}
-                  onChange={(e) => handlePayerChange(e.target.value)}
-                >
-                  <option key="default-option" value="">Üyelerden birini seçin</option>
-                  {members.map((member) => (
-                    <option 
-                      key={member.id} 
-                      value={member.fullName}
-                    >
-                      {member.fullName}
-                    </option>
-                  ))}
-                </select>
-              </View>
-            ) : (
-              <RNPickerSelect
-                onValueChange={(value) => {
-                  const selectedMember = members.find(m => m.fullName === value);
-                  if (selectedMember) {
-                    setPayerId(selectedMember.id.toString());
-                  }
-                }}
-                value={payerId ? members.find(m => m.id.toString() === payerId)?.fullName : null}
-                items={members.map(member => ({
-                  label: member.fullName,
-                  value: member.fullName,
-                  key: String(member.id)
-                }))}
-                placeholder={{ 
-                  label: "Üyelerden birini seçin", 
-                  value: null,
-                  key: "default-option"
-                }}
-                style={pickerSelectStyles}
-              />
-            )}
-          </View>
+                     <View style={CommonStyles.inputContainer}>
+             <Text style={CommonStyles.label}>Ödemeyi Yapan</Text>
+                           {Platform.OS === 'web' ? (
+                <View style={styles.memberSelectionContainer}>
+                  {members.map((member) => {
+                    const memberId = member?.id?.toString();
+                    if (!memberId) {
+                      console.warn('Member without ID:', member);
+                      return null;
+                    }
+                    return (
+                      <TouchableOpacity
+                        key={memberId}
+                        style={[
+                          styles.memberSelectionButton,
+                          payerId === memberId && styles.memberSelectionButtonActive
+                        ]}
+                        onPress={() => {
+                          setPayerId(memberId);
+                        }}
+                      >
+                        <Text style={[
+                          styles.memberSelectionButtonText,
+                          payerId === memberId && styles.memberSelectionButtonTextActive
+                        ]}>
+                          {member.fullName || 'İsimsiz Üye'}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+             ) : (
+               <RNPickerSelect
+                 onValueChange={(value) => {
+                   const selectedMember = members.find(m => m.fullName === value);
+                   if (selectedMember && selectedMember.id) {
+                     setPayerId(selectedMember.id.toString());
+                   }
+                 }}
+                 value={payerId ? members.find(m => m.id && m.id.toString() === payerId)?.fullName : null}
+                 items={members.filter(member => member.id).map(member => ({
+                   label: member.fullName || 'İsimsiz Üye',
+                   value: member.fullName,
+                   key: String(member.id)
+                 }))}
+                 placeholder={{ 
+                   label: "Üyelerden birini seçin", 
+                   value: null,
+                   key: "default-option"
+                 }}
+                 style={pickerSelectStyles}
+               />
+             )}
+           </View>
+
+           <TouchableOpacity 
+             style={styles.toggleButton}
+             onPress={() => setShowPersonalExpenses(!showPersonalExpenses)}
+           >
+             <Text style={styles.toggleButtonText}>
+               {showPersonalExpenses ? '❌ Kişisel Harcamaları Gizle' : '➕ Kişisel Harcamalar Ekle'}
+             </Text>
+           </TouchableOpacity>
 
           <Text style={styles.kaydedenUserInfo}>
             Kaydeden: {user?.fullName || 'Bilinmeyen Kullanıcı'}
           </Text>
         </View>
 
-        {/* Paylaşım Türü ve Ortak Tutar */}
-        {expenseType !== '' && (
-          <View style={CommonStyles.card}>
-            <View style={CommonStyles.inputContainer}>
-              <Text style={CommonStyles.label}>Paylaşım Türü</Text>
-              {Platform.OS === 'web' ? (
-                <select
-                  style={{
-                    width: '100%',
-                    height: 45,
-                    padding: '8px 12px',
-                    borderWidth: 1,
-                    borderColor: Colors.neutral[300],
-                    borderRadius: 8,
-                    backgroundColor: expenseType === 'Kira' ? Colors.neutral[100] : Colors.background,
-                    color: Colors.text.primary,
-                    fontSize: 16,
-                  }}
-                  value={expenseType === 'Kira' ? 'Kira' : (shareType || '')}
-                  onChange={(e) => setShareType(e.target.value)}
-                  disabled={expenseType === 'Kira'}
-                >
-                  <option key="share-type-default" value="">Paylaşım türü seçin</option>
-                  {expenseTypes.map((type) => (
-                    <option key={`share-type-${type.value}`} value={type.value}>
-                      {type.label}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <RNPickerSelect
-                  onValueChange={(value) => setShareType(value || '')}
-                  value={expenseType === 'Kira' ? 'Kira' : (shareType || null)}
-                  items={expenseTypes}
-                  placeholder={{ label: 'Paylaşım türü seçin', value: null }}
-                  style={pickerSelectStyles}
-                  disabled={expenseType === 'Kira'}
-                />
-              )}
-            </View>
-
-            <View style={CommonStyles.inputContainer}>
-              <Text style={CommonStyles.label}>Ortak Harcama Tutarı</Text>
-              <TextInput
-                style={{
-                  borderWidth: 1,
-                  borderColor: Colors.neutral[300],
-                  borderRadius: 8,
-                  padding: 12,
-                  backgroundColor: Colors.background,
-                  fontSize: 16,
-                }}
-                placeholder="Ortak harcama tutarı"
-                keyboardType="numeric"
-                value={commonAmount}
-                onChangeText={setCommonAmount}
-              />
-              {expenseType === 'Kira' && (
-                <Text style={{ color: Colors.text.secondary, marginTop: 6 }}>
-                  Kira seçiliyken tür ve paylaşım türü kilitlidir.
-                </Text>
-              )}
-            </View>
-          </View>
-        )}
+                 {/* Kişisel Harcamalar */}
+         {showPersonalExpenses && expenseType !== '' && (
+           <View style={CommonStyles.card}>
+             <Text style={styles.sectionTitle}>Kişisel Harcamalar</Text>
+             <Text style={styles.sectionSubtitle}>
+               Her üyenin kişisel ürünlerinin tutarını girin. Boş bırakırsanız kişisel harcama yok sayılır.
+             </Text>
+             
+                           {members.map((member) => {
+                const memberId = member?.id?.toString();
+                if (!memberId) {
+                  console.warn('Member without ID in personal expenses:', member);
+                  return null;
+                }
+                return (
+                  <View key={memberId} style={styles.personalExpenseRow}>
+                    <Text style={styles.memberName}>{member.fullName || 'İsimsiz Üye'}</Text>
+                    <TextInput
+                      key={`personal-expense-${memberId}`}
+                      style={styles.personalExpenseInput}
+                      placeholder="0"
+                      keyboardType="numeric"
+                      value={personalExpenses[memberId] || ''}
+                      onChangeText={(value) => handlePersonalExpenseChange(memberId, value)}
+                    />
+                  </View>
+                );
+              })}
+             
+             <View style={styles.summaryBox}>
+               <Text style={styles.summaryText}>
+                 💡 <Text style={styles.boldText}>Nasıl çalışır?</Text>
+               </Text>
+               <Text style={styles.summaryText}>
+                 • Kişisel harcamalar toplam tutardan düşülür
+               </Text>
+               <Text style={styles.summaryText}>
+                 • Kalan tutar üyeler arasında eşit paylaştırılır
+               </Text>
+               <Text style={styles.summaryText}>
+                 • Her üye kendi kişisel harcaması + ortak payı öder
+               </Text>
+             </View>
+           </View>
+         )}
 
         <TouchableOpacity 
           style={[
@@ -395,11 +434,107 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginVertical: 10
   },
-  selectContainer: {
-    position: 'relative',
-    zIndex: 1000,
-    marginBottom: 16
-  }
+  toggleButton: {
+    backgroundColor: Colors.primary[100],
+    borderWidth: 1,
+    borderColor: Colors.primary[300],
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  toggleButtonText: {
+    color: Colors.primary[700],
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: Colors.text.primary,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  personalExpenseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.background,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.neutral[200],
+  },
+  memberName: {
+    fontSize: 16,
+    color: Colors.text.primary,
+    fontWeight: '500',
+    flex: 1,
+  },
+  personalExpenseInput: {
+    borderWidth: 1,
+    borderColor: Colors.neutral[300],
+    borderRadius: 6,
+    padding: 8,
+    backgroundColor: Colors.background,
+    color: Colors.text.primary,
+    fontSize: 16,
+    width: 100,
+    textAlign: 'right',
+  },
+  summaryBox: {
+    backgroundColor: Colors.primary[50],
+    borderWidth: 1,
+    borderColor: Colors.primary[200],
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 16,
+  },
+  summaryText: {
+    fontSize: 14,
+    color: Colors.text.primary,
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  boldText: {
+    fontWeight: 'bold',
+  },
+  memberSelectionContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  memberSelectionButton: {
+    borderWidth: 1,
+    borderColor: Colors.neutral[300],
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.background,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  memberSelectionButtonActive: {
+    backgroundColor: Colors.primary[100],
+    borderColor: Colors.primary[500],
+  },
+  memberSelectionButtonText: {
+    color: Colors.text.primary,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  memberSelectionButtonTextActive: {
+    color: Colors.primary[700],
+    fontWeight: '700',
+  },
 });
 
 export default HarcamaEkleScreen;

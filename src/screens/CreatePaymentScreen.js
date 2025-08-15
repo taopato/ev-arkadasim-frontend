@@ -19,7 +19,7 @@ import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
 import { Colors } from '../../constants/Colors';
 
 const CreatePaymentScreen = ({ navigation, route }) => {
-  const { houseId, houseName, alacakliUserId, suggestedAmount } = route.params || {};
+  const { houseId, houseName, alacakliUserId, suggestedAmount, chargeId } = route.params || {};
   const { user } = useAuth();
 
   const [amount, setAmount] = useState('');
@@ -138,6 +138,7 @@ const CreatePaymentScreen = ({ navigation, route }) => {
         method: method,
         note: description.trim(),
         slipFile,
+        chargeId: chargeId ? Number(chargeId) : undefined,
       };
 
       console.log('[CreatePayment] payload', paymentData);

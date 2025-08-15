@@ -158,16 +158,6 @@ const DebtsScreen = ({ route, navigation }) => {
           <Text style={CommonStyles.subtitle}>
             {houseName} • Toplam borcunuz
           </Text>
-          <TouchableOpacity
-            style={[CommonStyles.menuButton, { marginTop: 8 }]}
-            onPress={fetchAll}
-            activeOpacity={0.8}
-          >
-            <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.neutral.background }]}>
-              <Text style={CommonStyles.buttonIcon}>🔁</Text>
-              <Text style={CommonStyles.buttonText}>Yenile</Text>
-            </View>
-          </TouchableOpacity>
         </View>
 
         {/* Net Durum Kartı */}

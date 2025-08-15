@@ -15,7 +15,8 @@ import eventBus from '../shared/events/bus';
 import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
 import { Colors } from '../../constants/Colors';
 
-const PaymentApprovalScreen = ({ navigation }) => {
+const PaymentApprovalScreen = ({ navigation, route }) => {
+  const { houseId, houseName } = route.params || {};
   const { user } = useAuth();
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -49,7 +50,11 @@ const PaymentApprovalScreen = ({ navigation }) => {
     setError(null);
     try {
       const response = await paymentsApi.getPendingPayments(user.id);
-      const list = response?.data ?? [];
+      // Eğer houseId varsa sadece o evin ödemelerini filtrele
+      let list = response?.data ?? [];
+      if (houseId && Array.isArray(list)) {
+        list = list.filter(p => Number(p.houseId) === Number(houseId));
+      }
       if (Array.isArray(list)) {
         setPendingPayments(list);
         // İsimler için ilgili evlerin üyelerini yükleyip map oluştur
@@ -166,7 +171,7 @@ const PaymentApprovalScreen = ({ navigation }) => {
         <View style={CommonStyles.header}>
           <Text style={CommonStyles.title}>Bekleyen Ödemeler</Text>
           <Text style={CommonStyles.subtitle}>
-            Onay bekleyen {pendingPayments.length} ödeme
+            {houseName ? `${houseName} • ` : ''}Onay bekleyen {pendingPayments.length} ödeme
           </Text>
         </View>
 

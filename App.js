@@ -93,6 +93,10 @@ import BillListScreen from './src/screens/BillListScreen';
 import AddBillScreen from './src/screens/AddBillScreen';
 import BillDetailScreen from './src/screens/BillDetailScreen';
 import HouseSpendingOverviewScreen from './src/screens/HouseSpendingOverviewScreen';
+import ChargesListScreen from './src/screens/ChargesListScreen';
+import NewRecurringChargeScreen from './src/screens/NewRecurringChargeScreen';
+import PendingContributionsScreen from './src/screens/PendingContributionsScreen';
+import TwoPersonDebtDetailScreen from './src/screens/TwoPersonDebtDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -262,6 +266,21 @@ export default function App() {
               options={{ title: 'Bekleyen Ödemeler' }}
             />
             <Stack.Screen
+              name="ChargesList"
+              component={ChargesListScreen}
+              options={{ title: 'Giderler' }}
+            />
+            <Stack.Screen
+              name="NewRecurringCharge"
+              component={NewRecurringChargeScreen}
+              options={{ title: 'Sözleşme Oluştur' }}
+            />
+            <Stack.Screen
+              name="PendingContributions"
+              component={PendingContributionsScreen}
+              options={{ title: 'Bekleyen Katkılar' }}
+            />
+            <Stack.Screen
               name="CreatePayment"
               component={CreatePaymentScreen}
               options={{ title: 'Ödeme Yap' }}
@@ -285,6 +304,11 @@ export default function App() {
               name="HouseSpendingOverviewScreen"
               component={HouseSpendingOverviewScreen}
               options={{ title: 'Harcama Özeti' }}
+            />
+            <Stack.Screen
+              name="TwoPersonDebtDetail"
+              component={TwoPersonDebtDetailScreen}
+              options={{ title: 'Borç/Alacak Detayı' }}
             />
           </Stack.Navigator>
           </NavigationContainer>

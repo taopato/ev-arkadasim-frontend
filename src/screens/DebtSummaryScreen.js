@@ -153,7 +153,7 @@ const DebtSummaryScreen = ({ navigation, route }) => {
 
               <TouchableOpacity 
                 style={CommonStyles.menuButton}
-                onPress={() => navigation.navigate('PaymentApproval')}
+                onPress={() => navigation.navigate('PaymentApproval', { houseId, houseName })}
                 activeOpacity={0.8}
               >
                 <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.warning.background }]}>
