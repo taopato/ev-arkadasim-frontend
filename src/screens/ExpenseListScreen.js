@@ -1,76 +1,67 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  ScrollView,
-  Alert
-} from 'react-native';
+// src/screens/ExpensesListScreen.js
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { useExpensesByHouse } from '../features/expenses/add-expense/hooks';
+import { expensesApi } from '../services/api';
 import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../../constants/Colors';
+import { Colors } from '../constants/Colors';
+import eventBus from '../shared/events/bus';
+import Toast from '../components/Toast';
+import { NON_BILL_KEYS, normalizeExpense } from '../utils/expenseClassifier';
 
-const ExpenseListScreen = ({ route, navigation }) => {
+const formatAmount = (n) => `${Number(n || 0).toFixed(2)} ₺`;
+const iconOf = (key) => ({ Market: '🛒', Food: '🍔', Other: '📦' }[key] || '📄');
+const trTitle = (key) => ({ Market: 'Market', Food: 'Yemek', Other: 'Diğer' }[key] || key);
+
+const ExpensesListScreen = ({ navigation, route }) => {
   const { houseId, houseName } = route.params || {};
   const { user } = useAuth();
 
-  // Yeni expenses modülü hooks'u kullanıyoruz
-  const { data: expensesResp = [], isLoading: loading, error, refetch } = useExpensesByHouse(houseId);
+  const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
+  const [items, setItems] = useState([]);
+
+  const showToast = (message, type = 'success') => setToast({ visible: true, message, type });
+  const hideToast = () => setToast((p) => ({ ...p, visible: false }));
+
+  const fetchData = async () => {
+    if (!houseId) return;
+    setLoading(true);
+    try {
+      const res = await expensesApi.getByHouse(Number(houseId));
+      const raw = res?.data?.data || res?.data || [];
+      const arr = Array.isArray(raw) ? raw : [];
+      const normalized = arr.map(normalizeExpense);
+
+      const filtered = normalized
+        .filter((x) => x.kind === 'other') // sadece Market/Yemek/Diğer
+        .sort((a, b) => new Date(b.date) - new Date(a.date)); // en yeni en üstte
+
+      setItems(filtered);
+    } catch (e) {
+      console.error('ExpensesListScreen fetch error:', e);
+      showToast('Harcamalar yüklenemedi', 'error');
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (!houseId) {
-      Alert.alert('Hata', 'Ev bilgisi eksik.');
-      navigation.goBack();
-      return;
-    }
+    fetchData();
   }, [houseId]);
 
+  // anında yenile
   useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      refetch();
-    });
+    const h = ({ houseId: changedId }) => {
+      if (Number(changedId) === Number(houseId)) fetchData();
+    };
+    eventBus.on('expenses:updated', h);
+    return () => eventBus.off('expenses:updated', h);
+  }, [houseId]);
 
-    return unsubscribe;
-  }, [navigation, refetch]);
-
-  // Hata durumunu kontrol et
-  useEffect(() => {
-    if (error) {
-      console.error('Harcama listesi hatası:', error);
-      Alert.alert('Hata', 'Harcamalar alınırken bir sorun oluştu');
-    }
-  }, [error]);
-
-  const formatAmount = (amount) => {
-    return `${parseFloat(amount).toFixed(2)} ₺`;
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Tarih yok';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('tr-TR');
-    } catch (error) {
-      return 'Geçersiz tarih';
-    }
-  };
-
-  const handleAddExpense = () => {
-    navigation.navigate('HarcamaEkleScreen', {
-      houseId: houseId,
-      houseName: houseName
-    });
-  };
-
-  const handleExpensePress = (expense) => {
-    navigation.navigate('ExpenseDetailScreen', {
-      expenseId: expense.id,
-      houseId: houseId,
-      houseName: houseName
-    });
+  const handleAdd = () => {
+    navigation.navigate('AddExpenseScreen', { houseId, houseName });
   };
 
   if (loading) {
@@ -78,30 +69,22 @@ const ExpenseListScreen = ({ route, navigation }) => {
       <View style={CommonStyles.container}>
         <View style={CommonStyles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary[500]} />
-          <Text style={CommonStyles.loadingText}>Harcamalar yükleniyor...</Text>
+          <Text style={CommonStyles.loadingText}>Harcamalar yükleniyor…</Text>
         </View>
       </View>
     );
   }
 
-  const expenses = expensesResp?.data ?? expensesResp ?? [];
-
   return (
     <View style={CommonStyles.container}>
-      <ScrollView style={CommonStyles.content}>
+      <ScrollView style={CommonStyles.content} showsVerticalScrollIndicator={false}>
         <View style={CommonStyles.header}>
           <Text style={CommonStyles.title}>Harcama Listesi</Text>
-          <Text style={CommonStyles.subtitle}>
-            {houseName || 'Ev'} • {expenses.length} harcama
-          </Text>
+          <Text style={CommonStyles.subtitle}>{houseName} • {items.length} harcama</Text>
         </View>
 
-        {/* Yeni Harcama Ekle Butonu */}
-        <TouchableOpacity 
-          style={CommonStyles.menuButton}
-          onPress={handleAddExpense}
-          activeOpacity={0.8}
-        >
+        {/* Yeni Harcama */}
+        <TouchableOpacity style={CommonStyles.menuButton} onPress={handleAdd} activeOpacity={0.8}>
           <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.success.background }]}>
             <Text style={CommonStyles.buttonIcon}>➕</Text>
             <Text style={CommonStyles.buttonText}>Yeni Harcama Ekle</Text>
@@ -109,74 +92,43 @@ const ExpenseListScreen = ({ route, navigation }) => {
           </View>
         </TouchableOpacity>
 
-        {/* Harcama Listesi */}
-        {expenses.length > 0 ? (
-          <View style={CommonStyles.listContainer}>
-            {expenses.map((expense) => (
-              <TouchableOpacity
-                key={expense.id.toString()}
-                style={CommonStyles.listItem}
-                onPress={() => handleExpensePress(expense)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.expenseIconContainer}>
-                  <Text style={styles.expenseIcon}>💰</Text>
-                </View>
+        {items.length > 0 ? (
+          <View style={CommonStyles.card}>
+            {items.map((it, idx) => (
+              <View key={String(it.id ?? idx)} style={CommonStyles.listItem}>
+                <View style={styles.iconCircle}><Text style={{ fontSize: 22 }}>{iconOf(it.key)}</Text></View>
                 <View style={CommonStyles.listItemContent}>
-                  <Text style={CommonStyles.listItemTitle}>
-                    {expense.tur || 'Harcama'}
-                  </Text>
+                  <Text style={CommonStyles.listItemTitle}>{it.title}</Text>
                   <Text style={CommonStyles.listItemSubtitle}>
-                    Ödeyen: {expense.odeyenUser?.fullName || 'Bilinmeyen'}
-                  </Text>
-                  <Text style={CommonStyles.listItemSubtitle}>
-                    Tarih: {formatDate(expense.createdAt)}
+                    Ödeyen: {it.payerName || '—'} • Tarih: {new Date(it.date).toLocaleDateString('tr-TR')}
                   </Text>
                 </View>
-                <View style={styles.expenseAmount}>
-                  <Text style={[styles.amountText, { color: Colors.primary[600] }]}>
-                    {formatAmount(expense.tutar)}
-                  </Text>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={{ fontSize: 16, fontWeight: '700' }}>{formatAmount(it.amount)}</Text>
+                  <Text style={{ fontSize: 12, color: Colors.text.secondary }}>{trTitle(it.key)}</Text>
                 </View>
-              </TouchableOpacity>
+              </View>
             ))}
           </View>
         ) : (
           <View style={CommonStyles.emptyContainer}>
-            <Text style={CommonStyles.emptyIcon}>📋</Text>
-            <Text style={CommonStyles.emptyText}>
-              Henüz harcama bulunmamaktadır.
-            </Text>
-            <Text style={CommonStyles.emptyText}>
-              İlk harcamanızı eklemek için yukarıdaki butona tıklayın.
-            </Text>
+            <Text style={CommonStyles.emptyIcon}>🧾</Text>
+            <Text style={CommonStyles.emptyText}>Liste boş. Market/Yemek/Diğer türü bir harcama ekleyin.</Text>
           </View>
         )}
+
+        <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={hideToast} />
       </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  expenseIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+  iconCircle: {
+    width: 48, height: 48, borderRadius: 24,
     backgroundColor: Colors.primary[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  expenseIcon: {
-    fontSize: 24,
-  },
-  expenseAmount: {
-    alignItems: 'flex-end',
-  },
-  amountText: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    justifyContent: 'center', alignItems: 'center', marginRight: 12,
   },
 });
 
-export default ExpenseListScreen;
+export default ExpensesListScreen;

@@ -1,388 +1,179 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-  ScrollView,
-  Modal
-} from 'react-native';
+// src/screens/PaymentApprovalScreen.js
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert, RefreshControl } from 'react-native';
+import { Colors } from '../constants/Colors';
 import { useAuth } from '../context/AuthContext';
-import { paymentsApi, houseApi } from '../services/api';
-import eventBus from '../shared/events/bus';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../../constants/Colors';
+import { paymentsApi } from '../services/api';
+import { useFocusEffect } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
+import { getScrollPosition, setScrollPosition } from '../shared/state/scrollPositions';
 
-const PaymentApprovalScreen = ({ navigation, route }) => {
-  const { houseId, houseName } = route.params || {};
+const fmt = (n) => `${Number(n || 0).toFixed(2)} ₺`;
+
+const PaymentApprovalScreen = ({ route }) => {
+  const { houseId } = route.params || {};
   const { user } = useAuth();
-  const [selectedPayment, setSelectedPayment] = useState(null);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [pendingPayments, setPendingPayments] = useState([]);
+  const queryClient = useQueryClient();
+  const [list, setList] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [approveLoading, setApproveLoading] = useState(false);
-  const [rejectLoading, setRejectLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [membersMap, setMembersMap] = useState({});
+  const [refreshing, setRefreshing] = useState(false);
+  const [pendingIdSet, setPendingIdSet] = useState(new Set());
+  const flatListRef = useRef(null);
 
-  useEffect(() => {
-    if (user?.id) {
-      fetchPendingPayments();
-    }
-  }, [user?.id]);
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      if (user?.id) {
-        fetchPendingPayments();
-      }
-    });
-
-    return unsubscribe;
-  }, [navigation, user?.id]);
-
-  const fetchPendingPayments = async () => {
+  const load = async () => {
     if (!user?.id) return;
-    
     setLoading(true);
-    setError(null);
     try {
-      const response = await paymentsApi.getPendingPayments(user.id);
-      // Eğer houseId varsa sadece o evin ödemelerini filtrele
-      let list = response?.data ?? [];
-      if (houseId && Array.isArray(list)) {
-        list = list.filter(p => Number(p.houseId) === Number(houseId));
-      }
-      if (Array.isArray(list)) {
-        setPendingPayments(list);
-        // İsimler için ilgili evlerin üyelerini yükleyip map oluştur
-        const uniqueHouseIds = Array.from(new Set(list.map(p => p.houseId).filter(Boolean)));
-        const maps = {};
-        for (const hid of uniqueHouseIds) {
-          try {
-            const res = await houseApi.getMembers(hid);
-            const body = res?.data;
-            const arr = Array.isArray(body) ? body : Array.isArray(body?.data) ? body.data : [];
-            for (const m of arr) {
-              const key = String(m.userId ?? m.id);
-              if (!maps[key]) maps[key] = m;
-            }
-          } catch (_) {}
-        }
-        setMembersMap(maps);
-      } else {
-        setPendingPayments([]);
-        setMembersMap({});
-      }
-    } catch (error) {
-      console.error('Bekleyen ödemeler alınamadı:', error);
-      setError(error.message);
-      setPendingPayments([]);
-      setMembersMap({});
+      const res = await paymentsApi.getPendingPayments(Number(user.id));
+      const arr = Array.isArray(res?.data) ? res.data : (res?.data?.data || []);
+      // İlgili ev (varsa) ile filtrele
+      const filtered = houseId ? arr.filter(x => Number(x?.houseId) === Number(houseId)) : arr;
+      setList(filtered);
+    } catch (e) {
+      console.error('Pending payments load error:', e);
     } finally {
       setLoading(false);
     }
   };
 
-  const showPaymentDetail = (payment) => {
-    setSelectedPayment(payment);
-    setModalVisible(true);
+  useFocusEffect(useCallback(() => {
+    load();
+    // Odaklanınca önceki scroll pozisyonunu geri yükle
+    const key = `PaymentApprovalScreen:${houseId ?? 'all'}`;
+    const offset = getScrollPosition(key);
+    if (offset && flatListRef.current) {
+      requestAnimationFrame(() => {
+        flatListRef.current?.scrollToOffset?.({ offset, animated: false });
+      });
+    }
+  }, [user?.id, houseId]));
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
   };
 
-  const handleApprove = async () => {
-    if (!selectedPayment) return;
-
+  const approve = async (paymentId) => {
+    // Optimistic: öğeyi listeden çıkar
+    const prevList = list;
+    setPendingIdSet(new Set([...pendingIdSet, paymentId]));
+    setList((curr) => curr.filter((x) => x?.id !== paymentId));
     try {
-      setApproveLoading(true);
-      const response = await paymentsApi.approvePayment(selectedPayment.id, user.id);
-      if (response.data) {
-        Alert.alert('Başarılı', 'Ödeme onaylandı');
-        setModalVisible(false);
-        setSelectedPayment(null);
-        fetchPendingPayments();
-        // Borç/Alacak ekranlarını tetikle
-        eventBus.emit('payments:updated', { houseId: selectedPayment.houseId });
-      } else {
-        throw new Error('Ödeme onaylanamadı');
-      }
-    } catch (error) {
-      console.error('Ödeme onaylama hatası:', error);
-      Alert.alert('Hata', 'Ödeme onaylanırken bir sorun oluştu: ' + (error.response?.data?.message || error.message));
+      await paymentsApi.approvePayment(paymentId);
+      // Diğer ekranları güncelle
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      Alert.alert('Onaylandı', 'Ödeme onaylandı.');
+    } catch (e) {
+      // Rollback
+      setList(prevList);
+      console.error('approve error', e);
+      Alert.alert('Hata', e?.response?.data?.message || e.message);
     } finally {
-      setApproveLoading(false);
+      setPendingIdSet((s) => {
+        const n = new Set(s);
+        n.delete(paymentId);
+        return n;
+      });
     }
   };
 
-  const handleReject = async () => {
-    if (!selectedPayment) return;
-
+  const reject = async (paymentId) => {
+    // Optimistic: öğeyi listeden çıkar
+    const prevList = list;
+    setPendingIdSet(new Set([...pendingIdSet, paymentId]));
+    setList((curr) => curr.filter((x) => x?.id !== paymentId));
     try {
-      setRejectLoading(true);
-      const response = await paymentsApi.rejectPayment(selectedPayment.id, '');
-      if (response.data) {
-        Alert.alert('Başarılı', 'Ödeme reddedildi');
-        setModalVisible(false);
-        setSelectedPayment(null);
-        fetchPendingPayments();
-        eventBus.emit('payments:updated', { houseId: selectedPayment.houseId });
-      } else {
-        throw new Error('Ödeme reddedilemedi');
-      }
-    } catch (error) {
-      console.error('Ödeme reddetme hatası:', error);
-      Alert.alert('Hata', 'Ödeme reddedilirken bir sorun oluştu: ' + (error.response?.data?.message || error.message));
+      await paymentsApi.rejectPayment(paymentId);
+      // Diğer ekranları güncelle
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      Alert.alert('Reddedildi', 'Ödeme reddedildi.');
+    } catch (e) {
+      // Rollback
+      setList(prevList);
+      console.error('reject error', e);
+      Alert.alert('Hata', e?.response?.data?.message || e.message);
     } finally {
-      setRejectLoading(false);
+      setPendingIdSet((s) => {
+        const n = new Set(s);
+        n.delete(paymentId);
+        return n;
+      });
     }
   };
 
-  const formatAmount = (amount) => {
-    const n = Number(amount);
-    if (Number.isNaN(n)) return 'NaN ₺';
-    return `${n.toFixed(2)} ₺`;
-  };
+  const renderItem = ({ item }) => {
+    const from = item?.payerUserName || item?.borcluUserName || 'Ödeyen';
+    const to = item?.toUserName || item?.alacakliUserName || 'Alacaklı';
+    const amount = item?.amount ?? item?.tutar ?? 0;
+    const isPending = pendingIdSet.has(item?.id);
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Tarih yok';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('tr-TR');
-    } catch (error) {
-      return 'Geçersiz tarih';
-    }
-  };
-
-  if (loading) {
     return (
-      <View style={CommonStyles.container}>
-        <View style={CommonStyles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary[500]} />
-          <Text style={CommonStyles.loadingText}>Bekleyen ödemeler yükleniyor...</Text>
+      <View style={styles.card}>
+        <View style={styles.rowBetween}>
+          <Text style={styles.title}>{from} → {to}</Text>
+          <Text style={styles.amount}>{fmt(amount)}</Text>
+        </View>
+        <Text style={styles.sub}>Ödeme onay bekliyor</Text>
+
+        <View style={styles.actions}>
+          <TouchableOpacity style={[styles.btn, styles.btnSuccess, isPending && styles.btnDisabled]} onPress={() => !isPending && approve(item?.id)} activeOpacity={0.85} disabled={isPending}>
+            <Text style={styles.btnText}>Onayla</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.btn, styles.btnDanger, isPending && styles.btnDisabled]} onPress={() => !isPending && reject(item?.id)} activeOpacity={0.85} disabled={isPending}>
+            <Text style={styles.btnText}>Reddet</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
-  }
+  };
 
   return (
-    <View style={CommonStyles.container}>
-      <ScrollView style={CommonStyles.content}>
-        <View style={CommonStyles.header}>
-          <Text style={CommonStyles.title}>Bekleyen Ödemeler</Text>
-          <Text style={CommonStyles.subtitle}>
-            {houseName ? `${houseName} • ` : ''}Onay bekleyen {pendingPayments.length} ödeme
-          </Text>
-        </View>
+    <View style={styles.container}>
+      <Text style={styles.header}>Ödeme Onayları</Text>
 
-        {pendingPayments.length > 0 ? (
-          <View style={CommonStyles.listContainer}>
-            {pendingPayments.map((payment) => (
-              <TouchableOpacity
-                key={payment.id.toString()}
-                style={CommonStyles.listItem}
-                onPress={() => showPaymentDetail(payment)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.paymentIconContainer}>
-                  <Text style={styles.paymentIcon}>💰</Text>
-                </View>
-                <View style={CommonStyles.listItemContent}>
-                  <Text style={CommonStyles.listItemTitle}>
-                    {payment.aciklama || payment.description || 'Ödeme'}
-                  </Text>
-                  <Text style={CommonStyles.listItemSubtitle}>
-                    {(payment.borcluUserName || membersMap[String(payment.borcluUserId)]?.fullName || 'Bilinmeyen')} → {(membersMap[String(payment.alacakliUserId)]?.fullName || 'Bilinmeyen')}
-                  </Text>
-                  <Text style={CommonStyles.listItemSubtitle}>
-                    Tarih: {formatDate(payment.odemeTarihi || payment.createdAt)}
-                  </Text>
-                </View>
-                <View style={styles.paymentAmount}>
-                  <Text style={[styles.amountText, { color: Colors.primary[600] }]}>
-                    {formatAmount(payment.tutar || payment.amount)}
-                  </Text>
-                  <Text style={[styles.statusText, { color: Colors.warning[600] }]}>
-                    Bekliyor
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        ) : (
-          <View style={CommonStyles.emptyContainer}>
-            <Text style={CommonStyles.emptyIcon}>⏳</Text>
-            <Text style={CommonStyles.emptyText}>
-              Onay bekleyen ödemeniz bulunmamaktadır.
-            </Text>
-            <Text style={CommonStyles.emptyText}>
-              Yeni ödemeler geldiğinde burada görünecektir.
-            </Text>
-          </View>
-        )}
-
-        {/* Ödeme Detay Modal */}
-        <Modal
-          visible={modalVisible}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => setModalVisible(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Ödeme Detayı</Text>
-              
-              {selectedPayment && (
-                <View style={styles.paymentDetails}>
-                  <Text style={styles.detailText}>
-                    <Text style={styles.detailLabel}>Açıklama:</Text> {selectedPayment.aciklama || selectedPayment.description}
-                  </Text>
-                  <Text style={styles.detailText}>
-                    <Text style={styles.detailLabel}>Gönderen:</Text> {selectedPayment.borcluUserName || membersMap[String(selectedPayment.borcluUserId)]?.fullName || 'Bilinmeyen'}
-                  </Text>
-                  <Text style={styles.detailText}>
-                    <Text style={styles.detailLabel}>Alıcı:</Text> {membersMap[String(selectedPayment.alacakliUserId)]?.fullName || 'Bilinmeyen'}
-                  </Text>
-                  <Text style={styles.detailText}>
-                    <Text style={styles.detailLabel}>Tutar:</Text> {formatAmount(selectedPayment.tutar || selectedPayment.amount)}
-                  </Text>
-                  <Text style={styles.detailText}>
-                    <Text style={styles.detailLabel}>Tarih:</Text> {formatDate(selectedPayment.odemeTarihi || selectedPayment.createdAt)}
-                  </Text>
-                </View>
-              )}
-
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.rejectButton]}
-                  onPress={handleReject}
-                  disabled={rejectLoading}
-                >
-                  <Text style={styles.rejectButtonText}>
-                    {rejectLoading ? 'Reddediliyor...' : 'Reddet'}
-                  </Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.approveButton]}
-                  onPress={handleApprove}
-                  disabled={approveLoading}
-                >
-                  <Text style={styles.approveButtonText}>
-                    {approveLoading ? 'Onaylanıyor...' : 'Onayla'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setModalVisible(false)}
-              >
-                <Text style={styles.closeButtonText}>Kapat</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      </ScrollView>
+      {loading ? (
+        <View style={styles.center}><ActivityIndicator size="large" color={Colors.primary[500]} /></View>
+      ) : (
+        <FlatList
+          ref={flatListRef}
+          data={list}
+          keyExtractor={(it, idx) => String(it?.id ?? idx)}
+          renderItem={renderItem}
+          ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          onScroll={(e) => {
+            const key = `PaymentApprovalScreen:${houseId ?? 'all'}`;
+            setScrollPosition(key, e.nativeEvent.contentOffset.y || 0);
+          }}
+          scrollEventThrottle={16}
+          ListEmptyComponent={<Text style={styles.empty}>Bekleyen ödeme bulunamadı.</Text>}
+        />
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  paymentIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: Colors.primary[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
+  container: { flex: 1, backgroundColor: Colors.surface, padding: 16 },
+  header: { fontSize: 20, fontWeight: '700', color: Colors.text.primary, marginBottom: 12 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  empty: { textAlign: 'center', color: Colors.text.secondary, marginTop: 24 },
+
+  card: {
+    backgroundColor: Colors.background, borderRadius: 12, padding: 12,
+    borderWidth: 1, borderColor: Colors.neutral[200]
   },
-  paymentIcon: {
-    fontSize: 24,
-  },
-  paymentAmount: {
-    alignItems: 'flex-end',
-  },
-  amountText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: Colors.background,
-    borderRadius: 12,
-    padding: 20,
-    margin: 20,
-    width: '90%',
-    maxWidth: 400,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
-    color: Colors.text.primary,
-  },
-  paymentDetails: {
-    marginBottom: 20,
-  },
-  detailText: {
-    fontSize: 16,
-    marginBottom: 8,
-    color: Colors.text.primary,
-  },
-  detailLabel: {
-    fontWeight: 'bold',
-    color: Colors.text.secondary,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-  },
-  modalButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    marginHorizontal: 5,
-  },
-  rejectButton: {
-    backgroundColor: Colors.error[500],
-  },
-  approveButton: {
-    backgroundColor: Colors.success[500],
-  },
-  rejectButtonText: {
-    color: Colors.background,
-    textAlign: 'center',
-    fontWeight: 'bold',
-  },
-  approveButtonText: {
-    color: Colors.background,
-    textAlign: 'center',
-    fontWeight: 'bold',
-  },
-  closeButton: {
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: Colors.neutral[300],
-  },
-  closeButtonText: {
-    color: Colors.text.primary,
-    textAlign: 'center',
-    fontWeight: 'bold',
-  },
+  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  title: { fontSize: 15, fontWeight: '700', color: Colors.text.primary },
+  sub: { marginTop: 4, color: Colors.text.secondary, fontSize: 12 },
+  amount: { fontWeight: '800', color: Colors.text.primary, marginLeft: 8 },
+
+  actions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 10, gap: 8 },
+  btn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10 },
+  btnSuccess: { backgroundColor: Colors.success[600] },
+  btnDanger: { backgroundColor: Colors.error[600] },
+  btnDisabled: { opacity: 0.6 },
+  btnText: { color: '#fff', fontWeight: '700' },
 });
 
 export default PaymentApprovalScreen;

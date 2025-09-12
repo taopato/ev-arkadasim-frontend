@@ -1,69 +1,95 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  ScrollView,
-  Alert
-} from 'react-native';
-import { useAuth } from '../context/AuthContext';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../../constants/Colors';
+// src/screens/DebtSummaryScreen.js
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
+import { CommonStyles } from '../shared/ui/CommonStyles';
+import { Colors } from '../constants/Colors';
 import { houseApi } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
-const DebtSummaryScreen = ({ navigation, route }) => {
-  const { houseId, houseName } = route.params || {};
+const fmt = (n) => `${Number(n || 0).toFixed(2)} ₺`;
+
+const DebtSummaryScreen = ({ route }) => {
   const { user } = useAuth();
-  const [debtSummary, setDebtSummary] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { houseId: routeHouseId } = route.params || {};
+  const houseId = Number(routeHouseId || user?.defaultHouseId);
+  const me = Number(user?.id);
+
+  const [loading, setLoading] = useState(false);
+  const [receivables, setReceivables] = useState([]);
+  const [debts, setDebts] = useState([]);
+  const [totals, setTotals] = useState({ receivable: 0, payable: 0, net: 0 });
 
   useEffect(() => {
-    if (!houseId) {
-      Alert.alert('Hata', 'Ev bilgisi eksik.');
-      navigation.goBack();
-      return;
-    }
-    fetchDebtSummary();
-  }, [houseId]);
+    if (!houseId || !me) return;
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await houseApi.getUserDebts(me, houseId);
+        const body = res?.data?.data ?? res?.data ?? {};
 
-  const fetchDebtSummary = async () => {
-    setLoading(true);
-    try {
-      const response = await houseApi.getUserDebts(user.id, houseId);
-      const data = response.data;
-      setDebtSummary(data);
-    } catch (error) {
-      console.error('Borç özeti hatası:', error);
-      Alert.alert('Hata', 'Borç özeti alınırken bir sorun oluştu');
-    } finally {
-      setLoading(false);
-    }
-  };
+        // Yeni şema: pairs/totals
+        if (Array.isArray(body.pairs) || Array.isArray(body.totals)) {
+          const pairs = Array.isArray(body.pairs) ? body.pairs : [];
+          const totalsArr = Array.isArray(body.totals) ? body.totals : [];
+          const my = totalsArr.find((t) => Number(t.userId) === me) || {};
 
-  const formatAmount = (amount) => {
-    return `${parseFloat(amount).toFixed(2)} ₺`;
-  };
+          const recv = pairs
+            .filter((p) => Number(p.toUserId) === me && Number(p.netAmount) > 0)
+            .map((p) => ({
+              userId: Number(p.fromUserId),
+              name: p.fromUserName || p.fromFullName || p.fromName || `Kullanıcı #${p.fromUserId}`,
+              amount: Number(p.netAmount),
+            }));
 
-  const getStatusColor = (balance) => {
-    if (balance > 0) return Colors.success[600];
-    if (balance < 0) return Colors.error[600];
-    return Colors.neutral[600];
-  };
+          const dbt = pairs
+            .filter((p) => Number(p.fromUserId) === me && Number(p.netAmount) > 0)
+            .map((p) => ({
+              userId: Number(p.toUserId),
+              name: p.toUserName || p.toFullName || p.toName || `Kullanıcı #${p.toUserId}`,
+              amount: Number(p.netAmount),
+            }));
 
-  const getStatusText = (balance) => {
-    if (balance > 0) return 'Alacaklı';
-    if (balance < 0) return 'Borçlu';
-    return 'Nötr';
-  };
+          setReceivables(recv);
+          setDebts(dbt);
+          setTotals({
+            receivable: Number(my.receivable) || recv.reduce((s, x) => s + x.amount, 0),
+            payable: Number(my.payable) || dbt.reduce((s, x) => s + x.amount, 0),
+            net: Number(my.net) || ((Number(my.receivable) || 0) - (Number(my.payable) || 0)),
+          });
+          return;
+        }
+
+        // Eski şema: kullaniciBazliDurumlar/toplamAlacak/toplamBorc/netDurum
+        const arr = Array.isArray(body.kullaniciBazliDurumlar) ? body.kullaniciBazliDurumlar : [];
+        const recv = arr
+          .filter((p) => Number(p.amount) < 0)
+          .map((p) => ({ userId: Number(p.userId), name: p.userName || p.fullName || `Kullanıcı #${p.userId}` , amount: Math.abs(Number(p.amount)) }));
+        const dbt = arr
+          .filter((p) => Number(p.amount) > 0)
+          .map((p) => ({ userId: Number(p.userId), name: p.userName || p.fullName || `Kullanıcı #${p.userId}` , amount: Number(p.amount) }));
+        setReceivables(recv);
+        setDebts(dbt);
+        setTotals({
+          receivable: Number(body.toplamAlacak) || recv.reduce((s, x) => s + x.amount, 0),
+          payable: Number(body.toplamBorc) || dbt.reduce((s, x) => s + x.amount, 0),
+          net: Number(body.netDurum) || (Number(body.toplamAlacak) - Number(body.toplamBorc) || 0),
+        });
+      } catch (e) {
+        setReceivables([]);
+        setDebts([]);
+        setTotals({ receivable: 0, payable: 0, net: 0 });
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [houseId, me]);
 
   if (loading) {
     return (
       <View style={CommonStyles.container}>
         <View style={CommonStyles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary[500]} />
-          <Text style={CommonStyles.loadingText}>Borç özeti yükleniyor...</Text>
+          <Text style={CommonStyles.loadingText}>Borç/Alacak özeti yükleniyor…</Text>
         </View>
       </View>
     );
@@ -73,162 +99,92 @@ const DebtSummaryScreen = ({ navigation, route }) => {
     <View style={CommonStyles.container}>
       <ScrollView style={CommonStyles.content}>
         <View style={CommonStyles.header}>
-          <Text style={CommonStyles.title}>Borç Özeti</Text>
-          <Text style={CommonStyles.subtitle}>
-            {houseName || 'Ev'} • Genel durum
-          </Text>
+          <Text style={CommonStyles.title}>Borç/Alacak Özeti</Text>
+          <Text style={CommonStyles.subtitle}>Ev: {String(houseId)}</Text>
         </View>
 
-        {debtSummary ? (
-          <>
-            {/* Genel Durum Kartı */}
-            <View style={CommonStyles.card}>
-              <Text style={styles.sectionTitle}>💰 Genel Durum</Text>
-              <View style={styles.summaryContainer}>
-                <View style={styles.summaryItem}>
-                  <Text style={styles.summaryLabel}>Net Bakiye</Text>
-                  <Text style={[
-                    styles.summaryAmount, 
-                    { color: getStatusColor(debtSummary.netBalance || 0) }
-                  ]}>
-                    {formatAmount(debtSummary.netBalance || 0)}
-                  </Text>
-                  <Text style={[
-                    styles.summaryStatus, 
-                    { color: getStatusColor(debtSummary.netBalance || 0) }
-                  ]}>
-                    {getStatusText(debtSummary.netBalance || 0)}
-                  </Text>
-                </View>
-              </View>
+        {/* Toplamlar */}
+        <View style={CommonStyles.card}>
+          <View style={styles.row3}>
+            <View style={[styles.kpi, { backgroundColor: Colors.success[50] }]}>
+              <Text style={styles.kpiLabel}>Toplam Alacak</Text>
+              <Text style={[styles.kpiValue, { color: Colors.success[600] }]}>{fmt(totals.receivable)}</Text>
             </View>
-
-            {/* Detaylı Liste */}
-            {debtSummary.pairwise && debtSummary.pairwise.length > 0 && (
-              <View style={CommonStyles.card}>
-                <Text style={styles.sectionTitle}>📋 Detaylı Liste</Text>
-                <View style={CommonStyles.listContainer}>
-                  {debtSummary.pairwise.map((item, index) => (
-                    <View key={index} style={CommonStyles.listItem}>
-                      <View style={styles.debtIconContainer}>
-                        <Text style={styles.debtIcon}>
-                          {item.balance > 0 ? '💚' : item.balance < 0 ? '💔' : '⚖️'}
-                        </Text>
-                      </View>
-                      <View style={CommonStyles.listItemContent}>
-                        <Text style={CommonStyles.listItemTitle}>
-                          {item.otherUserName || 'Bilinmeyen Kullanıcı'}
-                        </Text>
-                        <Text style={CommonStyles.listItemSubtitle}>
-                          Durum: {getStatusText(item.balance)}
-                        </Text>
-                      </View>
-                      <View style={styles.debtAmount}>
-                        <Text style={[
-                          styles.amountText, 
-                          { color: getStatusColor(item.balance) }
-                        ]}>
-                          {formatAmount(item.balance)}
-                        </Text>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {/* Aksiyon Butonları */}
-            <View style={styles.actionButtons}>
-              <TouchableOpacity 
-                style={CommonStyles.menuButton}
-                onPress={() => navigation.navigate('HarcamaEkleScreen', { houseId, houseName })}
-                activeOpacity={0.8}
-              >
-                <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.success.background }]}>
-                  <Text style={CommonStyles.buttonIcon}>➕</Text>
-                  <Text style={CommonStyles.buttonText}>Harcama Ekle</Text>
-                  <Text style={CommonStyles.buttonSubtext}>Yeni harcama kaydı</Text>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={CommonStyles.menuButton}
-                onPress={() => navigation.navigate('PaymentApproval', { houseId, houseName })}
-                activeOpacity={0.8}
-              >
-                <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.warning.background }]}>
-                  <Text style={CommonStyles.buttonIcon}>⏳</Text>
-                  <Text style={CommonStyles.buttonText}>Bekleyen Ödemeler</Text>
-                  <Text style={CommonStyles.buttonSubtext}>Onay bekleyen ödemeler</Text>
-                </View>
-              </TouchableOpacity>
+            <View style={[styles.kpi, { backgroundColor: Colors.error[50] }]}>
+              <Text style={styles.kpiLabel}>Toplam Borç</Text>
+              <Text style={[styles.kpiValue, { color: Colors.error[600] }]}>{fmt(totals.payable)}</Text>
             </View>
-          </>
-        ) : (
-          <View style={CommonStyles.emptyContainer}>
-            <Text style={CommonStyles.emptyIcon}>📊</Text>
-            <Text style={CommonStyles.emptyText}>
-              Borç özeti bulunamadı.
-            </Text>
-            <Text style={CommonStyles.emptyText}>
-              Harcama ekleyerek borç/alacak durumunuzu görebilirsiniz.
-            </Text>
+            <View style={[styles.kpi, { backgroundColor: Colors.primary[50] }]}>
+              <Text style={styles.kpiLabel}>Net</Text>
+              <Text
+                style={[
+                  styles.kpiValue,
+                  { color: totals.net >= 0 ? Colors.success[600] : Colors.error[600] },
+                ]}
+              >
+                {fmt(totals.net)}
+              </Text>
+            </View>
           </View>
-        )}
+        </View>
+
+        {/* Size borçlu olanlar */}
+        <View style={CommonStyles.card}>
+          <Text style={styles.sectionTitle}>📗 Size Borçlu Olanlar</Text>
+          {receivables.length ? (
+            receivables.map((r) => (
+              <View key={String(r.userId)} style={CommonStyles.listItem}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarTxt}>{r.name?.charAt(0)?.toUpperCase() || '?'}</Text>
+                </View>
+                <View style={CommonStyles.listItemContent}>
+                  <Text style={CommonStyles.listItemTitle}>{r.name}</Text>
+                  <Text style={CommonStyles.listItemSubtitle}>Size borçlu</Text>
+                </View>
+                <Text style={[styles.amount, { color: Colors.success[600] }]}>{fmt(r.amount)}</Text>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.muted}>Kayıt yok</Text>
+          )}
+        </View>
+
+        {/* Sizin borçlu olduklarınız */}
+        <View style={CommonStyles.card}>
+          <Text style={styles.sectionTitle}>📕 Borçlu Olduklarınız</Text>
+          {debts.length ? (
+            debts.map((d) => (
+              <View key={String(d.userId)} style={CommonStyles.listItem}>
+                <View style={[styles.avatar, { backgroundColor: Colors.warning[500] }]}>
+                  <Text style={[styles.avatarTxt, { color: '#fff' }]}>{d.name?.charAt(0)?.toUpperCase() || '?'}</Text>
+                </View>
+                <View style={CommonStyles.listItemContent}>
+                  <Text style={CommonStyles.listItemTitle}>{d.name}</Text>
+                  <Text style={CommonStyles.listItemSubtitle}>Bu kişiye borçlusunuz</Text>
+                </View>
+                <Text style={[styles.amount, { color: Colors.error[600] }]}>{fmt(d.amount)}</Text>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.muted}>Kayıt yok</Text>
+          )}
+        </View>
       </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    color: Colors.text.primary,
-  },
-  summaryContainer: {
-    alignItems: 'center',
-  },
-  summaryItem: {
-    alignItems: 'center',
-  },
-  summaryLabel: {
-    fontSize: 16,
-    color: Colors.text.secondary,
-    marginBottom: 8,
-  },
-  summaryAmount: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  summaryStatus: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  debtIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: Colors.primary[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  debtIcon: {
-    fontSize: 24,
-  },
-  debtAmount: {
-    alignItems: 'flex-end',
-  },
-  amountText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  actionButtons: {
-    gap: 12,
-  },
+  row3: { flexDirection: 'row', gap: 10 },
+  kpi: { flex: 1, padding: 12, borderRadius: 10, alignItems: 'center' },
+  kpiLabel: { color: Colors.text.secondary, fontSize: 12, marginBottom: 6 },
+  kpiValue: { fontWeight: '900', fontSize: 16 },
+
+  sectionTitle: { fontSize: 16, fontWeight: '900', color: Colors.text.primary, marginBottom: 10 },
+  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primary[500], alignItems: 'center', justifyContent: 'center' },
+  avatarTxt: { color: '#fff', fontWeight: '800' },
+  amount: { fontWeight: '900' },
+  muted: { color: Colors.text.secondary },
 });
 
 export default DebtSummaryScreen;

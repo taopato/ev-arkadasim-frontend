@@ -20,7 +20,7 @@ export const endpoints = {
     acceptInvitation: '/Houses/AcceptInvitation',
     getMembers: (houseId: string | number) => `/Houses/${houseId}/members`,
     getUserDebts: (userId: string | number, houseId: string | number) => `/Houses/GetUserDebts/${userId}/${houseId}`,
-    getUserReceivables: (userId: string | number, houseId: string | number) => `/Houses/GetUserReceivables/${userId}/${houseId}`,
+    // getUserReceivables kaldırıldı - GetUserDebts hem borç hem alacak döndürür
     getUserHouses: (userId: string | number) => `/Houses/GetUserHouses/${userId}`,
     spendingOverview: (houseId: string | number, from?: string, to?: string, recentLimit?: number) => 
       `/Houses/${houseId}/spending-overview?from=${from || ''}&to=${to || ''}&recentLimit=${recentLimit || ''}`,
@@ -32,6 +32,7 @@ export const endpoints = {
     create: '/Expenses',
     addExpense: '/Expenses/AddExpense',
     getByHouse: (houseId: string | number) => `/Expenses/GetExpenses/${houseId}`,
+    getByHousePaged: (houseId: string | number) => `/Expenses/GetExpensesPaged/${houseId}`,
     getById: (expenseId: string | number) => `/Expenses/GetExpense/${expenseId}`,
     delete: (expenseId: string | number) => `/Expenses/DeleteExpense/${expenseId}`,
     update: (expenseId: string | number) => `/Expenses/UpdateExpense/${expenseId}`,
@@ -54,13 +55,14 @@ export const endpoints = {
   payments: {
     create: '/Payments/CreatePayment',
     getByHouse: (houseId: string | number) => `/Payments/GetPayments/${houseId}`,
+    getByHousePaged: (houseId: string | number) => `/Payments/GetPaymentsPaged/${houseId}`,
     getPendingPayments: (userId: string | number) => `/Payments/GetPendingPayments/${userId}`,
     approvePayment: (paymentId: string | number) => `/Payments/ApprovePayment/${paymentId}`,
     rejectPayment: (paymentId: string | number) => `/Payments/RejectPayment/${paymentId}`,
     addPaymentWithAllocations: '/Payments/AddPaymentWithAllocations',
   },
 
-  // Recurring charges (contracts & cycles)
+  // Charges (monthly cycles)
   charges: {
     list: (houseId: string | number, period: string) => `/Charges?houseId=${houseId}&period=${encodeURIComponent(period)}`,
     setBill: (cycleId: string | number) => `/Charges/${cycleId}/SetBill`,
@@ -68,6 +70,19 @@ export const endpoints = {
   },
   recurringCharges: {
     create: '/RecurringCharges',
+    getByHouse: (houseId: string | number, params?: any) => {
+      const queryParams = new URLSearchParams();
+      queryParams.append('houseId', String(houseId));
+      if (params?.isActive !== undefined) queryParams.append('isActive', String(params.isActive));
+      if (params?.type) queryParams.append('type', params.type);
+      if (params?.fromMonth) queryParams.append('fromMonth', params.fromMonth);
+      if (params?.toMonth) queryParams.append('toMonth', params.toMonth);
+      return `/RecurringCharges?${queryParams.toString()}`;
+    },
+    getById: (chargeId: string | number) => `/RecurringCharges/${chargeId}`,
+    update: (chargeId: string | number) => `/RecurringCharges/${chargeId}`,
+    delete: (chargeId: string | number) => `/RecurringCharges/${chargeId}`,
+    cancel: (chargeId: string | number) => `/RecurringCharges/${chargeId}/cancel`,
   },
 
   // Users endpoints

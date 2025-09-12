@@ -1,222 +1,136 @@
-import { StyleSheet, Platform } from 'react-native';
-import { Colors } from '../../../constants/Colors';
-import { shadow } from './shadow';
+// src/shared/ui/CommonStyles.js
+import { StyleSheet } from 'react-native';
+import { Colors } from '../../constants/Colors';
+
+export const ColorThemes = {
+  primary:   { background: Colors.primary[500], foreground: '#fff' },
+  success:   { background: Colors.success[600], foreground: '#fff' },
+  warning:   { background: Colors.warning[600], foreground: '#fff' },
+  neutral:   { background: Colors.neutral[200], foreground: Colors.text.primary },
+  error:     { background: Colors.error[600],   foreground: '#fff' },
+};
 
 export const CommonStyles = StyleSheet.create({
-  // Container stilleri
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.surface,
   },
-  
   content: {
     flex: 1,
-    padding: 20,
+    padding: 16,
   },
-  
-  scrollContent: {
-    flexGrow: 1,
-    padding: 20,
-  },
-  
-  // Header stilleri
   header: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  
-  subtitle: {
-    fontSize: 16,
-    color: Colors.text.secondary,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  
-  // Card stilleri
-  card: {
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    padding: 20,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: Colors.neutral[200],
-    ...shadow(1),
   },
-  
-  // Button stilleri
-  buttonContainer: {
-    gap: 12,
-    marginTop: 8,
+  title: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: Colors.text.primary,
+    marginBottom: 6,
   },
-  
+  subtitle: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+  },
+
+  // Cards
+  card: {
+    backgroundColor: Colors.background,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+
+  // Inputs
+  inputContainer: {
+    marginBottom: 14,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    marginBottom: 6,
+  },
+
+  // Buttons (menu style)
   menuButton: {
     borderRadius: 12,
     overflow: 'hidden',
-    ...shadow(1),
     marginBottom: 12,
   },
-  
   buttonContent: {
-    padding: 20,
-    alignItems: 'center',
+    padding: 14,
     borderRadius: 12,
+    alignItems: 'flex-start',
   },
-  
   buttonIcon: {
-    fontSize: 28,
-    marginBottom: 8,
+    fontSize: 20,
+    marginBottom: 6,
+    color: '#fff',
   },
-  
   buttonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: Colors.background,
-    textAlign: 'center',
-    marginBottom: 4,
+    fontWeight: '700',
+    color: '#fff',
   },
-  
   buttonSubtext: {
     fontSize: 12,
-    color: Colors.background,
-    opacity: 0.9,
-    textAlign: 'center',
+    marginTop: 2,
+    color: 'rgba(255,255,255,0.9)',
   },
-  
-  // Input stilleri
-  inputContainer: {
-    marginBottom: 20,
-  },
-  
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.text.primary,
-    marginBottom: 8,
-  },
-  
-  // List stilleri
+
+  // Lists
   listContainer: {
-    gap: 12,
+    gap: 6,
   },
-  
   listItem: {
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.neutral[200],
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.neutral[200],
   },
-  
   listItemContent: {
     flex: 1,
   },
-  
   listItemTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: Colors.text.primary,
-    marginBottom: 4,
   },
-  
   listItemSubtitle: {
-    fontSize: 14,
-    color: Colors.text.secondary,
-  },
-  
-  // Status stilleri
-  statusContainer: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  
-  statusText: {
     fontSize: 12,
-    fontWeight: '600',
+    color: Colors.text.secondary,
+    marginTop: 2,
   },
-  
-  // Footer stilleri
-  footer: {
-    marginTop: 32,
-    padding: 16,
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.neutral[200],
+
+  // Empty
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 28,
   },
-  
-  footerText: {
+  emptyIcon: {
+    fontSize: 40,
+    marginBottom: 8,
+  },
+  emptyText: {
     fontSize: 14,
     color: Colors.text.secondary,
-    textAlign: 'center',
-    lineHeight: 20,
   },
-  
-  // Loading stilleri
+
+  // Loading
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  
   loadingText: {
-    fontSize: 16,
+    marginTop: 10,
     color: Colors.text.secondary,
-    marginTop: 12,
-  },
-  
-  // Empty state stilleri
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  
-  emptyText: {
-    fontSize: 16,
-    color: Colors.text.secondary,
-    textAlign: 'center',
-    lineHeight: 24,
   },
 });
-
-// Renk temaları
-export const ColorThemes = {
-  primary: {
-    background: Colors.primary[500],
-    text: Colors.background,
-  },
-  success: {
-    background: Colors.success[500],
-    text: Colors.background,
-  },
-  warning: {
-    background: Colors.warning[500],
-    text: Colors.background,
-  },
-  neutral: {
-    background: Colors.neutral[600],
-    text: Colors.background,
-  },
-  error: {
-    background: Colors.error[500],
-    text: Colors.background,
-  },
-};

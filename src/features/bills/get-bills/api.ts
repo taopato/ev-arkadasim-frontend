@@ -165,14 +165,14 @@ export async function deleteBill(billId: number): Promise<void> {
   await api.delete(endpoints.bills.delete(billId));
 }
 
-export async function finalizeBill(billId: number, requestUserId: number): Promise<void> {
-  await api.post(endpoints.bills.finalize(billId, requestUserId));
+export async function finalizeBill(billId: number, _requestUserId?: number): Promise<void> {
+  await api.post(endpoints.bills.finalize(billId));
 }
 
-export async function uploadBillDocument(billId: number, file: File, requestUserId: number): Promise<void> {
+export async function uploadBillDocument(billId: number, file: File, _requestUserId?: number): Promise<void> {
   const formData = new FormData();
   formData.append('file', file);
-  await api.post(endpoints.bills.uploadDocument(billId, requestUserId), formData, {
+  await api.post(endpoints.bills.uploadDocument(billId), formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 }

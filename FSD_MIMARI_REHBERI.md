@@ -97,8 +97,6 @@ const getStorage = () => {
 
 ### 2. Sıradaki Adımlar 📋
 - [ ] Expenses feature'ları oluştur
-- [ ] Payments feature'ları oluştur
-- [ ] Bills feature'ları oluştur
 - [ ] Diğer ekranları sade tasarımla güncelle
 - [ ] Eski api.js dosyasını kaldır
 

@@ -1,46 +1,32 @@
 {
   "expo": {
-    "name": "ev-arkadasim-frontend-son-hali",
-    "slug": "ev-arkadasim-frontend-son-hali",
+    "name": "Ev Arkadasim",
+    "slug": "ev-arkadasim",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
-    "userInterfaceStyle": "automatic",
+    "icon": "./src/assets/icon.png",
     "splash": {
-      "image": "./assets/images/splash.png",
+      "image": "./src/assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
-      ]
-    },
     "ios": {
+      "supportsTablet": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "Bu uygulama dekont fotoğrafı çekmek için kameraya erişim gerektirir.",
-        "NSPhotoLibraryUsageDescription": "Bu uygulama dekont seçmek için galeriye erişim gerektirir."
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
       }
     },
-    "web": {
-      "favicon": "./assets/images/favicon.png"
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
     },
-    "plugins": [
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "Bu uygulama dekont seçmek için galeriye erişim gerektirir.",
-          "cameraPermission": "Bu uygulama dekont fotoğrafı çekmek için kameraya erişim gerektirir."
-        }
-      ]
-    ]
-    
+    "scheme": "evarkadasim",
+    "extra": {
+      "EXPO_PUBLIC_API_URL": "http://192.168.1.150:5118"
+    }
   }
 }

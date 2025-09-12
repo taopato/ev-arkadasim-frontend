@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { login, sendVerificationCode, verifyCodeAndRegister, verifyCodeForReset, resetPassword } from './api';
 import { tokenStorage } from '../../../shared/auth/token';
-import type { LoginRequest } from '../../../entities/user/model';
+import type { LoginRequest } from './api';
 
 export function useLogin() {
   return useMutation({

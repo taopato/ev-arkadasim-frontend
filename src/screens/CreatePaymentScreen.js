@@ -1,15 +1,8 @@
+// src/screens/CreatePaymentScreen.js
 import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-  Platform,
-  ScrollView,
-  Image,
+  View, Text, TextInput, StyleSheet, TouchableOpacity, Alert,
+  ActivityIndicator, Platform, ScrollView, Image, KeyboardAvoidingView,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import RNPickerSelect from 'react-native-picker-select';
@@ -17,8 +10,10 @@ import { useAuth } from '../context/AuthContext';
 import { paymentsApi, houseApi } from '../services/api';
 import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
 import { Colors } from '../../constants/Colors';
+import Toast from '../components/Toast';
+import { useToast } from '../hooks/useToast';
 
-const CreatePaymentScreen = ({ navigation, route }) => {
+export default function CreatePaymentScreen({ navigation, route }) {
   const { houseId, houseName, alacakliUserId, suggestedAmount, chargeId } = route.params || {};
   const { user } = useAuth();
 
@@ -27,29 +22,24 @@ const CreatePaymentScreen = ({ navigation, route }) => {
   const [toUserId, setToUserId] = useState('');
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [formError, setFormError] = useState("");
-  const [method, setMethod] = useState('BankTransfer'); // 'BankTransfer' | 'Cash'
+  const [formError, setFormError] = useState('');
+  const [method, setMethod] = useState('Cash'); // 'BankTransfer' | 'Cash'
   const [selectedImage, setSelectedImage] = useState(null);
+  const { toast, showSuccess, showError, hideToast } = useToast();
 
   useEffect(() => {
     if (!houseId) {
-      console.error('Ev ID bulunamadı');
       Alert.alert('Hata', 'Geçerli bir ev ID\'si bulunamadı.');
       navigation.goBack();
       return;
     }
-
     fetchMembers();
   }, [houseId]);
 
   // Prefill: borç ekranından gelen seçimler
   useEffect(() => {
-    if (alacakliUserId) {
-      setToUserId(String(alacakliUserId));
-    }
-    if (suggestedAmount) {
-      setAmount(String(suggestedAmount));
-    }
+    if (alacakliUserId) setToUserId(String(alacakliUserId));
+    if (suggestedAmount) setAmount(String(suggestedAmount));
   }, [alacakliUserId, suggestedAmount]);
 
   const fetchMembers = async () => {
@@ -58,106 +48,78 @@ const CreatePaymentScreen = ({ navigation, route }) => {
       const response = await houseApi.getMembers(houseId);
       const body = response?.data;
       const list = Array.isArray(body) ? body : Array.isArray(body?.data) ? body.data : [];
-      if (Array.isArray(list)) {
-        const otherMembers = list.filter(member => 
-          member && (member.userId ?? member.id) !== user.id && (member.fullName || member.name)
-        );
-        setMembers(otherMembers);
-      } else {
-        console.error('Üye bulunamadı');
-        setMembers([]);
-      }
+      const otherMembers = (list || []).filter(m =>
+        (m?.userId ?? m?.id) !== user.id && (m?.fullName || m?.name)
+      );
+      setMembers(otherMembers);
     } catch (error) {
-      console.error('Ev üyeleri alınamadı:', error);
-      Alert.alert('Hata', 'Ev üyeleri alınamadı: ' + error.message);
+      Alert.alert('Hata', 'Ev üyeleri alınamadı: ' + (error.message || ''));
+      setMembers([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleToUserChange = (value) => {
-    if (value) {
-      setToUserId(String(value));
-    } else {
-      setToUserId("");
-    }
-  };
+  const handleToUserChange = (value) => setToUserId(value ? String(value) : '');
 
   const handleCreatePayment = async () => {
-    setFormError("");
-    console.log('[CreatePayment] submit', { amount, toUserId, method, hasSlip: !!selectedImage });
+    setFormError('');
     if (!amount || !toUserId || !description.trim()) {
-      const msg = "Lütfen tüm alanları doldurun.";
-      Alert.alert("Hata", msg);
-      setFormError(msg);
-      return;
-    }
-
-    const numericAmount = Math.abs(parseFloat(String(amount).replace(',', '.')));
-    if (isNaN(numericAmount) || numericAmount <= 0) {
-      const msg = "Geçerli bir tutar giriniz.";
-      Alert.alert("Hata", msg);
-      setFormError(msg);
-      return;
-    }
-
-    if (method === 'BankTransfer' && !selectedImage) {
-      const msg = 'IBAN ile gönderimde dekont fotoğrafı zorunludur. Lütfen dekont yükleyin.';
+      const msg = 'Lütfen tüm alanları doldurun.';
       Alert.alert('Hata', msg);
       setFormError(msg);
+      return;
+    }
+    const numericAmount = Math.abs(parseFloat(String(amount).replace(',', '.')));
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      const msg = 'Geçerli bir tutar giriniz.';
+      Alert.alert('Hata', msg);
+      setFormError(msg);
+      return;
+    }
+    if (method === 'BankTransfer' && !selectedImage) {
+      Alert.alert('Eksik', 'IBAN ile ödemede dekont zorunludur.');
       return;
     }
 
     setLoading(true);
     try {
-      // Dosya objesi hazırla (IBAN için)
-      let slipFile = null;
+      // Dekont dosyası hazırla (opsiyonel)
+      let dekontFile = null;
       if (method === 'BankTransfer' && selectedImage) {
-        try {
-          if (Platform.OS === 'web') {
-            const res = await fetch(selectedImage);
-            const blob = await res.blob();
-            slipFile = new File([blob], 'payment_slip.jpg', { type: blob.type || 'image/jpeg' });
-          } else {
-            slipFile = {
-              uri: selectedImage,
-              type: 'image/jpeg',
-              name: 'payment_slip.jpg',
-            };
-          }
-        } catch (e) {
-          console.warn('Dekont dosyası hazırlanamadı', e);
+        if (Platform.OS === 'web') {
+          const res = await fetch(selectedImage);
+          const blob = await res.blob();
+          dekontFile = new File([blob], 'payment_slip.jpg', { type: blob.type || 'image/jpeg' });
+        } else {
+          dekontFile = { uri: selectedImage, type: 'image/jpeg', name: 'payment_slip.jpg' };
         }
       }
 
-      const paymentData = {
-        houseId: parseInt(houseId),
-        borcluUserId: parseInt(user.id),
-        alacakliUserId: parseInt(toUserId),
-        tutar: numericAmount,
-        method: method,
+      const payload = {
+        houseId: Number(houseId),
+        borcluUserId: Number(user.id),
+        alacakliUserId: Number(toUserId),
+        tutar: Number(numericAmount),
+        method,
         note: description.trim(),
-        slipFile,
         chargeId: chargeId ? Number(chargeId) : undefined,
+        dekontFile, // multipart
       };
 
-      console.log('[CreatePayment] payload', paymentData);
-      const response = await paymentsApi.create(paymentData);
-
-      if (response.data) {
-        Alert.alert("Başarılı", "Ödeme başarıyla oluşturuldu!", [
-          {
-            text: "Tamam",
-            onPress: () => navigation.goBack()
-          }
-        ]);
+      const response = await paymentsApi.create(payload);
+      if (response?.data) {
+        showSuccess('Ödeme başarıyla oluşturuldu!');
+        // ödeme listelerini/borçları yenile
+        const eventBus = (await import('../shared/events/bus')).default;
+        eventBus.emit('payments:updated', { houseId: Number(houseId) });
+        setTimeout(() => navigation.goBack(), 1200);
       } else {
         throw new Error('Ödeme oluşturulamadı');
       }
-      } catch (error) {
-      console.error('Ödeme oluşturma hatası:', error);
-      const msg = "Ödeme oluşturulurken bir sorun oluştu: " + (error.response?.data?.message || error.message);
-      Alert.alert("Hata", msg);
+    } catch (error) {
+      const msg = 'Ödeme oluşturulurken bir sorun oluştu: ' + (error.response?.data?.message || error.message);
+      showError(msg);
       setFormError(msg);
     } finally {
       setLoading(false);
@@ -165,26 +127,17 @@ const CreatePaymentScreen = ({ navigation, route }) => {
   };
 
   const pickerSelectStyles = {
-    inputAndroid: { 
-      borderWidth: 1, 
-      borderColor: Colors.neutral[300], 
-      borderRadius: 8, 
-      padding: 12, 
-      backgroundColor: Colors.background, 
-      marginBottom: 16,
-      color: Colors.text.primary
+    inputAndroid: {
+      borderWidth: 1, borderColor: Colors.neutral[300], borderRadius: 8, padding: 12,
+      backgroundColor: Colors.background, marginBottom: 16, color: Colors.text.primary
     },
-    inputIOS: { 
-      borderWidth: 1, 
-      borderColor: Colors.neutral[300], 
-      borderRadius: 8, 
-      padding: 12, 
-      backgroundColor: Colors.background, 
-      marginBottom: 16,
-      color: Colors.text.primary
+    inputIOS: {
+      borderWidth: 1, borderColor: Colors.neutral[300], borderRadius: 8, padding: 12,
+      backgroundColor: Colors.background, marginBottom: 16, color: Colors.text.primary
     },
   };
 
+  // izinler
   const requestCameraPermission = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
@@ -193,7 +146,6 @@ const CreatePaymentScreen = ({ navigation, route }) => {
     }
     return true;
   };
-
   const requestGalleryPermission = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -207,7 +159,8 @@ const CreatePaymentScreen = ({ navigation, route }) => {
     const ok = await requestGalleryPermission();
     if (!ok) return;
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaType.Images,
+      // ❗ web’de hata veren MediaType yerine Options kullan
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.8,
     });
@@ -229,8 +182,8 @@ const CreatePaymentScreen = ({ navigation, route }) => {
   };
 
   return (
-    <View style={CommonStyles.container}>
-      <ScrollView style={CommonStyles.content}>
+    <KeyboardAvoidingView style={CommonStyles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}>
+      <ScrollView style={CommonStyles.content} contentInsetAdjustmentBehavior="always" keyboardShouldPersistTaps="handled">
         <View style={CommonStyles.header}>
           <Text style={CommonStyles.title}>Ödeme Yap</Text>
           <Text style={CommonStyles.subtitle}>
@@ -245,10 +198,7 @@ const CreatePaymentScreen = ({ navigation, route }) => {
             <TouchableOpacity
               onPress={() => setMethod('Cash')}
               style={{
-                paddingVertical: 10,
-                paddingHorizontal: 12,
-                borderRadius: 8,
-                borderWidth: 1,
+                paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1,
                 borderColor: method === 'Cash' ? Colors.success[600] : Colors.neutral[300],
                 backgroundColor: method === 'Cash' ? Colors.success[100] : Colors.background,
               }}
@@ -259,10 +209,7 @@ const CreatePaymentScreen = ({ navigation, route }) => {
             <TouchableOpacity
               onPress={() => setMethod('BankTransfer')}
               style={{
-                paddingVertical: 10,
-                paddingHorizontal: 12,
-                borderRadius: 8,
-                borderWidth: 1,
+                paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1,
                 borderColor: method === 'BankTransfer' ? Colors.primary[600] : Colors.neutral[300],
                 backgroundColor: method === 'BankTransfer' ? Colors.primary[100] : Colors.background,
               }}
@@ -271,64 +218,47 @@ const CreatePaymentScreen = ({ navigation, route }) => {
               <Text style={{ color: Colors.text.primary }}>IBAN / Havale</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Kime? */}
           <View style={CommonStyles.inputContainer}>
             <Text style={CommonStyles.label}>Ödeme Yapılacak Kişi</Text>
             {Platform.OS === 'web' ? (
               <select
                 style={{
-                  width: '100%',
-                  height: 45,
-                  padding: '8px 12px',
-                  borderWidth: 1,
-                  borderColor: Colors.neutral[300],
-                  borderRadius: 8,
-                  backgroundColor: Colors.background,
-                  color: Colors.text.primary,
-                  fontSize: 16,
+                  width: '100%', height: 45, padding: '8px 12px', borderWidth: 1,
+                  borderColor: Colors.neutral[300], borderRadius: 8, backgroundColor: Colors.background,
+                  color: Colors.text.primary, fontSize: 16,
                 }}
-                value={toUserId || ""}
+                value={toUserId || ''}
                 onChange={(e) => handleToUserChange(e.target.value)}
               >
                 <option key="default-option" value="">Ödeme yapılacak kişiyi seçin</option>
-                {members.map((member) => (
-                  <option 
-                    key={String(member.userId ?? member.id)} 
-                    value={String(member.userId ?? member.id)}
-                  >
-                    {member.fullName}
+                {members.map((m) => (
+                  <option key={String(m.userId ?? m.id)} value={String(m.userId ?? m.id)}>
+                    {m.fullName}
                   </option>
                 ))}
               </select>
             ) : (
               <RNPickerSelect
-                onValueChange={(value) => setToUserId(value ? String(value) : "")}
+                onValueChange={(value) => setToUserId(value ? String(value) : '')}
                 value={toUserId || null}
-                items={members.map(member => ({
-                  label: member.fullName,
-                  value: String(member.userId ?? member.id),
-                  key: String(member.userId ?? member.id)
+                items={members.map(m => ({
+                  label: m.fullName, value: String(m.userId ?? m.id), key: String(m.userId ?? m.id)
                 }))}
-                placeholder={{ 
-                  label: "Ödeme yapılacak kişiyi seçin", 
-                  value: null,
-                  key: "default-option"
-                }}
+                placeholder={{ label: 'Ödeme yapılacak kişiyi seçin', value: null, key: 'default-option' }}
                 style={pickerSelectStyles}
               />
             )}
           </View>
 
+          {/* Tutar */}
           <View style={CommonStyles.inputContainer}>
             <Text style={CommonStyles.label}>Tutar (₺)</Text>
             <TextInput
               style={{
-                borderWidth: 1,
-                borderColor: Colors.neutral[300],
-                borderRadius: 8,
-                padding: 12,
-                backgroundColor: Colors.background,
-                fontSize: 16,
-                color: Colors.text.primary,
+                borderWidth: 1, borderColor: Colors.neutral[300], borderRadius: 8, padding: 12,
+                backgroundColor: Colors.background, fontSize: 16, color: Colors.text.primary,
               }}
               value={amount}
               onChangeText={setAmount}
@@ -339,19 +269,14 @@ const CreatePaymentScreen = ({ navigation, route }) => {
             />
           </View>
 
+          {/* Açıklama */}
           <View style={CommonStyles.inputContainer}>
             <Text style={CommonStyles.label}>Açıklama</Text>
             <TextInput
               style={{
-                borderWidth: 1,
-                borderColor: Colors.neutral[300],
-                borderRadius: 8,
-                padding: 12,
-                backgroundColor: Colors.background,
-                fontSize: 16,
-                color: Colors.text.primary,
-                minHeight: 80,
-                textAlignVertical: 'top',
+                borderWidth: 1, borderColor: Colors.neutral[300], borderRadius: 8, padding: 12,
+                backgroundColor: Colors.background, fontSize: 16, color: Colors.text.primary,
+                minHeight: 80, textAlignVertical: 'top',
               }}
               value={description}
               onChangeText={setDescription}
@@ -366,7 +291,7 @@ const CreatePaymentScreen = ({ navigation, route }) => {
           <Text style={styles.payerInfo}>
             Ödeme Yapan: {user?.fullName || 'Bilinmeyen Kullanıcı'}
           </Text>
-        
+
           {/* IBAN seçiliyse dekont yükleme */}
           {method === 'BankTransfer' && (
             <View style={CommonStyles.inputContainer}>
@@ -405,7 +330,7 @@ const CreatePaymentScreen = ({ navigation, route }) => {
           )}
         </View>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[
             CommonStyles.menuButton,
             (!amount || !toUserId || !description.trim() || loading || (method === 'BankTransfer' && !selectedImage)) && { opacity: 0.5 }
@@ -417,7 +342,7 @@ const CreatePaymentScreen = ({ navigation, route }) => {
           <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.success.background }]}>
             <Text style={CommonStyles.buttonIcon}>💳</Text>
             <Text style={CommonStyles.buttonText}>
-              {loading ? "Ödeme Oluşturuluyor..." : "Ödeme Yap"}
+              {loading ? 'Ödeme Oluşturuluyor...' : 'Ödeme Yap'}
             </Text>
             <Text style={CommonStyles.buttonSubtext}>Ödeme isteği gönder</Text>
           </View>
@@ -435,28 +360,18 @@ const CreatePaymentScreen = ({ navigation, route }) => {
           </View>
         )}
       </ScrollView>
-    </View>
+
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={hideToast} />
+    </KeyboardAvoidingView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   loadingOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.7)'
+    position: 'absolute', left: 0, right: 0, top: 0, bottom: 0,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255, 255, 255, 0.7)'
   },
   payerInfo: {
-    textAlign: 'center',
-    fontSize: 14,
-    color: Colors.text.secondary,
-    fontStyle: 'italic',
-    marginVertical: 10
+    textAlign: 'center', fontSize: 14, color: Colors.text.secondary, fontStyle: 'italic', marginVertical: 10
   },
 });
-
-export default CreatePaymentScreen;

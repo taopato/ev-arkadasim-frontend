@@ -1,288 +1,146 @@
+// src/screens/RegisterScreen.js
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, Alert, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { Formik } from 'formik';
-import * as Yup from 'yup';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { Colors } from '../constants/Colors';
 import { authApi } from '../services/api';
 
-export default function RegisterScreen({ navigation }) {
-  const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(1); // 1: email, 2: kod doğrulama, 3: tam kayıt
-  const [email, setEmail] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
+const RegisterScreen = ({ navigation }) => {
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail]       = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm]   = useState('');
+  const [loading, setLoading]   = useState(false);
 
-  const EmailSchema = Yup.object().shape({
-    email: Yup.string().email('Geçerli bir e-posta adresi girin').required('E-posta gerekli'),
-  });
+  const validate = () => {
+    if (!fullName.trim() || !email.trim() || !password || !confirm) {
+      Alert.alert('Hata', 'Lütfen tüm alanları doldurun.');
+      return false;
+    }
+    if (password.length < 6) {
+      Alert.alert('Hata', 'Şifre en az 6 karakter olmalıdır.');
+      return false;
+    }
+    if (password !== confirm) {
+      Alert.alert('Hata', 'Şifreler eşleşmiyor.');
+      return false;
+    }
+    return true;
+  };
 
-  const CodeSchema = Yup.object().shape({
-    code: Yup.string().length(6, 'Kod 6 haneli olmalıdır').required('Doğrulama kodu gerekli'),
-  });
-
-  const RegisterSchema = Yup.object().shape({
-    fullName: Yup.string().min(2, 'Ad soyad en az 2 karakter olmalıdır').required('Ad soyad gerekli'),
-    password: Yup.string().min(6, 'Şifre en az 6 karakter olmalıdır').required('Şifre gerekli'),
-    confirmPassword: Yup.string().oneOf([Yup.ref('password'), null], 'Şifreler eşleşmiyor').required('Şifre tekrarı gerekli'),
-  });
-
-  const handleSendCode = async (values) => {
+  const handleSignup = async () => {
+    if (!validate()) return;
     setLoading(true);
     try {
-      const response = await authApi.sendVerificationCode(values.email);
-      
-      if (response.data && response.data.success) {
-        setEmail(values.email);
-        setStep(2);
-        Alert.alert('Başarılı', 'Doğrulama kodu e-posta adresinize gönderildi.');
+      const res = await authApi.sendVerificationCode(email.trim());
+      if (res?.status === 200) {
+        Alert.alert('Doğrulama Kodu Gönderildi', 'E-posta kutunuzu kontrol edin.', [
+          { text: 'Devam', onPress: () => navigation.navigate('VerificationScreen', { email: email.trim(), fullName: fullName.trim(), password }) }
+        ]);
+      } else {
+        Alert.alert('Hata', 'Kod gönderilemedi.');
       }
-    } catch (error) {
-      console.error('Kod gönderme hatası:', error);
-      Alert.alert('Hata', 'Kod gönderilemedi: ' + (error.response?.data?.message || error.message));
+    } catch (e) {
+      console.error('Kayıt hatası:', e);
+      Alert.alert('Hata', e?.response?.data?.message || e.message || 'İşlem başarısız.');
     } finally {
       setLoading(false);
     }
   };
-
-  const handleVerifyCode = async (values) => {
-    setLoading(true);
-    try {
-      const response = await authApi.verifyCodeForReset(email, values.code);
-      
-      if (response.data && response.data.success) {
-        setVerificationCode(values.code);
-        setStep(3);
-        Alert.alert('Başarılı', 'Kod doğrulandı. Kayıt işlemini tamamlayın.');
-      }
-    } catch (error) {
-      console.error('Kod doğrulama hatası:', error);
-      Alert.alert('Hata', 'Kod doğrulanamadı: ' + (error.response?.data?.message || error.message));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCompleteRegistration = async (values) => {
-    setLoading(true);
-    try {
-      const response = await authApi.verifyCodeAndRegister(
-        email, 
-        verificationCode, 
-        values.fullName, 
-        values.password
-      );
-      
-      if (response.data && response.data.success) {
-        Alert.alert(
-          'Başarılı', 
-          'Kayıt işlemi tamamlandı. Giriş yapabilirsiniz.',
-          [{ text: 'Tamam', onPress: () => navigation.navigate('Login') }]
-        );
-      }
-    } catch (error) {
-      console.error('Kayıt tamamlama hatası:', error);
-      Alert.alert('Hata', 'Kayıt tamamlanamadı: ' + (error.response?.data?.message || error.message));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const renderStep1 = () => (
-    <View>
-      <Text style={styles.stepTitle}>Adım 1: E-posta Adresinizi Girin</Text>
-      <Formik
-        initialValues={{ email: '' }}
-        validationSchema={EmailSchema}
-        onSubmit={handleSendCode}
-      >
-        {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
-          <View>
-            <Text style={styles.label}>E-posta:</Text>
-            <TextInput
-              style={styles.input}
-              onChangeText={handleChange('email')}
-              onBlur={handleBlur('email')}
-              value={values.email}
-              placeholder="E-posta adresinizi girin"
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            {errors.email && touched.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
-
-            <Button title="Doğrulama Kodu Gönder" onPress={handleSubmit} disabled={loading} />
-          </View>
-        )}
-      </Formik>
-    </View>
-  );
-
-  const renderStep2 = () => (
-    <View>
-      <Text style={styles.stepTitle}>Adım 2: Doğrulama Kodunu Girin</Text>
-      <Text style={styles.infoText}>{email} adresine gönderilen 6 haneli kodu girin</Text>
-      
-      <Formik
-        initialValues={{ code: '' }}
-        validationSchema={CodeSchema}
-        onSubmit={handleVerifyCode}
-      >
-        {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
-          <View>
-            <Text style={styles.label}>Doğrulama Kodu:</Text>
-            <TextInput
-              style={styles.input}
-              onChangeText={handleChange('code')}
-              onBlur={handleBlur('code')}
-              value={values.code}
-              placeholder="6 haneli kodu girin"
-              keyboardType="numeric"
-              maxLength={6}
-            />
-            {errors.code && touched.code ? <Text style={styles.errorText}>{errors.code}</Text> : null}
-
-            <Button title="Kodu Doğrula" onPress={handleSubmit} disabled={loading} />
-            <TouchableOpacity onPress={() => setStep(1)} style={styles.backButton}>
-              <Text style={styles.linkText}>Geri Dön</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </Formik>
-    </View>
-  );
-
-  const renderStep3 = () => (
-    <View>
-      <Text style={styles.stepTitle}>Adım 3: Bilgilerinizi Tamamlayın</Text>
-      
-      <Formik
-        initialValues={{ fullName: '', password: '', confirmPassword: '' }}
-        validationSchema={RegisterSchema}
-        onSubmit={handleCompleteRegistration}
-      >
-        {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
-          <View>
-            <Text style={styles.label}>Ad Soyad:</Text>
-            <TextInput
-              style={styles.input}
-              onChangeText={handleChange('fullName')}
-              onBlur={handleBlur('fullName')}
-              value={values.fullName}
-              placeholder="Ad ve soyadınızı girin"
-            />
-            {errors.fullName && touched.fullName ? <Text style={styles.errorText}>{errors.fullName}</Text> : null}
-
-            <Text style={styles.label}>Şifre:</Text>
-            <TextInput
-              style={styles.input}
-              onChangeText={handleChange('password')}
-              onBlur={handleBlur('password')}
-              value={values.password}
-              placeholder="Şifrenizi girin"
-              secureTextEntry
-            />
-            {errors.password && touched.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
-
-            <Text style={styles.label}>Şifre Tekrarı:</Text>
-            <TextInput
-              style={styles.input}
-              onChangeText={handleChange('confirmPassword')}
-              onBlur={handleBlur('confirmPassword')}
-              value={values.confirmPassword}
-              placeholder="Şifrenizi tekrar girin"
-              secureTextEntry
-            />
-            {errors.confirmPassword && touched.confirmPassword ? <Text style={styles.errorText}>{errors.confirmPassword}</Text> : null}
-
-            <Button title="Kayıt Ol" onPress={handleSubmit} disabled={loading} />
-            <TouchableOpacity onPress={() => setStep(2)} style={styles.backButton}>
-              <Text style={styles.linkText}>Geri Dön</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </Formik>
-    </View>
-  );
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Kayıt Ol</Text>
-      {loading && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0000ff" />
-          <Text>İşlem yapılıyor...</Text>
-        </View>
-      )}
-      
-      {step === 1 && renderStep1()}
-      {step === 2 && renderStep2()}
-      {step === 3 && renderStep3()}
+    <KeyboardAvoidingView 
+      style={styles.container} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
+      <ScrollView 
+        contentContainerStyle={{ padding: 16, flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.title}>Hesap Oluştur</Text>
+        <Text style={styles.subtitle}>Ev arkadaşlarınla harcamaları yönet.</Text>
 
-      <View style={styles.footer}>
-        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-          <Text style={styles.linkText}>Zaten hesabınız var mı? Giriş yapın</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+        <View style={styles.card}>
+          <Text style={styles.label}>Ad Soyad</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Adınız ve soyadınız"
+            value={fullName}
+            onChangeText={setFullName}
+            autoCapitalize="words"
+          />
+
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="ornek@email.com"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+
+          <Text style={styles.label}>Şifre</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="En az 6 karakter"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+
+          <Text style={styles.label}>Şifre Tekrar</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Şifrenizi tekrar girin"
+            value={confirm}
+            onChangeText={setConfirm}
+            secureTextEntry
+          />
+
+          <Text style={styles.info}>📧 Kayıt için e-posta adresinize doğrulama kodu gelecektir.</Text>
+
+          <TouchableOpacity
+            style={[styles.btn, styles.btnPrimary, loading && styles.btnDisabled]}
+            onPress={handleSignup}
+            disabled={loading}
+            activeOpacity={0.85}
+          >
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Hesap Oluştur</Text>}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.btn, styles.btnNeutral]}
+            onPress={() => navigation.navigate('Login')}
+            activeOpacity={0.85}
+          >
+            <Text style={[styles.btnText, { color: Colors.text.primary }]}>Giriş Yap</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    padding: 16, 
-    justifyContent: 'center', 
-    backgroundColor: '#fff' 
+  container: { flex: 1, backgroundColor: Colors.surface },
+  title: { fontSize: 24, fontWeight: '800', color: Colors.text.primary, marginBottom: 6 },
+  subtitle: { color: Colors.text.secondary, marginBottom: 16 },
+  card: { backgroundColor: Colors.background, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: Colors.neutral[200] },
+
+  label: { fontWeight: '700', color: Colors.text.primary, marginTop: 10, marginBottom: 6 },
+  input: {
+    borderWidth: 1, borderColor: Colors.neutral[300], borderRadius: 10,
+    padding: 12, fontSize: 16, color: Colors.text.primary, backgroundColor: '#fff'
   },
-  title: { 
-    fontSize: 24, 
-    fontWeight: 'bold', 
-    marginBottom: 16, 
-    textAlign: 'center' 
-  },
-  stepTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    textAlign: 'center',
-    color: '#333'
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 16
-  },
-  label: { 
-    fontSize: 18, 
-    marginBottom: 8 
-  },
-  input: { 
-    height: 40, 
-    borderColor: '#ccc', 
-    borderWidth: 1, 
-    marginBottom: 16, 
-    paddingHorizontal: 8, 
-    borderRadius: 5 
-  },
-  loadingContainer: { 
-    alignItems: 'center', 
-    marginBottom: 16 
-  },
-  errorText: { 
-    color: 'red', 
-    fontSize: 14, 
-    marginBottom: 8 
-  },
-  footer: { 
-    marginTop: 20, 
-    alignItems: 'center' 
-  },
-  linkText: { 
-    color: 'blue', 
-    fontSize: 16, 
-    marginTop: 10, 
-    textDecorationLine: 'underline' 
-  },
-  backButton: {
-    marginTop: 10,
-    alignItems: 'center'
-  }
+  info: { marginTop: 12, color: Colors.text.secondary, fontSize: 12 },
+
+  btn: { paddingVertical: 12, borderRadius: 10, marginTop: 14, alignItems: 'center' },
+  btnPrimary: { backgroundColor: Colors.primary[600] },
+  btnNeutral: { backgroundColor: Colors.neutral[200] },
+  btnDisabled: { opacity: 0.6 },
+  btnText: { color: '#fff', fontWeight: '800' },
 });
+
+export default RegisterScreen;

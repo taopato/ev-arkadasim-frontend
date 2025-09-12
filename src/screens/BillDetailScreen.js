@@ -10,7 +10,7 @@ import {
   Platform
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { billsApi } from '../services/api';
+import { expensesApi } from '../services/api';
 import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
 import { Colors } from '../../constants/Colors';
 import Toast from '../components/Toast';
@@ -43,7 +43,7 @@ const BillDetailScreen = ({ route, navigation }) => {
   const fetchBillDetails = async () => {
     try {
       setLoading(true);
-      const response = await billsApi.getBillById(billId);
+      const response = await expensesApi.getById(billId);
       
       if (response.data) {
         setBill(response.data);
@@ -58,26 +58,32 @@ const BillDetailScreen = ({ route, navigation }) => {
     }
   };
 
-  const getUtilityTypeName = (type) => {
+  const getUtilityTypeName = (category) => {
     const types = {
-      1: 'Kira',
-      2: 'Elektrik',
-      3: 'Su',
-      4: 'Doğalgaz',
-      5: 'İnternet'
+      'Rent': 'Kira',
+      'Electricity': 'Elektrik',
+      'Water': 'Su',
+      'Gas': 'Doğalgaz',
+      'Internet': 'İnternet',
+      'Market': 'Market',
+      'Food': 'Yemek',
+      'Other': 'Diğer'
     };
-    return types[type] || 'Bilinmeyen';
+    return types[category] || 'Bilinmeyen';
   };
 
-  const getUtilityIcon = (type) => {
+  const getUtilityIcon = (category) => {
     const icons = {
-      1: '🏠',
-      2: '⚡',
-      3: '💧',
-      4: '🔥',
-      5: '🌐'
+      'Rent': '🏠',
+      'Electricity': '⚡',
+      'Water': '💧',
+      'Gas': '🔥',
+      'Internet': '🌐',
+      'Market': '🛒',
+      'Food': '🍽️',
+      'Other': '📄'
     };
-    return icons[type] || '📄';
+    return icons[category] || '📄';
   };
 
   const formatDate = (dateString) => {
@@ -100,8 +106,7 @@ const BillDetailScreen = ({ route, navigation }) => {
       billId: billId,
       houseId: houseId,
       houseName: houseName,
-      utilityType: bill.utilityType,
-      categoryName: getUtilityTypeName(bill.utilityType),
+      categoryName: getUtilityTypeName(bill.category),
       isEditing: true
     });
   };
@@ -117,7 +122,7 @@ const BillDetailScreen = ({ route, navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await billsApi.delete(billId);
+              await expensesApi.remove(billId);
               showToast('Fatura başarıyla silindi', 'success');
               navigation.goBack();
             } catch (error) {
@@ -158,7 +163,7 @@ const BillDetailScreen = ({ route, navigation }) => {
         <View style={CommonStyles.header}>
           <Text style={CommonStyles.title}>Fatura Detayı</Text>
           <Text style={CommonStyles.subtitle}>
-            {houseName} • {getUtilityTypeName(bill.utilityType)}
+            {houseName} • {getUtilityTypeName(bill.category)}
           </Text>
         </View>
 
@@ -166,11 +171,11 @@ const BillDetailScreen = ({ route, navigation }) => {
         <View style={styles.billInfoContainer}>
           <View style={styles.billHeader}>
             <View style={styles.billIconContainer}>
-              <Text style={styles.billIcon}>{getUtilityIcon(bill.utilityType)}</Text>
+              <Text style={styles.billIcon}>{getUtilityIcon(bill.category)}</Text>
             </View>
             <View style={styles.billTitleContainer}>
               <Text style={styles.billTitle}>
-                {bill.title || `${getUtilityTypeName(bill.utilityType)} Faturası`}
+                {bill.tur || `${getUtilityTypeName(bill.category)} Faturası`}
               </Text>
               <Text style={[styles.statusText, { color: bill.isPaid ? Colors.success[600] : Colors.warning[600] }]}>
                 {bill.isPaid ? 'Ödendi' : 'Bekliyor'}
@@ -180,13 +185,15 @@ const BillDetailScreen = ({ route, navigation }) => {
 
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Tutar:</Text>
-            <Text style={styles.detailValue}>{formatAmount(bill.amount)}</Text>
+            <Text style={styles.detailValue}>{formatAmount(bill.amount || bill.tutar)}</Text>
           </View>
 
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Son Ödeme Tarihi:</Text>
-            <Text style={styles.detailValue}>{formatDate(bill.dueDate)}</Text>
-          </View>
+          {bill.dueDate && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Son Ödeme Tarihi:</Text>
+              <Text style={styles.detailValue}>{formatDate(bill.dueDate)}</Text>
+            </View>
+          )}
 
           {bill.month && (
             <View style={styles.detailRow}>
@@ -209,10 +216,10 @@ const BillDetailScreen = ({ route, navigation }) => {
             </View>
           )}
 
-          {bill.createdAt && (
+          {(bill.createdAt || bill.postDate) && (
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Oluşturulma Tarihi:</Text>
-              <Text style={styles.detailValue}>{formatDate(bill.createdAt)}</Text>
+              <Text style={styles.detailValue}>{formatDate(bill.createdAt || bill.postDate)}</Text>
             </View>
           )}
         </View>

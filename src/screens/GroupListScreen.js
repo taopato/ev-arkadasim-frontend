@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { View, FlatList, Text, TouchableOpacity, ActivityIndicator, Alert, StyleSheet, Platform, ScrollView } from 'react-native';
+import useScrollRestore from '../hooks/useScrollRestore';
 import { useAuth } from '../context/AuthContext';
 import { houseApi } from '../services/api';
 import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../../constants/Colors';
+import { Colors } from '../constants/Colors';
 
-export default function GroupListScreen({ navigation }) {
+export default function GroupListScreen({ navigation, route }) {
   const [houses, setHouses] = useState([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const { listRef, handleScroll } = useScrollRestore('GroupListScreen');
 
   useEffect(() => {
     if (!user || !user.id) {
@@ -42,7 +44,28 @@ export default function GroupListScreen({ navigation }) {
   };
 
   const handleHousePress = (house) => {
-    navigation.navigate('EvGrubuArkadaslarimScreen', {
+    const redirectTo = route?.params?.redirectTo;
+    if (redirectTo === 'ExpensesScreen') {
+      navigation.replace('ExpensesScreen', { houseId: house.id, houseName: house.name });
+      return;
+    }
+    if (redirectTo === 'BillsOverviewScreen') {
+      navigation.replace('BillsOverviewScreen', { houseId: house.id, houseName: house.name });
+      return;
+    }
+    if (redirectTo === 'NewRecurringChargeScreen') {
+      navigation.replace('NewRecurringChargeScreen', { houseId: house.id, houseName: house.name });
+      return;
+    }
+    if (redirectTo === 'UtilityBillCreate') {
+      navigation.replace('UtilityBillCreate', { houseId: house.id, houseName: house.name, isEditing: false });
+      return;
+    }
+    if (redirectTo === 'CreatePaymentScreen') {
+      navigation.replace('CreatePaymentScreen', { houseId: house.id, houseName: house.name });
+      return;
+    }
+    navigation.navigate('HouseMembersScreen', {
       houseId: house.id,
       houseName: house.name
     });
@@ -66,7 +89,7 @@ export default function GroupListScreen({ navigation }) {
 
   return (
     <View style={CommonStyles.container}>
-      <ScrollView style={CommonStyles.content}>
+      <ScrollView style={CommonStyles.content} ref={listRef} onScroll={handleScroll} scrollEventThrottle={16}>
         <View style={CommonStyles.header}>
           <Text style={CommonStyles.title}>Ev Gruplarım</Text>
           <Text style={CommonStyles.subtitle}>Ev gruplarınızı görüntüleyin ve yönetin</Text>

@@ -6,14 +6,23 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  ScrollView
+  ScrollView,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
 import { Colors } from '../../constants/Colors';
 import { expensesApi } from '../services/api';
 
-const ExpenseApprovalScreen = ({ navigation, route }) => {
+const formatAmount = (n) =>
+  `${Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺`;
+
+const formatDate = (iso) => {
+  if (!iso) return 'Tarih yok';
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? 'Geçersiz tarih' : d.toLocaleDateString('tr-TR');
+};
+
+export default function ExpenseApprovalScreen({ navigation, route }) {
   const { houseId, houseName } = route.params || {};
   const { user } = useAuth();
   const [expenses, setExpenses] = useState([]);
@@ -31,9 +40,10 @@ const ExpenseApprovalScreen = ({ navigation, route }) => {
   const fetchExpenses = async () => {
     setLoading(true);
     try {
-      const response = await expensesApi.getByHouse(houseId);
-      const data = response.data;
-      setExpenses(data || []);
+      // ✅ Tek doğru rota: /Expenses/GetExpenses/{houseId}
+      const res = await expensesApi.getByHouse(Number(houseId));
+      const body = res?.data?.data ?? res?.data ?? [];
+      setExpenses(Array.isArray(body) ? body : []);
     } catch (error) {
       console.error('Harcama listesi hatası:', error);
       Alert.alert('Hata', 'Harcamalar alınırken bir sorun oluştu');
@@ -42,25 +52,11 @@ const ExpenseApprovalScreen = ({ navigation, route }) => {
     }
   };
 
-  const formatAmount = (amount) => {
-    return `${parseFloat(amount).toFixed(2)} ₺`;
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Tarih yok';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('tr-TR');
-    } catch (error) {
-      return 'Geçersiz tarih';
-    }
-  };
-
   const handleExpensePress = (expense) => {
     navigation.navigate('ExpenseDetailScreen', {
       expenseId: expense.id,
-      houseId: houseId,
-      houseName: houseName
+      houseId,
+      houseName,
     });
   };
 
@@ -85,10 +81,9 @@ const ExpenseApprovalScreen = ({ navigation, route }) => {
           </Text>
         </View>
 
-        {/* Yeni Harcama Ekle Butonu */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={CommonStyles.menuButton}
-          onPress={() => navigation.navigate('HarcamaEkleScreen', { houseId, houseName })}
+          onPress={() => navigation.navigate('AddExpenseScreen', { houseId, houseName })}
           activeOpacity={0.8}
         >
           <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.success.background }]}>
@@ -98,12 +93,11 @@ const ExpenseApprovalScreen = ({ navigation, route }) => {
           </View>
         </TouchableOpacity>
 
-        {/* Harcama Listesi */}
         {expenses.length > 0 ? (
           <View style={CommonStyles.listContainer}>
             {expenses.map((expense) => (
               <TouchableOpacity
-                key={expense.id.toString()}
+                key={String(expense.id)}
                 style={CommonStyles.listItem}
                 onPress={() => handleExpensePress(expense)}
                 activeOpacity={0.8}
@@ -112,27 +106,21 @@ const ExpenseApprovalScreen = ({ navigation, route }) => {
                   <Text style={styles.expenseIcon}>💰</Text>
                 </View>
                 <View style={CommonStyles.listItemContent}>
-                  <Text style={CommonStyles.listItemTitle}>
-                    {expense.tur || 'Harcama'}
+                  <Text style={CommonStyles.listItemTitle}>{expense.tur || 'Harcama'}</Text>
+                  <Text style={CommonStyles.listItemSubtitle}>
+                    Ödeyen: {expense.odeyenUser?.fullName || expense.payerName || 'Bilinmeyen'}
                   </Text>
                   <Text style={CommonStyles.listItemSubtitle}>
-                    Ödeyen: {expense.odeyenUser?.fullName || 'Bilinmeyen'}
+                    Kaydeden: {expense.kaydedenUser?.fullName || expense.creatorName || 'Bilinmeyen'}
                   </Text>
-                  <Text style={CommonStyles.listItemSubtitle}>
-                    Kaydeden: {expense.kaydedenUser?.fullName || 'Bilinmeyen'}
-                  </Text>
-                  <Text style={CommonStyles.listItemSubtitle}>
-                    Tarih: {formatDate(expense.createdAt)}
-                  </Text>
+                  <Text style={CommonStyles.listItemSubtitle}>Tarih: {formatDate(expense.createdAt)}</Text>
                 </View>
                 <View style={styles.expenseAmount}>
                   <Text style={[styles.amountText, { color: Colors.primary[600] }]}>
                     {formatAmount(expense.tutar)}
                   </Text>
                   <View style={styles.statusContainer}>
-                    <Text style={[styles.statusText, { color: Colors.success[600] }]}>
-                      ✅ Onaylandı
-                    </Text>
+                    <Text style={[styles.statusText, { color: Colors.success[600] }]}>✅ Onaylandı</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -141,9 +129,7 @@ const ExpenseApprovalScreen = ({ navigation, route }) => {
         ) : (
           <View style={CommonStyles.emptyContainer}>
             <Text style={CommonStyles.emptyIcon}>📋</Text>
-            <Text style={CommonStyles.emptyText}>
-              Henüz harcama bulunmamaktadır.
-            </Text>
+            <Text style={CommonStyles.emptyText}>Henüz harcama bulunmamaktadır.</Text>
             <Text style={CommonStyles.emptyText}>
               İlk harcamanızı eklemek için yukarıdaki butona tıklayın.
             </Text>
@@ -152,7 +138,7 @@ const ExpenseApprovalScreen = ({ navigation, route }) => {
       </ScrollView>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   expenseIconContainer: {
@@ -164,24 +150,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
   },
-  expenseIcon: {
-    fontSize: 24,
-  },
-  expenseAmount: {
-    alignItems: 'flex-end',
-  },
-  amountText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  statusContainer: {
-    alignItems: 'center',
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
+  expenseIcon: { fontSize: 24 },
+  expenseAmount: { alignItems: 'flex-end' },
+  amountText: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
+  statusContainer: { alignItems: 'center' },
+  statusText: { fontSize: 12, fontWeight: '600' },
 });
-
-export default ExpenseApprovalScreen;

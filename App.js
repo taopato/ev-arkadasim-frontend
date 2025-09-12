@@ -1,8 +1,11 @@
 import 'react-native-gesture-handler';
-import { AppRegistry, LogBox } from 'react-native';
+import React from 'react';
+import { LogBox } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { StatusBar } from 'expo-status-bar';
 import { ThemeProvider } from './src/shared/theme/ThemeProvider';
 import { AuthProvider } from './src/context/AuthContext';
 
@@ -18,10 +21,22 @@ LogBox.ignoreLogs([
   'Running application',
   'Development-level warnings',
   'Performance optimizations',
+  'TurboModuleRegistry.getEnforcing',
+  'PlatformConstants',
   'API Hatası',
   'Login hatası',
   'Failed to load resource',
+  'Invariant Violation',
+  'TurboModuleRegistry',
+  'could not be found',
+  'Verify that a module by this name is registered',
+  'native binary',
+  'js engine: hermes',
+  'runtime not ready',
 ]);
+
+// Tüm LogBox uyarılarını bastır (geçici)
+LogBox.ignoreAllLogs(true);
 
 // Console uyarılarını da bastır
 if (__DEV__) {
@@ -69,17 +84,16 @@ import DebtSummaryScreen from './src/screens/DebtSummaryScreen';
 import ExpenseApprovalScreen from './src/screens/ExpenseApprovalScreen';
 import SignupScreen from './src/screens/SignupScreen';
 import VerificationScreen from './src/screens/VerificationScreen';
-import EvGrubuArkadaslarimScreen from './src/screens/EvGrubuArkadaslarimScreen';
-import AlacakBorcIcmiScreen from './src/screens/AlacakBorcIcmiScreen';
-import HarcamaEkleScreen from './src/screens/HarcamaEkleScreen';
+import HouseMembersScreen from './src/screens/HouseMembersScreen';
+import ReceivablesDebtsSummaryScreen from './src/screens/ReceivablesDebtsSummaryScreen';
+import AddExpenseScreen from './src/screens/AddExpenseScreen';
 import GroupListScreen from './src/screens/GroupListScreen';
 import NewGroupScreen from './src/screens/NewGroupScreen';
-import HarcamaTipiSecimScreen from './src/screens/HarcamaTipiSecimScreen';
-import HarcamaPaylasimScreen from './src/screens/HarcamaPaylasimScreen';
 
 // **Yeni**: "Borçlarım" ve "Alacaklarım" ekranları
 import DebtsScreen from './src/screens/DebtsScreen';
 import ReceivablesScreen from './src/screens/ReceivablesScreen';
+import MyReceivablesScreen from './src/screens/MyReceivablesScreen';
 
 // **Yeni**: Harcama Yönetimi ekranları
 import ExpenseDetailScreen from './src/screens/ExpenseDetailScreen';
@@ -89,23 +103,36 @@ import InviteFriendScreen from './src/screens/InviteFriendScreen';
 import AcceptInvitationScreen from './src/screens/AcceptInvitationScreen';
 import PaymentApprovalScreen from './src/screens/PaymentApprovalScreen';
 import CreatePaymentScreen from './src/screens/CreatePaymentScreen';
-import BillListScreen from './src/screens/BillListScreen';
-import AddBillScreen from './src/screens/AddBillScreen';
-import BillDetailScreen from './src/screens/BillDetailScreen';
 import HouseSpendingOverviewScreen from './src/screens/HouseSpendingOverviewScreen';
-import ChargesListScreen from './src/screens/ChargesListScreen';
-import NewRecurringChargeScreen from './src/screens/NewRecurringChargeScreen';
+import BillsOverviewScreen from './src/screens/BillsOverviewScreen';
+import AddBillScreen from './src/screens/AddBillScreen';
+import UtilityBillCreateScreen from './src/screens/UtilityBillCreateScreen';
 import PendingContributionsScreen from './src/screens/PendingContributionsScreen';
 import TwoPersonDebtDetailScreen from './src/screens/TwoPersonDebtDetailScreen';
+// Eksik kayıtlar: HomeScreen düğmeleri için
+import ExpensesScreen from './src/screens/ExpensesScreen';
+import PaymentsScreen from './src/screens/PaymentsScreen';
+import PendingPaymentsScreen from './src/screens/PendingPaymentsScreen';
+// Ek akışlar
+import EvGrubuArkadaslarimScreen from './src/screens/EvGrubuArkadaslarimScreen';
+import ChargesList from './src/screens/ChargesListScreen';
+// NewRecurringCharge ekranını AddBillScreen ile birleştiriyoruz
+import BillListScreen from './src/screens/BillListScreen';
+import BillDetailScreen from './src/screens/BillDetailScreen';
+import HarcamaEkleScreen from './src/screens/HarcamaEkleScreen';
+import AlacakBorcIcmiScreen from './src/screens/AlacakBorcIcmiScreen';
+import NewRecurringChargeScreen from './src/screens/NewRecurringChargeScreen';
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <AuthProvider>
-          <NavigationContainer>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <AuthProvider>
+            <StatusBar style="auto" />
+            <NavigationContainer>
           <Stack.Navigator initialRouteName="Login">
             {/* Login ve Register Ekranları */}
             <Stack.Screen
@@ -144,42 +171,60 @@ export default function App() {
             />
 
             {/* Ana Menü ve Alt Ekranlar */}
-            <Stack.Screen
-              name="Home"
-              component={HomeScreen}
-              options={{ title: 'Ana Menü' }}
-            />
+            <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'Ana Menü' }} />
+            {/* Eksik ekran kayıtları eklendi */}
+            <Stack.Screen name="ExpensesScreen" component={ExpensesScreen} options={{ title: 'Harcamalar' }} />
+            <Stack.Screen name="PaymentsScreen" component={PaymentsScreen} options={{ title: 'Ödemeler' }} />
+            <Stack.Screen name="PendingPaymentsScreen" component={PendingPaymentsScreen} options={{ title: 'Bekleyen Ödemeler' }} />
             <Stack.Screen
               name="AddHousemate"
               component={AddHousemateScreen}
-              options={{ title: 'Ev Arkadaşı Ekle' }}
+              options={{ title: '👤 Ev Arkadaşı Ekle' }}
             />
             <Stack.Screen
               name="HarcamaListesi"
               component={ExpenseListScreen}
-              options={{ title: 'Harcama Listesi' }}
+              options={{ title: '📋 Harcama Listesi (GetExpenses)' }}
             />
             <Stack.Screen
               name="ExpenseListScreen"
               component={ExpenseListScreen}
-              options={{ title: 'Harcama Listesi' }}
+              options={{ title: '📋 Harcama Listesi (GetExpenses)' }}
             />
-            <Stack.Screen
-              name="DebtSummary"
-              component={DebtSummaryScreen}
-              options={{ title: 'Borç Özeti' }}
-            />
+            <Stack.Screen name="DebtSummaryScreen" component={DebtSummaryScreen} options={{ title: 'Borç Özeti' }} />
             <Stack.Screen
               name="ExpenseApproval"
               component={ExpenseApprovalScreen}
-              options={{ title: 'Borç Ödeme' }}
+              options={{ title: '✅ Harcama Onayı' }}
             />
 
             {/* Ev Arkadaşlarım / Borçlarım / Alacaklarım */}
             <Stack.Screen
               name="GroupListScreen"
               component={GroupListScreen}
-              options={{ title: 'Ev Gruplarım' }}
+              options={{ title: '🏘️ Ev Gruplarım' }}
+            />
+            <Stack.Screen name="HouseMembersScreen" component={HouseMembersScreen} options={{ title: 'Ev Arkadaşları' }} />
+
+            {/* **Yeni**: "Borçlarım" ve "Alacaklarım" ekranları */}
+            <Stack.Screen name="DebtsScreen" component={DebtsScreen} options={{ title: 'Borçlarım' }} />
+            <Stack.Screen name="ReceivablesScreen" component={ReceivablesScreen} options={{ title: 'Alacaklarım' }} />
+            <Stack.Screen name="MyReceivables" component={MyReceivablesScreen} options={{ title: 'Alacaklarım' }} />
+
+            {/* **Yeni**: Harcama Yönetimi */}
+            <Stack.Screen name="ExpenseDetailScreen" component={ExpenseDetailScreen} options={{ title: 'Harcama Detayı' }} />
+
+            {/* Harcama akışı */}
+            <Stack.Screen name="AddExpenseScreen" component={AddExpenseScreen} options={{ title: 'Harcama Ekle' }} />
+
+            {/* Detay */}
+            <Stack.Screen name="ReceivablesDebtsSummaryScreen" component={ReceivablesDebtsSummaryScreen} options={{ title: 'Alacak/Borç Özeti' }} />
+
+            {/* Grup yönetimi */}
+            <Stack.Screen
+              name="NewGroupScreen"
+              component={NewGroupScreen}
+              options={{ title: '🏘️ Yeni Grup Oluştur' }}
             />
             <Stack.Screen
               name="EvGrubuArkadaslarimScreen"
@@ -187,135 +232,49 @@ export default function App() {
               options={{ title: 'Ev Arkadaşlarım' }}
             />
 
-            {/* **Yeni** */}
-            <Stack.Screen
-              name="Borclarim"
-              component={DebtsScreen}
-              options={{ title: 'Borçlarım' }}
-            />
-            <Stack.Screen
-              name="Alacaklarim"
-              component={ReceivablesScreen}
-              options={{ title: 'Alacaklarım' }}
-            />
-            {/* Eski ekran isimleri ile geriye dönük uyumluluk */}
-            <Stack.Screen
-              name="DebtsScreen"
-              component={DebtsScreen}
-              options={{ title: 'Borçlarım' }}
-            />
-            <Stack.Screen
-              name="ReceivablesScreen"
-              component={ReceivablesScreen}
-              options={{ title: 'Alacaklarım' }}
-            />
-
-            {/* **Yeni**: Harcama Yönetimi */}
-            <Stack.Screen
-              name="ExpenseDetailScreen"
-              component={ExpenseDetailScreen}
-              options={{ title: 'Harcama Detayı' }}
-            />
-
-            {/* Harcama akışı */}
-            <Stack.Screen
-              name="HarcamaEkleScreen"
-              component={HarcamaEkleScreen}
-              options={{ title: 'Harcama Ekle' }}
-            />
-            <Stack.Screen
-              name="HarcamaTipiSecim"
-              component={HarcamaTipiSecimScreen}
-              options={{ title: 'Harcama Tipi Seçimi' }}
-            />
-
-            <Stack.Screen
-              name="HarcamaPaylasim"
-              component={HarcamaPaylasimScreen}
-              options={{ title: 'Harcama Paylaşımı' }}
-            />
-
-            {/* Detay */}
-            <Stack.Screen
-              name="AlacakBorcIcmiScreen"
-              component={AlacakBorcIcmiScreen}
-              options={{ title: 'Alacak / Borç İcmali' }}
-            />
-
-            {/* Grup yönetimi */}
-            <Stack.Screen
-              name="NewGroupScreen"
-              component={NewGroupScreen}
-              options={{ title: 'Yeni Grup Oluştur' }}
-            />
-
             {/* **Yeni**: Davet Sistemi */}
-            <Stack.Screen
-              name="InviteFriendScreen"
-              component={InviteFriendScreen}
-              options={{ title: 'Arkadaş Davet Et' }}
-            />
-            <Stack.Screen
-              name="AcceptInvitationScreen"
-              component={AcceptInvitationScreen}
-              options={{ title: 'Davet Kabul Et' }}
-            />
-            <Stack.Screen
-              name="PaymentApproval"
-              component={PaymentApprovalScreen}
-              options={{ title: 'Bekleyen Ödemeler' }}
-            />
-            <Stack.Screen
-              name="ChargesList"
-              component={ChargesListScreen}
-              options={{ title: 'Giderler' }}
-            />
-            <Stack.Screen
-              name="NewRecurringCharge"
-              component={NewRecurringChargeScreen}
-              options={{ title: 'Sözleşme Oluştur' }}
-            />
+            <Stack.Screen name="InviteFriendScreen" component={InviteFriendScreen} options={{ title: 'Arkadaş Davet Et' }} />
+            <Stack.Screen name="AcceptInvitationScreen" component={AcceptInvitationScreen} options={{ title: 'Davet Kabul Et' }} />
+            <Stack.Screen name="PaymentApproval" component={PaymentApprovalScreen} options={{ title: 'Bekleyen Ödemeler' }} />
+            <Stack.Screen name="BillsOverviewScreen" component={BillsOverviewScreen} options={{ title: 'Faturalar' }} />
+            <Stack.Screen name="AddBillScreen" component={AddBillScreen} options={{ title: 'Yeni Fatura' }} />
+            <Stack.Screen name="BillListScreen" component={BillListScreen} options={{ title: 'Faturalar' }} />
+            <Stack.Screen name="BillDetailScreen" component={BillDetailScreen} options={{ title: 'Fatura Detayı' }} />
+            <Stack.Screen name="UtilityBillCreate" component={UtilityBillCreateScreen} options={{ title: 'Fatura Oluştur' }} />
             <Stack.Screen
               name="PendingContributions"
               component={PendingContributionsScreen}
               options={{ title: 'Bekleyen Katkılar' }}
             />
+            <Stack.Screen name="CreatePayment" component={CreatePaymentScreen} options={{ title: 'Ödeme Yap' }} />
+            <Stack.Screen name="ChargesList" component={ChargesList} options={{ title: 'Gider Dönemleri' }} />
             <Stack.Screen
-              name="CreatePayment"
-              component={CreatePaymentScreen}
-              options={{ title: 'Ödeme Yap' }}
-            />
-            <Stack.Screen
-              name="BillListScreen"
-              component={BillListScreen}
-              options={{ title: 'Fatura Listesi' }}
-            />
-            <Stack.Screen
-              name="AddBillScreen"
+              name="NewRecurringCharge"
               component={AddBillScreen}
-              options={{ title: 'Fatura Ekle' }}
+              options={{ title: 'Düzenli Gider Ekle' }}
+              initialParams={{ isEditing: false }}
             />
+            {/* Uyum için: bazı yerlerde bu adla çağrılıyor */}
             <Stack.Screen
-              name="BillDetailScreen"
-              component={BillDetailScreen}
-              options={{ title: 'Fatura Detayı' }}
+              name="NewRecurringChargeScreen"
+              component={NewRecurringChargeScreen}
+              options={{ title: 'Düzenli Gider Ekle' }}
             />
-            <Stack.Screen
-              name="HouseSpendingOverviewScreen"
-              component={HouseSpendingOverviewScreen}
-              options={{ title: 'Harcama Özeti' }}
-            />
+            <Stack.Screen name="HarcamaEkleScreen" component={HarcamaEkleScreen} options={{ title: 'Harcama Ekle' }} />
+            <Stack.Screen name="AlacakBorcIcmiScreen" component={AlacakBorcIcmiScreen} options={{ title: 'Borç/Alacak Detayı' }} />
+            <Stack.Screen name="HouseSpendingOverviewScreen" component={HouseSpendingOverviewScreen} options={{ title: 'Harcama Özeti' }} />
             <Stack.Screen
               name="TwoPersonDebtDetail"
               component={TwoPersonDebtDetailScreen}
-              options={{ title: 'Borç/Alacak Detayı' }}
+              options={{ title: '👥 İkili Borç/Alacak Detayı' }}
             />
           </Stack.Navigator>
-          </NavigationContainer>
-        </AuthProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+            </NavigationContainer>
+          </AuthProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }
 
-AppRegistry.registerComponent('main', () => App);
+// AppRegistry.registerComponent('main', () => App); // Expo managed workflow için gerekli değil

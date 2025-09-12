@@ -1,150 +1,169 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  TouchableOpacity
+  View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Alert
 } from 'react-native';
-import { houseApi } from '../services/api';
+import { CommonActions } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import eventBus from '../shared/events/bus';
+import { houseApi } from '../services/api';
+import { CommonStyles } from '../shared/ui/CommonStyles';
 import { Colors } from '../../constants/Colors';
+import { formatAmount } from '../constants/ExpenseEnums';
+import eventBus from '../shared/events/bus';
 
-const DebtsScreen = ({ route, navigation }) => {
+const pick = (obj, keys) => { for (const k of keys) if (obj && obj[k]) return obj[k]; };
+const sum = (arr, sel) => arr.reduce((s, x) => s + Number(sel(x) || 0), 0);
+
+export default function DebtsScreen({ navigation, route }) {
   const { houseId, houseName } = route.params || {};
   const { user } = useAuth();
-  const [debtInfo, setDebtInfo] = useState(null);
-  const [members, setMembers] = useState([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!houseId || !user?.id) {
-      Alert.alert('Hata', 'Gerekli bilgiler eksik.');
-      return;
-    }
-    fetchAll();
+  const [loading, setLoading] = useState(false);
+  const [rows, setRows] = useState([]);      // kime borçlusun
+  const [totalDebt, setTotalDebt] = useState(0);
 
-    const unsubscribe = navigation.addListener('focus', () => {
-      fetchAll();
-    });
-
-    // Payments değişince otomatik yenile
-    const off = eventBus.on('payments:updated', (p) => {
-      if (!p || !p.houseId || p.houseId !== houseId) return;
-      fetchAll();
-    });
-
-    return () => {
-      unsubscribe?.();
-      off?.();
-    };
-  }, [houseId, user, navigation]);
-
-  const fetchAll = async () => {
-    setLoading(true);
+  const fetchDebts = useCallback(async () => {
+    if (!houseId || !user?.id) return;
     try {
-      // Üyeleri al (isim eşleştirme için)
-      const [membersRes, debtsRes] = await Promise.all([
-        houseApi.getMembers(houseId),
-        houseApi.getUserDebts(user.id, houseId),
-      ]);
-      const memBody = membersRes?.data;
-      const membersArr = Array.isArray(memBody)
-        ? memBody
-        : Array.isArray(memBody?.data)
-          ? memBody.data
-          : [];
-      setMembers(membersArr);
+      setLoading(true);
 
-      const body = debtsRes?.data;
-      const envelope = body?.data ?? body;
-      const netBalance = envelope?.netBalance ?? envelope?.netDurum ?? 0;
-      const toplamBorc = envelope?.toplamBorc ?? 0;
-      const toplamAlacak = envelope?.toplamAlacak ?? 0;
-      const byCounterpart = Array.isArray(envelope?.byCounterpart)
-        ? envelope.byCounterpart
-        : Array.isArray(envelope?.kullaniciBazliDurumlar)
-          ? envelope.kullaniciBazliDurumlar
-          : [];
+      const me = Number(user.id);
+      const res = await houseApi.getUserDebts(me, Number(houseId));
+      const body = res?.data?.data ?? res?.data ?? {};
+      const pairs = Array.isArray(body.pairs) ? body.pairs : [];
+      const totals = Array.isArray(body.totals) ? body.totals : [];
 
-      setDebtInfo({ netBalance, byCounterpart, toplamBorc, toplamAlacak });
+      const hasNames = pairs.some(p =>
+        p.counterpartyName ||
+        pick(p, ['fromUserName','fromFullName','fromName']) ||
+        pick(p, ['toUserName','toFullName','toName'])
+      );
+
+      let nameById = new Map();
+      if (!hasNames) {
+        const memRes = await houseApi.getMembers(Number(houseId));
+        const raw = memRes?.data?.data ?? memRes?.data ?? [];
+        nameById = new Map(
+          raw
+            .map(m => ({
+              id: Number(m.userId ?? m.user?.id ?? m.id),
+              name: m.fullName ?? m.name ?? m.user?.fullName ?? `Kullanıcı #${m.userId ?? m.id ?? '?'}`
+            }))
+            .filter(x => Number.isFinite(x.id))
+            .map(x => [x.id, x.name])
+        );
+      }
+
+      const myPerspective = pairs
+        .map(p => {
+          const fromId = Number(p.fromUserId);
+          const toId   = Number(p.toUserId);
+          const amt    = Number(p.netAmount);
+          const mine = fromId === me ? amt : (toId === me ? -amt : 0);
+          if (!Number.isFinite(mine) || mine === 0) return null;
+
+          const otherId = fromId === me ? toId : fromId;
+          const nameFromApi = p.counterpartyName ||
+            (fromId === me
+              ? pick(p, ['toUserName','toFullName','toName','toUser','to'])
+              : pick(p, ['fromUserName','fromFullName','fromName','fromUser','from']));
+          const otherName = nameFromApi || nameById.get(otherId) || `Kullanıcı #${otherId}`;
+          return { counterpartyUserId: otherId, counterpartyName: otherName, amount: mine };
+        })
+        .filter(Boolean);
+
+      const debts = myPerspective.filter(r => r.amount > 0);
+      setRows(debts);
+
+      const meTotals = totals.find(t => Number(t.userId) === me) || {};
+      const payable = Number(meTotals.payable);
+      const fallback = sum(debts, d => d.amount);
+      setTotalDebt(Number.isFinite(payable) && payable > 0 ? payable : fallback);
     } catch (error) {
-      console.error('Borç bilgileri alınamadı:', error);
-      setMembers([]);
-      setDebtInfo({ netBalance: 0, byCounterpart: [] });
+      console.error('🔍 DebtsScreen - Borç bilgisi hatası:', error);
+      setRows([]);
+      setTotalDebt(0);
     } finally {
       setLoading(false);
     }
-  };
+  }, [houseId, user?.id]);
 
-  const formatAmount = (amount) => {
-    if (!amount) return '0 ₺';
-    return `${parseFloat(amount).toFixed(2)} ₺`;
-  };
+  useEffect(() => { fetchDebts(); }, [fetchDebts]);
 
-  const getStatusColor = (amount) => {
-    if (amount > 0) return Colors.success[600];
-    if (amount < 0) return Colors.error[600];
-    return Colors.neutral[600];
-  };
+  useEffect(() => {
+    const unsubFocus = navigation.addListener('focus', fetchDebts);
+    const offBus = eventBus.on('payments:updated', (p) => {
+      if (!p?.houseId || Number(p.houseId) === Number(houseId)) fetchDebts();
+    });
+    return () => { unsubFocus(); offBus(); };
+  }, [navigation, fetchDebts, houseId]);
 
-  const membersMap = useMemo(() => {
-    const map = {};
-    for (const m of members) {
-      const id = m.userId ?? m.id;
-      if (id != null) map[String(id)] = m;
+  const getStatusColor = (amount) => amount > 0 ? Colors.error[600] : Colors.neutral[600];
+
+  // --------------------- GÜVENLİ NAVİGASYON ---------------------
+  const navigateToCreatePayment = (params) => {
+    const candidates = [
+      'CreatePaymentScreen',
+      'CreatePayment',
+      'OdemeYapScreen',
+      'OdemeOlusturScreen',
+      'PaymentCreate',
+      'PaymentScreen',
+    ];
+
+    const hasRoute = (nav, name) =>
+      !!nav?.getState?.()?.routeNames?.includes?.(name);
+
+    // 1) Bulunduğun navigator
+    for (const name of candidates) {
+      if (hasRoute(navigation, name)) {
+        navigation.navigate(name, params);
+        return true;
+      }
     }
-    return map;
-  }, [members]);
 
-  const rows = useMemo(() => {
-    const list = Array.isArray(debtInfo?.byCounterpart) ? debtInfo.byCounterpart : [];
-    return list.map((item) => {
-      // item.toUserId => ben borçluyum (karşıya borç)
-      // item.fromUserId => ben alacaklıyım (karşıdan alacak)
-      const counterUserIdRaw = item.toUserId ?? item.fromUserId ?? item.userId ?? item.counterUserId ?? item.karsiUserId ?? item.id;
-      const counterUserId = counterUserIdRaw != null ? Number(counterUserIdRaw) : undefined;
-      const amount = Number(item.amount ?? item.tutar ?? 0);
-      const type = item.toUserId ? 'debt' : item.fromUserId ? 'receivable' : (amount > 0 ? 'receivable' : 'debt');
-      const member = membersMap[String(counterUserId)] ?? {};
-      return {
-        userId: counterUserId,
-        fullName: member.fullName || member.name || `Kullanıcı #${counterUserId}`,
-        email: member.email || member.mail || '',
-        amount,
-        type,
-      };
-    });
-  }, [debtInfo, membersMap]);
+    // 2) Parent zincirinde ara
+    let parent = navigation.getParent?.();
+    while (parent) {
+      for (const name of candidates) {
+        if (hasRoute(parent, name)) {
+          parent.navigate(name, params);
+          return true;
+        }
+      }
+      parent = parent.getParent?.();
+    }
 
-  const debtRows = useMemo(() => (rows || []).filter(r => r.type === 'debt'), [rows]);
-  const totalDebt = useMemo(() => {
-    const apiVal = debtInfo?.toplamBorc;
-    const apiNum = Number(apiVal);
-    if (Number.isFinite(apiNum)) return apiNum;
-    return debtRows.reduce((sum, r) => sum + (Math.abs(Number(r.amount)) || 0), 0);
-  }, [debtInfo, debtRows]);
+    // 3) Son çare: root dispatch (uyarı gösterebilir)
+    navigation.dispatch(CommonActions.navigate({ name: 'CreatePaymentScreen', params }));
 
-  const handleCreatePayment = (row) => {
-    if (row.type !== 'debt') return;
-    navigation.navigate('CreatePayment', {
-      houseId,
-      borcluUserId: user.id,
-      alacakliUserId: row.userId,
-      suggestedAmount: row.amount,
-    });
+    // 4) Yine de bulunamazsa kullanıcıya açık mesaj ver
+    const allRoutes =
+      navigation.getParent?.()?.getState?.()?.routeNames ??
+      navigation.getState?.()?.routeNames ?? [];
+    Alert.alert(
+      'Ekran bulunamadı',
+      `CreatePaymentScreen herhangi bir navigator’da kayıtlı görünmüyor.\nMevcut route'lar: ${allRoutes.join(', ')}`
+    );
+    return false;
   };
+
+  const goToPay = (item) => {
+    const params = {
+      houseId,
+      houseName,
+      alacakliUserId: item.counterpartyUserId,
+      suggestedAmount: Number(item.amount),
+    };
+    navigateToCreatePayment(params);
+  };
+  // ---------------------------------------------------------------
 
   if (loading) {
     return (
       <View style={CommonStyles.container}>
         <View style={CommonStyles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary[500]} />
-          <Text style={CommonStyles.loadingText}>Borç bilgileri yükleniyor...</Text>
+          <Text style={CommonStyles.loadingText}>Borç bilgileri yükleniyor…</Text>
         </View>
       </View>
     );
@@ -155,12 +174,10 @@ const DebtsScreen = ({ route, navigation }) => {
       <ScrollView style={CommonStyles.content}>
         <View style={CommonStyles.header}>
           <Text style={CommonStyles.title}>Borçlarım</Text>
-          <Text style={CommonStyles.subtitle}>
-            {houseName} • Toplam borcunuz
-          </Text>
+          <Text style={CommonStyles.subtitle}>{houseName} • Toplam borcunuz</Text>
         </View>
 
-        {/* Net Durum Kartı */}
+        {/* Toplam Borç */}
         <View style={CommonStyles.card}>
           <Text style={styles.sectionTitle}>💔 Toplam Borç</Text>
           <View style={styles.netStatusContainer}>
@@ -171,50 +188,48 @@ const DebtsScreen = ({ route, navigation }) => {
           </View>
         </View>
 
-        {/* Karşı Kullanıcılar */}
-        {debtRows && debtRows.length > 0 ? (
+        {/* Kime borçlusunuz? */}
+        {rows.length > 0 ? (
           <View style={CommonStyles.card}>
-            <Text style={styles.sectionTitle}>👥 Ev Arkadaşları</Text>
+            <Text style={styles.sectionTitle}>👥 Borçlu Olduğunuz Kişiler</Text>
             <View style={CommonStyles.listContainer}>
-              {debtRows.map((row, index) => {
-                const statusColor = getStatusColor(row.type === 'debt' ? -1 : 1);
-                const statusText = row.type === 'debt' ? 'Borçlu (Öde)' : 'Alacaklı';
-
+              {rows.map((item, idx) => {
+                const statusColor = getStatusColor(item.amount);
                 return (
-                  <View
-                    key={row.userId?.toString() || index.toString()}
-                    style={CommonStyles.listItem}
-                  >
-                    <View style={styles.userAvatar}>
-                      <Text style={styles.avatarText}>
-                        {row.fullName ? row.fullName.charAt(0).toUpperCase() : '?'}
-                      </Text>
-                    </View>
-                    <View style={CommonStyles.listItemContent}>
-                      <Text style={CommonStyles.listItemTitle}>
-                        {row.fullName || 'İsimsiz Kullanıcı'}
-                      </Text>
-                      <Text style={CommonStyles.listItemSubtitle}>
-                        {row.email || 'Email yok'}
-                      </Text>
-                    </View>
-                    <View style={styles.amountContainer}>
-                      <Text style={[styles.amountText, { color: statusColor }]}>
-                        {formatAmount(Math.abs(row.amount))}
-                      </Text>
-                      <Text style={[styles.statusText, { color: statusColor }]}>
-                        {statusText}
-                      </Text>
-                      {row.type === 'debt' ? (
-                        <TouchableOpacity
-                          onPress={() => handleCreatePayment(row)}
-                          style={{ marginTop: 6 }}
-                          activeOpacity={0.8}
-                        >
-                          <Text style={{ color: Colors.primary[600], fontWeight: '600' }}>Ödeme Oluştur</Text>
-                        </TouchableOpacity>
-                      ) : null}
-                    </View>
+                  <View key={item.counterpartyUserId?.toString() || idx.toString()} style={CommonStyles.listItem}>
+                    <TouchableOpacity
+                      style={{ flexDirection: 'row', flex: 1 }}
+                      activeOpacity={0.8}
+                      onPress={() =>
+                        navigation.navigate('TwoPersonDebtDetail', {
+                          houseId,
+                          userAId: Number(user.id),
+                          userBId: item.counterpartyUserId,
+                          userAName: user.fullName || user.name || `Kullanıcı #${user.id}`,
+                          userBName: item.counterpartyName,
+                        })
+                      }
+                    >
+                      <View style={styles.userAvatar}>
+                        <Text style={styles.avatarText}>
+                          {item.counterpartyName ? item.counterpartyName.charAt(0).toUpperCase() : '?'}
+                        </Text>
+                      </View>
+                      <View style={CommonStyles.listItemContent}>
+                        <Text style={CommonStyles.listItemTitle}>{item.counterpartyName}</Text>
+                        <Text style={CommonStyles.listItemSubtitle}>Bu kişiye borçlusunuz</Text>
+                      </View>
+                      <View style={styles.amountContainer}>
+                        <Text style={[styles.amountText, { color: statusColor }]}>
+                          {formatAmount(item.amount)}
+                        </Text>
+                        <Text style={[styles.statusText, { color: statusColor }]}>Borçlu</Text>
+                      </View>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.payBtn} onPress={() => goToPay(item)} activeOpacity={0.85}>
+                      <Text style={styles.payBtnText}>Öde</Text>
+                    </TouchableOpacity>
                   </View>
                 );
               })}
@@ -223,22 +238,18 @@ const DebtsScreen = ({ route, navigation }) => {
         ) : (
           <View style={CommonStyles.emptyContainer}>
             <Text style={CommonStyles.emptyIcon}>💔</Text>
-            <Text style={CommonStyles.emptyText}>
-              Henüz borç bilginiz bulunmamaktadır.
-            </Text>
-            <Text style={CommonStyles.emptyText}>
-              Harcama ekledikçe borç durumunuz burada görünecektir.
-            </Text>
+            <Text style={CommonStyles.emptyText}>Kime borçlu olduğunuz bulunamadı.</Text>
+            <Text style={CommonStyles.emptyText}>Harcama ekledikçe borçlar burada listelenir.</Text>
           </View>
         )}
 
-        {/* Detay Butonu */}
-        <TouchableOpacity 
+        {/* Detay butonu */}
+        <TouchableOpacity
           style={CommonStyles.menuButton}
-          onPress={() => navigation.navigate('AlacakBorcIcmiScreen', { userId: user.id, houseId })}
+          onPress={() => navigation.navigate('ReceivablesDebtsSummaryScreen', { userId: user.id, houseId })}
           activeOpacity={0.8}
         >
-          <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.primary.background }]}>
+          <View style={[CommonStyles.buttonContent, { backgroundColor: Colors.primary[500] }]}>
             <Text style={CommonStyles.buttonIcon}>📊</Text>
             <Text style={CommonStyles.buttonText}>Detaylı Görünüm</Text>
             <Text style={CommonStyles.buttonSubtext}>Tüm alacak ve borç detayları</Text>
@@ -247,54 +258,24 @@ const DebtsScreen = ({ route, navigation }) => {
       </ScrollView>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    color: Colors.text.primary,
-  },
-  netStatusContainer: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  netAmount: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  netLabel: {
-    fontSize: 16,
-    color: Colors.text.secondary,
-  },
+  sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, color: Colors.text.primary },
+  netStatusContainer: { alignItems: 'center', paddingVertical: 20 },
+  netAmount: { fontSize: 32, fontWeight: 'bold', marginBottom: 8 },
+  netLabel: { fontSize: 16, color: Colors.text.secondary },
   userAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: Colors.primary[500],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
+    width: 50, height: 50, borderRadius: 25, backgroundColor: Colors.primary[500],
+    justifyContent: 'center', alignItems: 'center', marginRight: 12,
   },
-  avatarText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: Colors.background,
+  avatarText: { fontSize: 20, fontWeight: 'bold', color: Colors.background },
+  amountContainer: { alignItems: 'flex-end' },
+  amountText: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
+  statusText: { fontSize: 12, fontWeight: '600' },
+  payBtn: {
+    marginLeft: 10, alignSelf: 'center', backgroundColor: Colors.primary[500],
+    paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8,
   },
-  amountContainer: {
-    alignItems: 'flex-end',
-  },
-  amountText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
+  payBtnText: { color: '#fff', fontWeight: '700' },
 });
-
-export default DebtsScreen;

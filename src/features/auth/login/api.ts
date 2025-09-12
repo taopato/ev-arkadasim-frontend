@@ -1,6 +1,15 @@
 import { api } from '../../../shared/api/axios';
 import { endpoints } from '../../../shared/api/endpoints';
-import type { LoginRequest, AuthResponse } from '../../../entities/user/model';
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: any;
+}
 
 export async function login(body: LoginRequest): Promise<AuthResponse> {
   const { data } = await api.post<AuthResponse>(endpoints.auth.login, body);

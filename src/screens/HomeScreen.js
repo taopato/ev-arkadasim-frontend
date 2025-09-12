@@ -1,221 +1,202 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  ScrollView,
-  Alert
-} from 'react-native';
+// src/screens/HomeScreen.js
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal } from 'react-native';
+import { Colors } from '../constants/Colors';
 import { useAuth } from '../context/AuthContext';
-import { useUserHouses } from '../features/houses/get-user-houses/hooks';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../../constants/Colors';
 
 const HomeScreen = ({ navigation }) => {
   const { user, logout } = useAuth();
+  const [billModalVisible, setBillModalVisible] = useState(false);
 
-  // Yeni houses modülü hooks'u kullanıyoruz
-  const { data: userHouses = [], isLoading: housesLoading, error, refetch } = useUserHouses(user?.id);
+  const NavButton = ({ title, subtitle, onPress, emoji, color }) => (
+    <TouchableOpacity style={[styles.btn, { backgroundColor: color }]} onPress={onPress} activeOpacity={0.85}>
+      <View style={styles.btnInnerSmall}>
+        <Text style={styles.btnIcon}>{emoji}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.btnText, { color: '#fff' }]}>{title}</Text>
+          {!!subtitle && <Text style={[styles.btnSubSmall]}>{subtitle}</Text>}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
 
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      refetch();
-    });
+  return (
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={{ padding: 16 }}>
+        <Text style={styles.hello}>Merhaba, {user?.fullName || 'Kullanıcı'} 👋</Text>
+        <Text style={styles.sub}>Hızlı işlemler</Text>
 
-    return unsubscribe;
-  }, [navigation, refetch]);
+        <View style={styles.grid}>
+          <View style={[styles.gridItemFull]}>
+            <NavButton
+              title="Ev Gruplarım"
+              subtitle="Grupları görüntüle/oluştur"
+              emoji="🏘️"
+              color={Colors.primary[600]}
+              onPress={() => navigation.navigate('GroupListScreen')}
+            />
+          </View>
+          <View style={styles.gridItem}>
+            <NavButton
+              title="Harcamalar"
+              subtitle="Ev harcamalarını görüntüle"
+              emoji="📋"
+              color={Colors.warning[600]}
+              onPress={() => {
+                navigation.navigate('GroupListScreen', { redirectTo: 'ExpensesScreen' });
+              }}
+            />
+          </View>
+          <View style={styles.gridItem}>
+            <NavButton
+              title="Faturalar"
+              subtitle="Düzenli ve tek seferlik"
+              emoji="🧮"
+              color={Colors.info[600]}
+              onPress={() => {
+                navigation.navigate('GroupListScreen', { redirectTo: 'BillsOverviewScreen' });
+              }}
+            />
+          </View>
+          <View style={styles.gridItem}>
+            <NavButton
+              title="Yeni Fatura"
+              subtitle="Düzenli mi düzensiz mi?"
+              emoji="🧾"
+              color={Colors.success[700]}
+              onPress={() => setBillModalVisible(true)}
+            />
+          </View>
+          <View style={styles.gridItem}>
+            <NavButton
+              title="Ödemeler"
+              subtitle="Tüm ödemeleri incele"
+              emoji="💳"
+              color={Colors.success[600]}
+              onPress={() => {
+                navigation.navigate('PaymentsScreen');
+              }}
+            />
+          </View>
+          <View style={styles.gridItem}>
+            <NavButton
+              title="Bekleyen Ödemeler"
+              subtitle="Onay veya red işlemleri"
+              emoji="⏳"
+              color={Colors.neutral[600]}
+              onPress={() => navigation.navigate('PendingPaymentsScreen', { userId: user?.id })}
+            />
+          </View>
+          <View style={styles.gridItem}>
+            <NavButton
+              title="Ayarlar"
+              subtitle="Uygulama ve hesap"
+              emoji="⚙️"
+              color={Colors.neutral[600]}
+              onPress={() => navigation.navigate('SettingsScreen')}
+            />
+          </View>
+          <View style={styles.gridItem}>
+            <NavButton
+              title="Davet Et"
+              subtitle="Arkadaş ekle"
+              emoji="📨"
+              color={Colors.info[500]}
+              onPress={() => navigation.navigate('InviteFriendScreen', { houseId: user?.defaultHouseId })}
+            />
+          </View>
+        </View>
 
-  // Hata durumunu kontrol et
-  useEffect(() => {
-    if (error) {
-      console.error('Ev listesi hatası:', error);
-    }
-  }, [error]);
-
-  const handleButtonPress = (screenName, params = {}) => {
-    navigation.navigate(screenName, params);
-  };
-
-  const handleLogout = () => {
-    Alert.alert(
-      'Çıkış Yap',
-      'Çıkış yapmak istediğinizden emin misiniz?',
-      [
-        {
-          text: 'İptal',
-          style: 'cancel',
-        },
-        {
-          text: 'Çıkış Yap',
-          style: 'destructive',
-          onPress: async () => {
+        <TouchableOpacity
+          style={[styles.btn, { backgroundColor: Colors.error[600] }]}
+          onPress={async () => {
             try {
               await logout();
             } finally {
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Login' }],
-              });
+              navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
             }
-          },
-        },
-      ]
-    );
-  };
-
-  if (housesLoading) {
-    return (
-      <View style={CommonStyles.container}>
-        <View style={CommonStyles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary[500]} />
-          <Text style={CommonStyles.loadingText}>Ev grupları yükleniyor...</Text>
-        </View>
-      </View>
-    );
-  }
-
-  return (
-    <View style={CommonStyles.container}>
-      <ScrollView style={CommonStyles.content}>
-        <View style={CommonStyles.header}>
-          <Text style={CommonStyles.title}>Hoş Geldiniz!</Text>
-          <Text style={CommonStyles.subtitle}>
-            {user?.fullName || 'Kullanıcı'} • {userHouses?.data?.length ?? userHouses.length} ev grubu
-          </Text>
-        </View>
-
-        {/* Ev Grupları */}
-        {(userHouses?.data?.length ?? userHouses.length) > 0 && (
-          <View style={CommonStyles.card}>
-            <Text style={styles.sectionTitle}>🏠 Ev Gruplarım</Text>
-            <View style={CommonStyles.listContainer}>
-              {(userHouses.data ?? userHouses).map((house) => (
-                <TouchableOpacity
-                  key={house.id.toString()}
-                  style={CommonStyles.listItem}
-                  onPress={() => handleButtonPress('EvGrubuArkadaslarimScreen', {
-                    houseId: house.id,
-                    houseName: house.name
-                  })}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.houseIconContainer}>
-                    <Text style={styles.houseIcon}>🏠</Text>
-                  </View>
-                  <View style={CommonStyles.listItemContent}>
-                    <Text style={CommonStyles.listItemTitle}>{house.name}</Text>
-                    <Text style={CommonStyles.listItemSubtitle}>
-                      {house.memberCount || 0} üye
-                    </Text>
-                  </View>
-                  <View style={styles.arrowContainer}>
-                    <Text style={styles.arrowText}>→</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Ana Menü Butonları */}
-        <View style={CommonStyles.card}>
-          <Text style={styles.sectionTitle}>📱 Ana Menü</Text>
-          
-          <TouchableOpacity 
-            style={CommonStyles.menuButton}
-            onPress={() => handleButtonPress('GroupListScreen')}
-            activeOpacity={0.8}
-          >
-            <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.primary.background }]}>
-              <Text style={CommonStyles.buttonIcon}>🏘️</Text>
-              <Text style={CommonStyles.buttonText}>Ev Gruplarım</Text>
-              <Text style={CommonStyles.buttonSubtext}>Tüm ev gruplarını görüntüle</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={CommonStyles.menuButton}
-            onPress={() => handleButtonPress('NewGroupScreen')}
-            activeOpacity={0.8}
-          >
-            <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.success.background }]}>
-              <Text style={CommonStyles.buttonIcon}>➕</Text>
-              <Text style={CommonStyles.buttonText}>Yeni Grup Oluştur</Text>
-              <Text style={CommonStyles.buttonSubtext}>Yeni ev grubu ekle</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={CommonStyles.menuButton}
-            onPress={() => handleButtonPress('PaymentApproval')}
-            activeOpacity={0.8}
-          >
-            <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.warning.background }]}>
-              <Text style={CommonStyles.buttonIcon}>⏳</Text>
-              <Text style={CommonStyles.buttonText}>Bekleyen Ödemeler</Text>
-              <Text style={CommonStyles.buttonSubtext}>Onay bekleyen ödemeler</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={CommonStyles.menuButton}
-            onPress={() => handleButtonPress('CreatePayment')}
-            activeOpacity={0.8}
-          >
-            <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.primary.background }]}>
-              <Text style={CommonStyles.buttonIcon}>💳</Text>
-              <Text style={CommonStyles.buttonText}>Ödeme Yap</Text>
-              <Text style={CommonStyles.buttonSubtext}>Arkadaşınıza ödeme yapın</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Çıkış Butonu */}
-        <TouchableOpacity 
-          style={CommonStyles.menuButton}
-          onPress={handleLogout}
-          activeOpacity={0.8}
+          }}
+          activeOpacity={0.85}
         >
-          <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.error.background }]}>
-            <Text style={CommonStyles.buttonIcon}>🚪</Text>
-            <Text style={CommonStyles.buttonText}>Çıkış Yap</Text>
-            <Text style={CommonStyles.buttonSubtext}>Hesabınızdan çıkış yapın</Text>
+          <View style={styles.btnInner}>
+            <Text style={styles.btnIcon}>🚪</Text>
+            <Text style={[styles.btnText, { color: '#fff' }]}>Çıkış Yap</Text>
           </View>
         </TouchableOpacity>
+
+        <Modal
+          visible={billModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setBillModalVisible(false)}
+        >
+          <View style={styles.sheetBackdrop}>
+            <View style={styles.sheet}>
+              <View style={styles.sheetHandle} />
+              <Text style={styles.modalTitle}>Yeni Fatura</Text>
+              <Text style={styles.modalSub}>Düzenli mi, düzensiz mi?</Text>
+              <View style={{ gap: 12, marginTop: 12 }}>
+                <TouchableOpacity
+                  style={[styles.modalBtn, { backgroundColor: Colors.primary[600] }]}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    setBillModalVisible(false);
+                    const hid = user?.defaultHouseId;
+                    if (hid) navigation.navigate('NewRecurringChargeScreen', { houseId: hid, houseName: 'Ev' });
+                    else navigation.navigate('GroupListScreen', { redirectTo: 'NewRecurringChargeScreen' });
+                  }}
+                >
+                  <Text style={styles.modalBtnText}>Düzenli Fatura</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalBtn, { backgroundColor: Colors.primary[500] }]}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    setBillModalVisible(false);
+                    const hid = user?.defaultHouseId;
+                    if (hid) navigation.navigate('UtilityBillCreate', { houseId: hid, houseName: 'Ev', isEditing: false });
+                    else navigation.navigate('GroupListScreen', { redirectTo: 'UtilityBillCreate' });
+                  }}
+                >
+                  <Text style={styles.modalBtnText}>Düzensiz Fatura</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalBtn, { backgroundColor: Colors.neutral[300] }]}
+                  activeOpacity={0.85}
+                  onPress={() => setBillModalVisible(false)}
+                >
+                  <Text style={[styles.modalBtnText, { color: Colors.text.primary }]}>İptal</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    color: Colors.text.primary,
-  },
-  houseIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: Colors.primary[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  houseIcon: {
-    fontSize: 24,
-  },
-  arrowContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  arrowText: {
-    fontSize: 20,
-    color: Colors.text.secondary,
-  },
+  container: { flex: 1, backgroundColor: Colors.surface },
+  hello: { fontSize: 22, fontWeight: '900', color: Colors.text.primary },
+  sub: { color: Colors.text.secondary, marginBottom: 12 },
+  btn: { backgroundColor: Colors.background, borderRadius: 12, borderWidth: 1, borderColor: Colors.neutral[200], marginBottom: 12 },
+  btnInner: { padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  btnInnerSmall: { padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  btnIcon: { fontSize: 22, marginRight: 8 },
+  btnText: { fontWeight: '900', color: Colors.text.primary },
+  btnSub: { color: Colors.text.secondary, marginTop: 2 },
+  btnSubSmall: { color: '#ffffffcc', marginTop: 2, fontSize: 12 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  gridItem: { width: '48%' },
+  gridItemFull: { width: '100%' },
+  sheetBackdrop: { flex:1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: Colors.background, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16 },
+  sheetHandle: { alignSelf: 'center', width: 40, height: 5, backgroundColor: Colors.neutral[300], borderRadius: 3, marginBottom: 10 },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: Colors.text.primary },
+  modalSub: { color: Colors.text.secondary, marginTop: 4 },
+  modalBtn: { paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, alignItems: 'center' },
+  modalBtnText: { color: '#fff', fontWeight: '700' },
 });
 
 export default HomeScreen;

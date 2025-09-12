@@ -1,120 +1,170 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-  ScrollView,
-  Platform
-} from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
-import { useBillsByHouseAndType } from '../features/bills/get-bills/hooks';
+import { expensesApi } from '../services/api';
 import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../../constants/Colors';
+import { Colors } from '../constants/Colors';
 import Toast from '../components/Toast';
+
+const CATEGORY_ID_TO_KEY = {
+  0: 'Rent',
+  1: 'Internet',
+  2: 'Electricity',
+  3: 'Water',
+  4: 'Gas',
+  5: 'Other',
+  99: 'Other',
+};
+const BILL_KEYS = ['Water', 'Electricity', 'Rent', 'Gas', 'Internet', 'Other'];
+
+const mapRouteToBillKey = ({ utilityType, categoryName }) => {
+  if (typeof utilityType === 'number') {
+    const map = { 1: 'Rent', 2: 'Electricity', 3: 'Water', 4: 'Gas', 5: 'Internet' };
+    return map[utilityType] || null;
+  }
+  if (typeof utilityType === 'string') {
+    const t = utilityType.toLowerCase();
+    if (/rent|kira/.test(t)) return 'Rent';
+    if (/elektrik|electricity/.test(t)) return 'Electricity';
+    if (/su|water/.test(t)) return 'Water';
+    if (/doğalgaz|dogalgaz|gas/.test(t)) return 'Gas';
+    if (/internet/.test(t)) return 'Internet';
+    if (/diğer|diger|other/.test(t)) return 'Other';
+  }
+  if (categoryName) {
+    const c = String(categoryName).toLowerCase();
+    if (c === 'kira' || /rent/.test(c)) return 'Rent';
+    if (c === 'elektrik' || /electricity/.test(c)) return 'Electricity';
+    if (c === 'su' || /water/.test(c)) return 'Water';
+    if (c === 'doğalgaz' || c === 'dogalgaz' || /gas/.test(c)) return 'Gas';
+    if (c === 'internet') return 'Internet';
+    if (c === 'diğer' || c === 'diger' || /other/.test(c)) return 'Other';
+  }
+  return null;
+};
+
+const detectBillKey = (item) => {
+  if (item?.category !== undefined && item?.category !== null) {
+    const key = CATEGORY_ID_TO_KEY[Number(item.category)];
+    if (key) return key;
+  }
+  const text = `${item?.tur ?? ''} ${item?.note ?? ''}`.toLowerCase();
+  if (/(su|water)/.test(text)) return 'Water';
+  if (/(elektrik|electricity)/.test(text)) return 'Electricity';
+  if (/(kira|rent)/.test(text)) return 'Rent';
+  if (/(doğalgaz|dogalgaz|gas)/.test(text)) return 'Gas';
+  if (/(internet)/.test(text)) return 'Internet';
+  return 'Other';
+};
+
+const billKeyToTitle = (key) =>
+  ({ Water: 'Su', Electricity: 'Elektrik', Rent: 'Kira', Gas: 'Doğalgaz', Internet: 'İnternet', Other: 'Diğer' }[key] || 'Fatura');
+
+const billKeyToIcon = (key) =>
+  ({ Water: '💧', Electricity: '⚡', Rent: '🏠', Gas: '🔥', Internet: '🌐', Other: '📄' }[key] || '📄');
+
+const formatDate = (s) => {
+  if (!s) return '—';
+  const d = new Date(s);
+  return Number.isNaN(d) ? '—' : d.toLocaleDateString('tr-TR', { year: 'numeric', month: 'short', day: 'numeric' });
+};
+const formatAmount = (n) => `${Number(n || 0).toFixed(2)} ₺`;
+const ymOf = (s) => (String(s).slice(0, 7).match(/^\d{4}-\d{2}$/) ? String(s).slice(0, 7) : (() => {
+  const d = new Date(s);
+  if (Number.isNaN(d)) return '';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+})());
+const nowYm = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
 
 const BillListScreen = ({ route, navigation }) => {
   const { houseId, houseName, utilityType, categoryName } = route.params || {};
-  const { user } = useAuth();
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
+  const [bills, setBills] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [ym] = useState(nowYm());
 
-  // Yeni bills modülü hooks'u kullanıyoruz
-  const { data: bills = [], isLoading: loading, error, refetch } = useBillsByHouseAndType(Number(houseId), Number(utilityType));
+  const wantedKey = useMemo(() => mapRouteToBillKey({ utilityType, categoryName }), [utilityType, categoryName]);
+  const showToast = (message, type = 'success') => setToast({ visible: true, message, type });
+  const hideToast = () => setToast((p) => ({ ...p, visible: false }));
 
-  const showToast = (message, type = 'success') => {
-    setToast({ visible: true, message, type });
-  };
+  const fetchBills = async () => {
+    try {
+      if (!houseId) throw new Error('houseId eksik');
+      setLoading(true);
+      setError(null);
 
-  const hideToast = () => {
-    setToast(prev => ({ ...prev, visible: false }));
+      const res = await expensesApi.getByHouse(Number(houseId));
+      const raw = res?.data?.data || res?.data || [];
+      const arr = Array.isArray(raw) ? raw : [];
+
+      const normalized = arr
+        .map((x) => {
+          const key = detectBillKey(x);
+          const date = x.kayitTarihi || x.postDate || x.date;
+          return {
+            id: x.id ?? x.expenseId,
+            title: x.tur || `${billKeyToTitle(key)} Faturası`,
+            amount: Number(x.tutar ?? x.amount ?? 0),
+            date,
+            payerName: x.odeyenKullaniciAdi,
+            billKey: key,
+          };
+        })
+        .filter((it) => ymOf(it.date) === ym)
+        .filter((it) => BILL_KEYS.includes(it.billKey))
+        .filter((it) => (wantedKey ? it.billKey === wantedKey : true));
+
+      setBills(normalized);
+    } catch (err) {
+      setError(err);
+      showToast('Faturalar alınırken bir hata oluştu', 'error');
+      setBills([]);
+      console.error('❌ BillListScreen GetExpenses HATA:', {
+        status: err?.response?.status,
+        url: err?.config?.url,
+        data: err?.response?.data,
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    if (!houseId || !utilityType) {
+    if (!houseId) {
       showToast('Geçerli parametreler bulunamadı', 'error');
-      navigation.goBack();
+      navigation.goBack?.();
       return;
     }
-  }, [houseId, utilityType]);
+    fetchBills();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [houseId, wantedKey]);
 
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      refetch();
-    });
-
-    return unsubscribe;
-  }, [navigation, refetch]);
-
-  // Hata durumunu kontrol et
-  useEffect(() => {
-    if (error) {
-      console.error('Fatura listesi hatası:', error);
-      showToast('Faturalar alınırken bir sorun oluştu', 'error');
-    }
-  }, [error]);
-
-  const getUtilityTypeName = (type) => {
-    const types = {
-      1: 'Kira',
-      2: 'Elektrik',
-      3: 'Su',
-      4: 'Doğalgaz',
-      5: 'İnternet'
-    };
-    return types[type] || 'Bilinmeyen';
-  };
-
-  const getUtilityIcon = (type) => {
-    const icons = {
-      1: '🏠',
-      2: '⚡',
-      3: '💧',
-      4: '🔥',
-      5: '🌐'
-    };
-    return icons[type] || '📄';
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Tarih yok';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('tr-TR');
-    } catch (error) {
-      return 'Geçersiz tarih';
-    }
-  };
-
-  const formatAmount = (amount) => {
-    if (!amount) return '0 ₺';
-    return `${parseFloat(amount).toFixed(2)} ₺`;
-  };
+  useFocusEffect(
+    React.useCallback(() => {
+      if (houseId) fetchBills();
+    }, [houseId, wantedKey])
+  );
 
   const handleAddBill = () => {
-    navigation.navigate('AddBillScreen', {
-      houseId: houseId,
-      houseName: houseName,
-      utilityType: utilityType,
-      categoryName: categoryName
-    });
+    navigation.navigate('AddBillScreen', { houseId, houseName });
+  };
+  const handleBillPress = (bill) => {
+    navigation.navigate('BillDetailScreen', { billId: bill.id, houseId, houseName });
   };
 
-  const handleBillPress = (bill) => {
-    navigation.navigate('BillDetailScreen', {
-      billId: bill.id,
-      houseId: houseId,
-      houseName: houseName
-    });
-  };
+  const headerTitle = categoryName || billKeyToTitle(wantedKey) || 'Faturalar';
 
   if (loading) {
     return (
       <View style={CommonStyles.container}>
         <View style={CommonStyles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary[500]} />
-          <Text style={CommonStyles.loadingText}>Faturalar yükleniyor...</Text>
+          <Text style={CommonStyles.loadingText}>Faturalar yükleniyor…</Text>
         </View>
       </View>
     );
@@ -122,52 +172,45 @@ const BillListScreen = ({ route, navigation }) => {
 
   return (
     <View style={CommonStyles.container}>
-      <ScrollView style={CommonStyles.content}>
+      <ScrollView style={CommonStyles.content} showsVerticalScrollIndicator={false}>
         <View style={CommonStyles.header}>
-          <Text style={CommonStyles.title}>{categoryName} Faturaları</Text>
+          <Text style={CommonStyles.title}>{headerTitle} Faturaları</Text>
           <Text style={CommonStyles.subtitle}>
-            {houseName} • {bills.length} fatura bulundu
+            {houseName} • {bills.length} fatura • Dönem: {ym}
           </Text>
         </View>
 
-        {/* Yeni Fatura Ekle Butonu */}
-        <TouchableOpacity 
-          style={CommonStyles.menuButton}
-          onPress={handleAddBill}
-          activeOpacity={0.8}
-        >
+        <TouchableOpacity style={CommonStyles.menuButton} onPress={handleAddBill} activeOpacity={0.8}>
           <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.success.background }]}>
             <Text style={CommonStyles.buttonIcon}>➕</Text>
             <Text style={CommonStyles.buttonText}>Yeni Fatura Ekle</Text>
-            <Text style={CommonStyles.buttonSubtext}>Yeni {categoryName} faturası ekleyin</Text>
+            <Text style={CommonStyles.buttonSubtext}>Yeni {headerTitle} faturası ekleyin</Text>
           </View>
         </TouchableOpacity>
 
-        {/* Fatura Listesi */}
         {bills.length > 0 ? (
-          <View style={[CommonStyles.listContainer]}>
-            {(bills || []).map((bill, idx) => (
+          <View style={CommonStyles.card}>
+            {bills.map((bill, idx) => (
               <TouchableOpacity
-                key={String(bill?.id ?? idx)}
+                key={String(bill.id ?? idx)}
                 style={CommonStyles.listItem}
                 onPress={() => handleBillPress(bill)}
                 activeOpacity={0.8}
               >
                 <View style={styles.billIconContainer}>
-                  <Text style={styles.billIcon}>{getUtilityIcon(bill.utilityType)}</Text>
+                  <Text style={styles.billIcon}>{billKeyToIcon(bill.billKey)}</Text>
                 </View>
+
                 <View style={CommonStyles.listItemContent}>
-                  <Text style={CommonStyles.listItemTitle}>
-                    {bill.title || `${getUtilityTypeName(bill.utilityType)} Faturası`}
-                  </Text>
+                  <Text style={CommonStyles.listItemTitle}>{bill.title}</Text>
                   <Text style={CommonStyles.listItemSubtitle}>
-                    Tarih: {formatDate(bill.dueDate)} • Tutar: {formatAmount(bill.amount)}
+                    Tarih: {formatDate(bill.date)} • Ödeyen: {bill.payerName || '—'}
                   </Text>
                 </View>
-                <View style={styles.billStatus}>
-                  <Text style={[styles.statusText, { color: bill.isPaid ? Colors.success[600] : Colors.warning[600] }]}>
-                    {bill.isPaid ? 'Ödendi' : 'Bekliyor'}
-                  </Text>
+
+                <View style={styles.billAmountBox}>
+                  <Text style={styles.billAmount}>{formatAmount(bill.amount)}</Text>
+                  <Text style={styles.billCat}>{billKeyToTitle(bill.billKey)}</Text>
                 </View>
               </TouchableOpacity>
             ))}
@@ -176,20 +219,13 @@ const BillListScreen = ({ route, navigation }) => {
           <View style={CommonStyles.emptyContainer}>
             <Text style={CommonStyles.emptyIcon}>📄</Text>
             <Text style={CommonStyles.emptyText}>
-              {categoryName} kategorisinde henüz fatura bulunmamaktadır.
+              {headerTitle} kategorisinde, {ym} döneminde fatura bulunmuyor.
             </Text>
-            <Text style={CommonStyles.emptyText}>
-              İlk faturanızı eklemek için yukarıdaki butona tıklayın.
-            </Text>
+            <Text style={CommonStyles.emptyText}>İlk faturanızı eklemek için yukarıdaki butona tıklayın.</Text>
           </View>
         )}
 
-        <Toast
-          visible={toast.visible}
-          message={toast.message}
-          type={toast.type}
-          onHide={hideToast}
-        />
+        <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={hideToast} />
       </ScrollView>
     </View>
   );
@@ -197,24 +233,13 @@ const BillListScreen = ({ route, navigation }) => {
 
 const styles = StyleSheet.create({
   billIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: Colors.primary[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
+    width: 50, height: 50, borderRadius: 25, backgroundColor: Colors.primary[100],
+    justifyContent: 'center', alignItems: 'center', marginRight: 12,
   },
-  billIcon: {
-    fontSize: 24,
-  },
-  billStatus: {
-    alignItems: 'flex-end',
-  },
-  statusText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  billIcon: { fontSize: 24 },
+  billAmountBox: { alignItems: 'flex-end' },
+  billAmount: { fontSize: 16, fontWeight: 'bold' },
+  billCat: { fontSize: 12, color: Colors.text.secondary, marginTop: 2 },
 });
 
 export default BillListScreen;

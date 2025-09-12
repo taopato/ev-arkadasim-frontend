@@ -1,23 +1,28 @@
-// Basit bir global event bus (bağımlılık yok)
-const listeners = {};
+// src/shared/events/bus.js
+const listeners = new Map();
 
-export function on(event, callback) {
-  if (!listeners[event]) listeners[event] = new Set();
-  listeners[event].add(callback);
-  return () => off(event, callback);
-}
+const on = (event, cb) => {
+  if (!listeners.has(event)) listeners.set(event, new Set());
+  listeners.get(event).add(cb);
+  return () => listeners.get(event)?.delete(cb);
+};
 
-export function off(event, callback) {
-  if (listeners[event]) listeners[event].delete(callback);
-}
+const emit = (event, payload) => {
+  const set = listeners.get(event);
+  if (!set) return;
+  set.forEach((cb) => {
+    try { cb(payload); } catch {}
+  });
+};
 
-export function emit(event, payload) {
-  if (!listeners[event]) return;
-  for (const cb of listeners[event]) {
-    try { cb(payload); } catch (_) {}
+const off = (event, cb) => {
+  const set = listeners.get(event);
+  if (!set) return;
+  if (typeof cb === 'function') {
+    set.delete(cb);
+  } else {
+    listeners.delete(event);
   }
-}
+};
 
 export default { on, off, emit };
-
-

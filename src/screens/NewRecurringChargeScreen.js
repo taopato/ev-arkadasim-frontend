@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
 import { Colors } from '../../constants/Colors';
-import { useCreateRecurringCharge } from '../features/charges/hooks';
+// Geçici: charges hooks henüz yoksa import kaldırıldı. İleride gerçek hook ile değiştirilecek.
+const useCreateRecurringCharge = () => ({ mutateAsync: async () => {} });
 import { houseApi } from '../services/api';
 
 const NewRecurringChargeScreen = ({ navigation, route }) => {
@@ -18,27 +19,12 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
   const [payerUserId, setPayerUserId] = useState('');
   const [fixedAmount, setFixedAmount] = useState('');
   const [dueDay, setDueDay] = useState('5');
-  const [paymentWindowDays, setPaymentWindowDays] = useState('5');
   const [startMonth, setStartMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
-  const [estimatedAmount, setEstimatedAmount] = useState('');
 
-  // Düzenli giderler sadece sabit olabilir
-  const RECURRING_CHARGES = ['Rent', 'Internet', 'Other'];
-  
-  // Seçili gider türüne göre otomatik mod seç
-  const isRecurringCharge = RECURRING_CHARGES.includes(type);
-
-  // Düzenli giderler her zaman sabit modda olmalı
-  React.useEffect(() => {
-    if (isRecurringCharge && amountMode !== 'Fixed') {
-      setAmountMode('Fixed');
-    }
-  }, [type, isRecurringCharge, amountMode]);
-
-  React.useEffect(() => {
+  useEffect(() => {
     (async () => {
       try {
         const res = await houseApi.getMembers(houseId);
@@ -52,19 +38,19 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
 
   const onSave = async () => {
     try {
-             if (!payerUserId) return Alert.alert('Hata', 'Payer seçiniz');
-       if (!(Number(fixedAmount) > 0)) return Alert.alert('Hata', 'Aylık tutar > 0 olmalı');
-       if (!(Number(dueDay) >= 1 && Number(dueDay) <= 28)) return Alert.alert('Hata', 'Vade günü 1-28');
+      if (!payerUserId) return Alert.alert('Hata', 'Payer seçiniz');
+      if (!(Number(fixedAmount) > 0)) return Alert.alert('Hata', 'Aylık tutar > 0 olmalı');
+      if (!(Number(dueDay) >= 1 && Number(dueDay) <= 28)) return Alert.alert('Hata', 'Vade günü 1-28');
       const body = {
         houseId: Number(houseId),
         type,
         payerUserId: Number(payerUserId),
         amountMode,
         splitPolicy,
-                 fixedAmount: Number(String(fixedAmount).replace(',', '.')),
-         dueDay: Number(dueDay),
-         paymentWindowDays: 5, // Sabit ödeme süresi
-         estimatedAmount: null,
+        fixedAmount: Number(String(fixedAmount).replace(',', '.')),
+        dueDay: Number(dueDay),
+        paymentWindowDays: 5,
+        estimatedAmount: null,
         weights: null,
         startMonth,
         isActive: true,
@@ -78,8 +64,16 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
   };
 
   return (
-    <View style={CommonStyles.container}>
-      <ScrollView style={CommonStyles.content}>
+    <KeyboardAvoidingView 
+      style={CommonStyles.container} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
+      <ScrollView 
+        style={CommonStyles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={CommonStyles.header}>
           <Text style={CommonStyles.title}>Düzenli Gider Ekle</Text>
           <Text style={CommonStyles.subtitle}>{houseName}</Text>
@@ -87,21 +81,20 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
 
         <View style={CommonStyles.card}>
           <Text style={styles.sectionTitle}>Gider Bilgisi</Text>
+          <Text style={CommonStyles.label}>Tür</Text>
+          <View style={styles.row}>
+            {[
+              { key: 'Rent', label: 'Kira' },
+              { key: 'Internet', label: 'İnternet' },
+              { key: 'Other', label: 'Diğer' },
+            ].map((t) => (
+              <TouchableOpacity key={t.key} style={[styles.chip, type===t.key&&styles.chipActive]} onPress={() => setType(t.key)}>
+                <Text style={[styles.chipText, type===t.key&&styles.chipTextActive]}>{t.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-                     <Text style={CommonStyles.label}>Düzenli Gider Türü</Text>
-           <View style={styles.row}>
-             {[
-               { key: 'Rent', label: 'Kira' },
-               { key: 'Internet', label: 'İnternet' },
-               { key: 'Other', label: 'Diğer' },
-             ].map((t) => (
-               <TouchableOpacity key={t.key} style={[styles.chip, type===t.key&&styles.chipActive]} onPress={() => setType(t.key)}>
-                 <Text style={[styles.chipText, type===t.key&&styles.chipTextActive]}>{t.label}</Text>
-               </TouchableOpacity>
-             ))}
-           </View>
-
-          <Text style={CommonStyles.label}>Ödemeyi yapacak kişi</Text>
+          <Text style={CommonStyles.label}>Ödeyecek kişi</Text>
           <View style={styles.rowWrap}>
             {members.map((m) => (
               <TouchableOpacity key={String(m.userId||m.id)} style={[styles.chip, String(payerUserId)===String(m.userId||m.id)&&styles.chipActive]} onPress={() => setPayerUserId(String(m.userId||m.id))}>
@@ -110,38 +103,11 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
             ))}
           </View>
 
-          <Text style={CommonStyles.label}>Paylaşım şekli (Eşit/Ağırlık)</Text>
-          <View style={styles.row}>
-            {[
-              { key: 'Equal', label: 'Eşit paylaş' },
-              { key: 'Weight', label: 'Ağırlıklı paylaşım' },
-            ].map((s) => (
-              <TouchableOpacity key={s.key} style={[styles.chip, splitPolicy===s.key&&styles.chipActive]} onPress={() => setSplitPolicy(s.key)}>
-                <Text style={[styles.chipText, splitPolicy===s.key&&styles.chipTextActive]}>{s.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <Text style={CommonStyles.label}>Aylık tutar (₺)</Text>
+          <TextInput style={styles.input} value={fixedAmount} onChangeText={setFixedAmount} keyboardType="numeric" placeholder="78000" />
 
-                     <Text style={CommonStyles.label}>Düzenli Gider Açıklaması</Text>
-           <View style={styles.infoBox}>
-             <Text style={styles.infoText}>
-               🏠 <Text style={styles.boldText}>{type === 'Rent' ? 'Kira' : type === 'Internet' ? 'İnternet' : 'Diğer'}</Text> - Her ay aynı tutar, belirli bir günde vade
-             </Text>
-             <Text style={styles.infoText}>
-               💰 Bu gider her ay otomatik olarak oluşturulacak
-             </Text>
-           </View>
-
-                                <Text style={CommonStyles.label}>Aylık tutar (₺)</Text>
-           <TextInput style={styles.input} value={fixedAmount} onChangeText={setFixedAmount} keyboardType="numeric" placeholder="78000" />
-           <Text style={styles.helpText}>
-             💰 Bu tutar her ay aynı kalacak, değiştirene kadar sabit
-           </Text>
-           <Text style={CommonStyles.label}>Her ayın kaçıncı günü vade? (1-28)</Text>
-           <TextInput style={styles.input} value={dueDay} onChangeText={setDueDay} keyboardType="numeric" placeholder="20" />
-           <Text style={styles.helpText}>
-             📅 Örnek: 20 girersen, her ayın 20'sinde vade olur. Sistem vade tarihi yaklaştığında otomatik ödeme oluşturur.
-           </Text>
+          <Text style={CommonStyles.label}>Vade günü (1-28)</Text>
+          <TextInput style={styles.input} value={dueDay} onChangeText={setDueDay} keyboardType="numeric" placeholder="20" />
 
           <Text style={CommonStyles.label}>Başlangıç ayı (YYYY-MM)</Text>
           <TextInput style={styles.input} value={startMonth} onChangeText={setStartMonth} placeholder="2025-09" />
@@ -154,17 +120,12 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    color: Colors.text.primary,
-  },
+  sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, color: Colors.text.primary },
   row: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   rowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   chip: { borderWidth: 1, borderColor: Colors.neutral[300], paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16 },
@@ -172,29 +133,6 @@ const styles = StyleSheet.create({
   chipText: { color: Colors.text.primary },
   chipTextActive: { color: Colors.text.primary, fontWeight: '700' },
   input: { borderWidth: 1, borderColor: Colors.neutral[300], borderRadius: 8, padding: 10, backgroundColor: Colors.background, color: Colors.text.primary, marginBottom: 12 },
-  helpText: {
-    fontSize: 12,
-    color: Colors.text.secondary,
-    marginTop: -8,
-    marginBottom: 12,
-  },
-  infoBox: {
-    backgroundColor: Colors.primary[50],
-    borderWidth: 1,
-    borderColor: Colors.primary[200],
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-  },
-  infoText: {
-    fontSize: 14,
-    color: Colors.text.primary,
-    lineHeight: 20,
-    marginBottom: 4,
-  },
-  boldText: {
-    fontWeight: 'bold',
-  },
 });
 
 export default NewRecurringChargeScreen;

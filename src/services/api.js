@@ -1,386 +1,230 @@
+// src/services/api.js
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BASE_URL as ENV_BASE } from '../shared/config/env';
 
-// ====== BASE URL ======
+/**
+ * ENV_BASE örn: https://localhost:7118
+ * BASE_URL = `${ENV_BASE}/api`
+ */
 const BASE_URL = `${ENV_BASE}/api`;
 
-// Axios instance oluştur
+// ---------- Axios instance ----------
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 15000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  timeout: 45000,
+  
+  headers: { 'Content-Type': 'application/json' },
 });
 
-// Token'ı AsyncStorage'dan al
+// Token
 const getAuthToken = async () => {
   try {
     return await AsyncStorage.getItem('authToken');
-  } catch (error) {
-    console.error('Token alınırken hata:', error);
+  } catch (err) {
+    console.error('Token alınırken hata:', err);
     return null;
   }
 };
 
-// Request interceptor - her istekte token ekle
+// Interceptors
 api.interceptors.request.use(
-  async config => {
+  async (config) => {
     const urlPath = typeof config.url === 'string' ? config.url : '';
-    const isAuthRequest = urlPath.startsWith('/Auth/');
+    // Hem "/Auth/" hem "Auth/" gibi varyasyonlar için güvenli kontrol
+    const isAuthRequest = urlPath.startsWith('/Auth/') || urlPath.startsWith('Auth/');
     const token = await getAuthToken();
+
     if (token && !isAuthRequest) {
       config.headers.Authorization = `Bearer ${token}`;
-    } else if (isAuthRequest && config.headers && config.headers.Authorization) {
+    } else if (isAuthRequest && config.headers?.Authorization) {
       delete config.headers.Authorization;
     }
     return config;
   },
-  error => {
-    console.error('Request interceptor hatası:', error);
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Response interceptor - yanıtları logla ve hataları yakala
 api.interceptors.response.use(
-  response => {
-    return response;
+  (res) => {
+    return res;
   },
-  error => {
-    console.error('API Hatası:', {
-      url: error.config?.url,
-      method: error.config?.method,
-      status: error.response?.status,
-      message: error.message,
-      data: error.response?.data
-    });
+  (error) => {
+    // Ayrıntılı log (native'de CORS yok; bağlantı sorunlarını görmek için)
+    try {
+      console.error('🔍 API Error', {
+        url: error?.config?.url,
+        baseURL: error?.config?.baseURL,
+        method: error?.config?.method,
+        timeout: error?.config?.timeout,
+        message: error?.message,
+        status: error?.response?.status,
+        statusText: error?.response?.statusText,
+        data: error?.response?.data,
+      });
+    } catch {}
 
-    // 401 Unauthorized hatası durumunda token'ı temizle
-    if (error.response?.status === 401) {
+    if (error?.response?.status === 401) {
       AsyncStorage.removeItem('authToken');
       AsyncStorage.removeItem('user');
-      console.log('Token temizlendi - 401 hatası');
     }
-
-    // 500 Server Error
-    if (error.response?.status === 500) {
-      console.error('Sunucu hatası:', error.response.data);
-    }
-
-    // Network Error
-    if (error.code === 'NETWORK_ERROR' || (typeof error.message === 'string' && error.message.includes('Network Error'))) {
-      console.error('Ağ bağlantı hatası - Backend çalışıyor mu? BASE_URL:', BASE_URL);
-    }
-
     return Promise.reject(error);
   }
 );
 
-// API endpoint'leri için yardımcı sabitler
-export const apiEndpoints = {
-  // Auth endpoints
-  auth: {
-    login: '/Auth/Login',
-    sendVerificationCode: '/Auth/SendVerificationCode',
-    verifyCodeAndRegister: '/Auth/VerifyCodeAndRegister',
-    verifyCodeForReset: '/Auth/VerifyCodeForReset',
-    resetPassword: '/Auth/ResetPassword',
-  },
-
-  // Houses endpoints
-  houses: {
-    getAll: '/Houses',
-    create: '/Houses',
-    getById: (id) => `/Houses/${id}`,
-    addMember: (id) => `/Houses/${id}/members`,
-    removeMember: (id, userId) => `/Houses/${id}/members/${userId}`,
-    sendInvitation: (houseId) => `/Houses/${houseId}/invitations`,
-    acceptInvitation: '/Houses/AcceptInvitation',
-    getMembers: (houseId) => `/Houses/${houseId}/members`,
-    getUserDebts: (userId, houseId) => `/Houses/GetUserDebts/${userId}/${houseId}`,
-    getUserReceivables: (userId, houseId) => `/Houses/GetUserReceivables/${userId}/${houseId}`,
-    getUserHouses: (userId) => `/Houses/GetUserHouses/${userId}`,
-    spendingOverview: (houseId, from, to, recentLimit) => `/Houses/${houseId}/spending-overview?from=${from || ''}&to=${to || ''}&recentLimit=${recentLimit || ''}`,
-  },
-
-  // Expenses endpoints
-  expenses: {
-    getAll: '/Expenses',
-    create: '/Expenses',
-    addExpense: '/Expenses/AddExpense',
-    getByHouse: (houseId) => `/Expenses/GetExpenses/${houseId}`,
-    getById: (expenseId) => `/Expenses/GetExpense/${expenseId}`,
-    delete: (expenseId) => `/Expenses/DeleteExpense/${expenseId}`,
-    update: (expenseId) => `/Expenses/UpdateExpense/${expenseId}`,
-  },
-
-  // Bills endpoints
-  bills: {
-    create: '/Bills',
-    finalize: (billId, requestUserId) => `/Bills/${billId}/finalize?requestUserId=${requestUserId}`,
-    uploadDocument: (billId, requestUserId) => `/Bills/${billId}/documents?requestUserId=${requestUserId}`,
-    getRecent: (houseId, utilityType, limit) => `/Bills/recent?houseId=${houseId}&utilityType=${utilityType}&limit=${limit || 10}`,
-    getByHouse: (houseId) => `/Bills?houseId=${houseId}`,
-    getByHouseAndType: (houseId, utilityType) => `/Bills?houseId=${houseId}&utilityType=${utilityType}`,
-    getById: (billId) => `/Bills/GetBill/${billId}`,
-    delete: (billId) => `/Bills/DeleteBill/${billId}`,
-    update: (billId) => `/Bills/UpdateBill/${billId}`,
-  },
-
-  // Payments endpoints
-  payments: {
-    create: '/Payments/CreatePayment',
-    getByHouse: (houseId) => `/Payments/GetPayments/${houseId}`,
-    getPendingPayments: (userId) => `/Payments/GetPendingPayments/${userId}`,
-    approvePayment: (paymentId) => `/Payments/ApprovePayment/${paymentId}`,
-    rejectPayment: (paymentId) => `/Payments/RejectPayment/${paymentId}`,
-    addPaymentWithAllocations: '/Payments/AddPaymentWithAllocations',
-  },
-
-  // Users endpoints
-  users: {
-    getAll: '/Users',
-    create: '/Users',
-    getAllUsers: '/Users/GetAllUsers',
-    getById: (userId) => `/Users/${userId}`,
-    paymentHistory: (userId) => `/Users/${userId}/payment-history`,
-  },
-};
-
-// -------- Yardımcı API Fonksiyonları --------
-
-// Auth işlemleri
+// ---------------- AUTH ----------------
 export const authApi = {
-  login: async (loginData) => {
-    return await api.post('/Auth/Login', loginData);
+  login: async (payload) => {
+    try {
+      const res = await api.post('/Auth/Login', payload);
+      const raw = res?.data || {};
+      const data = raw?.data ?? raw ?? {};
+
+      const pickFirst = (obj, keys) => keys.map(k => obj?.[k]).find(v => v != null);
+      const tokenFromBody = pickFirst(data, ['token', 'accessToken', 'jwt', 'jwtToken']) || pickFirst(raw, ['token', 'accessToken', 'jwt', 'jwtToken']);
+      const authHeader = res?.headers?.authorization || res?.headers?.Authorization;
+      const tokenFromHeader = typeof authHeader === 'string' ? authHeader.replace(/^[Bb]earer\s+/,'') : undefined;
+      const token = tokenFromBody || tokenFromHeader;
+      const user = pickFirst(data, ['user', 'userDto', 'account', 'profile']) || pickFirst(raw, ['user', 'userDto', 'account', 'profile']);
+
+      // Normalize edilmiş dönüş: LoginScreen daha kolay karar verebilsin
+      return { data: { token, user, raw } };
+    } catch (err) {
+      // Axios timeout veya XHR kaynaklı sorunlarda fetch ile fallback denemesi
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        const res = await fetch(`${BASE_URL}/Auth/Login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        const raw = await res.json().catch(() => ({}));
+        const data = raw?.data ?? raw ?? {};
+        const token = data?.token || data?.accessToken || undefined;
+        const user = data?.user || data?.userDto || undefined;
+        return { data: { token, user, raw } };
+      } catch (fallbackErr) {
+        throw err;
+      }
+    }
   },
-  sendVerificationCode: async (email) => {
-    return await api.post('/Auth/SendVerificationCode', { email });
-  },
-  verifyCodeAndRegister: async (email, code, fullName, password) => {
-    return await api.post('/Auth/VerifyCodeAndRegister', {
-      email, code, fullName, password
-    });
-  },
-  verifyCodeForReset: async (email, code) => {
-    return await api.post('/Auth/VerifyCodeForReset', { email, code });
-  },
-  resetPassword: async (email, code, newPassword) => {
-    return await api.post('/Auth/ResetPassword', {
-      email, code, newPassword
-    });
-  },
+  sendVerificationCode: (email) => api.post('/Auth/SendVerificationCode', { email }),
+  verifyCodeAndRegister: (email, code, fullName, password) =>
+    api.post('/Auth/VerifyCodeAndRegister', { email, code, fullName, password }),
+  verifyCodeForReset: (email, code) => api.post('/Auth/VerifyCodeForReset', { email, code }),
+  resetPassword: (email, code, newPassword) =>
+    api.post('/Auth/ResetPassword', { email, code, newPassword }),
 };
 
-// House işlemleri
+// ---------------- HOUSES ----------------
 export const houseApi = {
-  getAll: async () => {
-    return await api.get('/Houses');
-  },
-  create: async (name, creatorUserId) => {
-    return await api.post('/Houses', { name, creatorUserId });
-  },
-  getById: async (id) => {
-    return await api.get(`/Houses/${id}`);
-  },
-  addMember: async (houseId, userId) => {
-    return await api.post(`/Houses/${houseId}/members`, { houseId, userId });
-  },
-  removeMember: async (houseId, userId) => {
-    return await api.delete(`/Houses/${houseId}/members/${userId}`);
-  },
-  sendInvitation: async (houseId, email) => {
-    return await api.post(`/Houses/${houseId}/invitations`, { email });
-  },
-  acceptInvitation: async (userId, invitationCode) => {
-    return await api.post('/Houses/AcceptInvitation', { userId, invitationCode });
-  },
-  getMembers: async (houseId) => {
-    return await api.get(`/Houses/${houseId}/members`);
-  },
-  getUserDebts: async (userId, houseId) => {
-    return await api.get(`/Houses/GetUserDebts/${userId}/${houseId}`);
-  },
-  getUserReceivables: async (userId, houseId) => {
-    return await api.get(`/Houses/GetUserReceivables/${userId}/${houseId}`);
-  },
-  getUserHouses: async (userId) => {
-    return await api.get(`/Houses/GetUserHouses/${userId}`);
-  },
-  createHouse: async (houseData) => {
-    return await api.post('/Houses', houseData);
-  },
-  getSpendingOverview: async (houseId, from, to, recentLimit) => {
-    return await api.get(`/Houses/${houseId}/spending-overview?from=${from || ''}&to=${to || ''}&recentLimit=${recentLimit || ''}`);
-  },
+  getAll: () => api.get('/Houses'),
+  create: (name, creatorUserId) => api.post('/Houses', { name, creatorUserId }),
+  getById: (id) => api.get(`/Houses/${id}`),
+  addMember: (houseId, userId) => api.post(`/Houses/${houseId}/members`, { houseId, userId }),
+  removeMember: (houseId, userId) => api.delete(`/Houses/${houseId}/members/${userId}`),
+  sendInvitation: (houseId, email) => api.post(`/Houses/${houseId}/invitations`, { email }),
+  acceptInvitation: (userId, invitationCode) =>
+    api.post('/Houses/AcceptInvitation', { userId, invitationCode }),
+  getMembers: (houseId) => api.get(`/Houses/${houseId}/members`),
+
+  // Debts
+  getUserDebts: (userId, houseId) => api.get(`/Houses/GetUserDebts/${userId}/${houseId}`),
+  getHouseDebts: (houseId) => api.get(`/Houses/GetUserDebts/${houseId}`),
+  getUserDebtBetween: (houseId, userAId, userBId) =>
+    api.get(`/Houses/GetUserDebtBetween/${houseId}?userAId=${userAId}&userBId=${userBId}`),
+
+  getUserHouses: (userId) => api.get(`/Houses/GetUserHouses/${userId}`),
+  createHouse: (houseData) => api.post('/Houses', houseData),
 };
 
-// Expenses işlemleri
-export const expensesApi = {
-  getAll: async () => {
-    return await api.get('/Expenses');
-  },
-  create: async (expenseData) => {
-    return await api.post('/Expenses', expenseData);
-  },
-  addExpense: async (expenseData) => {
-    return await api.post('/Expenses/AddExpense', expenseData);
-  },
-  getByHouse: async (houseId) => {
-    return await api.get(`/Expenses/GetExpenses/${houseId}`);
-  },
-  getById: async (expenseId) => {
-    return await api.get(`/Expenses/GetExpense/${expenseId}`);
-  },
-  delete: async (expenseId) => {
-    return await api.delete(`/Expenses/DeleteExpense/${expenseId}`);
-  },
-  update: async (expenseId, expenseData) => {
-    return await api.put(`/Expenses/UpdateExpense/${expenseId}`, expenseData);
-  },
+// ---------------- LEDGER ----------------
+export const ledgerApi = {
+  getByExpense: (expenseId) => api.get(`/LedgerLines/ByExpense/${expenseId}`),
+  getByHouse: (houseId) => api.get(`/LedgerLines/ByHouse/${houseId}`),
 };
 
-// Bills işlemleri
-export const billsApi = {
-  create: async (billData) => {
-    // Plan: { houseId, title, amount, billDate, dueDate, paidByUserId, shareType }
-    return await api.post('/Bills', billData);
-  },
-  finalize: async (billId, approverUserId) => {
-    // Plan: POST /Bills/{billId}/finalize with optional body { approverUserId }
-    const body = approverUserId ? { approverUserId } : {};
-    return await api.post(`/Bills/${billId}/finalize`, body);
-  },
-  uploadDocument: async (billId, file) => {
-    // Plan: POST /Bills/{billId}/documents (multipart/form-data)
-    const formData = new FormData();
-    formData.append('file', file);
-    return await api.post(`/Bills/${billId}/documents`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-  },
-  getRecent: async (houseId, take = 10) => {
-    // Plan: /Bills/recent?houseId={id}&take={n}
-    return await api.get(`/Bills/recent?houseId=${houseId}&take=${take}`);
-  },
-  getByHouse: async (houseId) => {
-    return await api.get(`/Bills/GetBills/${houseId}`);
-  },
-  getByHouseAndType: async (houseId, utilityType) => {
-    return await api.get(`/Bills/GetBills/${houseId}?utilityType=${utilityType}`);
-  },
-  getById: async (billId) => {
-    return await api.get(`/Bills/GetBill/${billId}`);
-  },
-  delete: async (billId) => {
-    return await api.delete(`/Bills/DeleteBill/${billId}`);
-  },
-  update: async (billId, billData) => {
-    return await api.put(`/Bills/UpdateBill/${billId}`, billData);
-  },
-};
-
-// Payments işlemleri
+// ---------------- PAYMENTS ----------------
 export const paymentsApi = {
-  create: async (paymentData) => {
-    // JSON veya multipart (IBAN/Havale için dekont zorunlu)
-    if (paymentData.method === 'BankTransfer' && paymentData.slipFile) {
-      const formData = new FormData();
-      // Swagger alan adları ile uyumlu gönderim
-      formData.append('HouseId', String(paymentData.houseId));
-      formData.append('BorcluUserId', String(paymentData.borcluUserId));
-      formData.append('AlacakliUserId', String(paymentData.alacakliUserId));
-      formData.append('Tutar', String(paymentData.tutar));
-      formData.append('PaymentMethod', paymentData.method || 'BankTransfer');
-      formData.append('Aciklama', paymentData.note || '');
-      if (paymentData.chargeId) formData.append('ChargeId', String(paymentData.chargeId));
-      formData.append('Dekont', paymentData.slipFile);
-      return await api.post('/Payments/CreatePayment', formData, {
+  /**
+   * CreatePayment (multipart/form-data)
+   * payload:
+   *  {
+   *    houseId, borcluUserId, alacakliUserId,
+   *    tutar, paymentMethod|method, note, odemeTarihi?, chargeId?, dekontFile?
+   *  }
+   */
+  create: async (payload) => {
+    const fd = new FormData();
+    fd.append('HouseId', Number(payload.houseId));
+    fd.append('BorcluUserId', Number(payload.borcluUserId));
+    fd.append('AlacakliUserId', Number(payload.alacakliUserId));
+    fd.append('Tutar', Number(payload.tutar));
+    fd.append('PaymentMethod', String(payload.paymentMethod || payload.method || 'Cash'));
+    fd.append('OdemeTarihi', payload.odemeTarihi || new Date().toISOString());
+    fd.append('Aciklama', payload.note || '');
+    if (payload.chargeId != null) fd.append('ChargeId', Number(payload.chargeId));
+    if (payload.dekontFile) fd.append('Dekont', payload.dekontFile); // File/Blob
+
+    try {
+      return await api.post('/Payments/CreatePayment', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
+    } catch (e1) {
+      // Fallback: bazı ortamlarda CreatePayment devre dışıysa
+      const st = e1?.response?.status;
+      if ([404, 405, 415].includes(st)) {
+        const json = {
+          houseId: Number(payload.houseId),
+          payerUserId: Number(payload.borcluUserId),
+          toUserId: Number(payload.alacakliUserId),
+          amount: Number(payload.tutar),
+          note: payload.note || '',
+          allocations: [],
+        };
+        return await api.post('/Payments/AddPaymentWithAllocations', json);
+      }
+      throw e1;
     }
-    // JSON gönderimi (nakit)
-    return await api.post('/Payments/CreatePayment', {
-      HouseId: paymentData.houseId,
-      BorcluUserId: paymentData.borcluUserId,
-      AlacakliUserId: paymentData.alacakliUserId,
-      Tutar: paymentData.tutar,
-      PaymentMethod: paymentData.method || 'Cash',
-      Aciklama: paymentData.note,
-      ChargeId: paymentData.chargeId,
-    });
   },
-  getByHouse: async (houseId) => {
-    return await api.get(`/Payments/GetPayments/${houseId}`);
-  },
-  getPendingPayments: async (userId) => {
-    return await api.get(`/Payments/GetPendingPayments/${userId}`);
-  },
-  approvePayment: async (paymentId, approverUserId) => {
-    // Plan: optional body { approverUserId }
-    const body = approverUserId ? { approverUserId } : {};
-    return await api.post(`/Payments/ApprovePayment/${paymentId}`, body);
-  },
-  rejectPayment: async (paymentId, reason) => {
-    // Plan: optional body { reason }
-    const body = reason ? { reason } : {};
-    return await api.post(`/Payments/RejectPayment/${paymentId}`, body);
-  },
-  addPaymentWithAllocations: async (paymentData) => {
-    return await api.post('/Payments/AddPaymentWithAllocations', {
-      houseId: paymentData.houseId,
-      payerUserId: paymentData.payerUserId,
-      note: paymentData.note,
-      allocations: paymentData.allocations
-    });
-  },
+
+  // Listeleme / bekleyenler / onay-red uçları
+  getByHouse: (houseId) => api.get(`/Payments/GetPayments/${houseId}`),
+
+  // iki isim de mevcut olsun (eski çağrılar kırılmasın)
+  getPendingForUser: (userId) => api.get(`/Payments/GetPendingPayments/${userId}`),
+  getPendingPayments: (userId) => api.get(`/Payments/GetPendingPayments/${userId}`),
+
+  approve: (paymentId) => api.post(`/Payments/ApprovePayment/${paymentId}`),
+  approvePayment: (paymentId) => api.post(`/Payments/ApprovePayment/${paymentId}`),
+
+  reject: (paymentId) => api.post(`/Payments/RejectPayment/${paymentId}`),
+  rejectPayment: (paymentId) => api.post(`/Payments/RejectPayment/${paymentId}`),
 };
 
-// Charges işlemleri (Recurring Charges)
-export const chargesApi = {
-  create: async (chargeData) => {
-    return await api.post('/Charges/CreateRecurringCharge', chargeData);
-  },
-  getByHouse: async (houseId) => {
-    return await api.get(`/Charges/GetRecurringCharges/${houseId}`);
-  },
-  getById: async (chargeId) => {
-    return await api.get(`/Charges/GetRecurringCharge/${chargeId}`);
-  },
-  update: async (chargeId, chargeData) => {
-    return await api.put(`/Charges/UpdateRecurringCharge/${chargeId}`, chargeData);
-  },
-  delete: async (chargeId) => {
-    return await api.delete(`/Charges/DeleteRecurringCharge/${chargeId}`);
-  },
-  activate: async (chargeId) => {
-    return await api.post(`/Charges/ActivateRecurringCharge/${chargeId}`);
-  },
-  deactivate: async (chargeId) => {
-    return await api.post(`/Charges/DeactivateRecurringCharge/${chargeId}`);
-  },
+// ---------------- EXPENSES ----------------
+export const expensesApi = {
+  createIrregular: (body) => api.post('/Expenses/CreateIrregular', body),
+  getExpenses: (houseId) => api.get(`/Expenses/GetExpenses/${Number(houseId)}`),
+  getByHouse: (houseId, params) => api.get(`/Expenses/GetExpenses/${houseId}`, { params }),
+  getById: (expenseId) => api.get(`/Expenses/GetExpense/${expenseId}`),
+  update: (expenseId, dto) => api.put(`/Expenses/UpdateExpense/${expenseId}`, dto),
+  remove: (expenseId) => api.delete(`/Expenses/DeleteExpense/${expenseId}`),
 };
 
-// Users işlemleri
-export const usersApi = {
-  getAll: async () => {
-    return await api.get('/Users');
-  },
-  create: async (fullName, email, password) => {
-    return await api.post('/Users', { fullName, email, password });
-  },
-  getAllUsers: async () => {
-    return await api.get('/Users/GetAllUsers');
-  },
-  getById: async (userId) => {
-    return await api.get(`/Users/${userId}`);
-  },
-  getPaymentHistory: async (userId, houseId, limit) => {
-    return await api.get(`/Users/${userId}/payment-history?houseId=${houseId || ''}&limit=${limit || 10}`);
-  },
+// -------- GetUserDebts (Expenses Controller) için güvenli helper --------
+export const getUserDebtsSafe = async (userId, houseId) => {
+  const uid = Number(userId);
+  const hid = Number(houseId);
+  try {
+    return await api.get(`/Expenses/GetUserDebts/${uid}/${hid}`);
+  } catch (e1) {
+    if (e1?.response?.status !== 404) throw e1;
+    return await api.get('/Expenses/GetUserDebts', { params: { userId: uid, houseId: hid } });
+  }
 };
 
-// API instance'ını export et
 export default api;

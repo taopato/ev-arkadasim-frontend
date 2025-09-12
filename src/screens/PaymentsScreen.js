@@ -1,0 +1,297 @@
+// src/screens/PaymentsScreen.js
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
+import { Colors } from '../constants/Colors';
+import { houseApi, paymentsApi } from '../services/api';
+import { getAllUsers } from '../features/users/get-users/api';
+import { useAuth } from '../context/AuthContext';
+import eventBus from '../shared/events/bus';
+import useScrollRestore from '../hooks/useScrollRestore';
+
+const PaymentsScreen = ({ route, navigation }) => {
+  const { user } = useAuth();
+  const { houseId: routeHouseId } = route.params || {};
+  const houseId = routeHouseId || user?.defaultHouseId;
+
+  const [items, setItems] = useState([]);
+  const [allItems, setAllItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [members, setMembers] = useState([]);
+  const [filterMode, setFilterMode] = useState('all'); // all | mine | incoming | member
+  const [selectedMemberId, setSelectedMemberId] = useState(null);
+  const { listRef, handleScroll } = useScrollRestore(`PaymentsScreen:${houseId ?? 'all'}`);
+
+  const normalizeStatus = (raw) => {
+    const s = (raw ?? '').toString().toLowerCase();
+    if (s.includes('onay')) return 'Approved';
+    if (s.includes('red')) return 'Rejected';
+    if (s.includes('bekle')) return 'Pending';
+    if (s.includes('approve')) return 'Approved';
+    if (s.includes('reject')) return 'Rejected';
+    if (s.includes('pend')) return 'Pending';
+    return (raw || 'Pending');
+  };
+
+  const asArray = (maybe) => Array.isArray(maybe) ? maybe : [];
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      let list = [];
+      if (houseId) {
+        // Tek ev için ödemeler
+        const res = await paymentsApi.getByHouse(houseId);
+        const raw = res?.data;
+        list = raw?.data ?? raw?.items ?? raw?.records ?? raw?.payments ?? raw ?? [];
+      } else if (user?.id) {
+        // Tüm evlerde kullanıcının dahil olduğu ödemeler
+        const housesRes = await houseApi.getUserHouses(user.id);
+        const houses = asArray(housesRes?.data);
+        const all = [];
+        for (const h of houses) {
+          try {
+            const pr = await paymentsApi.getByHouse(h.id);
+            const raw = pr?.data;
+            const arr = raw?.data ?? raw?.items ?? raw?.records ?? raw?.payments ?? raw ?? [];
+            all.push(...asArray(arr));
+          } catch {}
+        }
+        list = all;
+      }
+      
+      // Backend API yapısına göre normalize et
+      list = asArray(list).map((item) => {
+        const status = normalizeStatus(item.onayDurumu ?? item.Durum ?? item.status);
+        const amount = Number(item.tutar ?? item.Tutar ?? item.amount ?? 0);
+        const date = item.odemeTarihi || item.OdemeTarihi || item.date || item.createdAt || item.updatedAt;
+        const payerName = item.borcluUserName || item.BorcluUserName || item.payerName || item.borcluKullaniciAdi || item.fromUser?.fullName || 'Bilinmeyen';
+        const toName = item.alacakliUserName || item.AlacakliUserName || item.toUserName || item.alacakliKullaniciAdi || item.toUser?.fullName || 'Bilinmeyen';
+        const note = item.aciklama || item.Aciklama || item.note || item.description || '';
+        const id = item.id ?? item.paymentId;
+        const paymentMethod = item.paymentMethod || item.PaymentMethod || 'Cash';
+        
+        console.log('Payment item:', { 
+          id, 
+          borcluUserName: item.borcluUserName, 
+          alacakliUserName: item.alacakliUserName,
+          borcluUserId: item.borcluUserId,
+          alacakliUserId: item.alacakliUserId,
+          payerName, 
+          toName 
+        });
+        
+        return { 
+          id, 
+          status, 
+          amount, 
+          date, 
+          payerName, 
+          toName, 
+          note, 
+          paymentMethod,
+          payerId: item.borcluUserId || item.BorcluUserId || item.payerUserId || item.fromUserId, 
+          toId: item.alacakliUserId || item.AlacakliUserId || item.toUserId 
+        };
+      });
+      
+      // Tüm listeyi sakla (filtreler bu liste üstünden çalışacak)
+      list.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      setAllItems(list);
+      
+      // Üyeleri yükle (filtre ve isim eşlemesi için)
+      if (houseId) {
+        try {
+          const mRes = await houseApi.getMembers(houseId);
+          const mList = asArray(mRes?.data).map((m) => ({
+            id: m.userId || m.id,
+            name: m.name || m.fullName || 'İsimsiz Kullanıcı',
+          }));
+          setMembers(mList);
+        } catch {}
+      } else {
+        // Ev seçilmemişse sistemdeki tüm kullanıcıları al ve isim haritası olarak kullan
+        try {
+          const all = await getAllUsers();
+          const mList = asArray(all).map((u) => ({ id: u.id, name: u.fullName || 'İsimsiz Kullanıcı' }));
+          setMembers(mList);
+        } catch {}
+      }
+    } catch (e) {
+      console.error('PaymentsScreen load error:', e);
+    } finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, [houseId]);
+
+  useEffect(() => {
+    const off1 = eventBus.on('payments:updated', load);
+    const off2 = eventBus.on('expenses:updated', load);
+    return () => { off1?.(); off2?.(); };
+  }, [houseId]);
+
+  const filteredItems = useMemo(() => {
+    if (!Array.isArray(allItems)) return [];
+    if (filterMode === 'mine' && user?.id) {
+      return allItems.filter(x => Number(x.payerId) === Number(user.id));
+    }
+    if (filterMode === 'incoming' && user?.id) {
+      return allItems.filter(x => Number(x.toId) === Number(user.id));
+    }
+    if (filterMode === 'member' && selectedMemberId) {
+      return allItems.filter(x => Number(x.payerId) === Number(selectedMemberId) || Number(x.toId) === Number(selectedMemberId));
+    }
+    return allItems;
+  }, [allItems, filterMode, selectedMemberId, user?.id]);
+
+  useEffect(() => {
+    setItems(filteredItems);
+  }, [filteredItems]);
+
+  const renderItem = ({ item }) => {
+    const status = item.status || 'Pending';
+    const amount = Number(item.amount ?? 0);
+    const date = item.date || item.createdAt;
+    const lookupName = (id) => {
+      if (!id) return null;
+      if (user?.id && Number(user.id) === Number(id) && user?.fullName) return user.fullName;
+      const m = members.find((x) => Number(x.id) === Number(id));
+      return m?.name || null;
+    };
+    const payerName = item.payerName && item.payerName !== 'Bilinmeyen' ? item.payerName : (lookupName(item.payerId) || '');
+    const toName = item.toName && item.toName !== 'Bilinmeyen' ? item.toName : (lookupName(item.toId) || '');
+    const note = item.note || '';
+    const paymentMethod = item.paymentMethod || 'Cash';
+
+    const color =
+      status === 'Approved' ? Colors.success[600] :
+      status === 'Rejected' ? Colors.error[600] :
+      Colors.warning[600];
+
+    const statusText = 
+      status === 'Approved' ? 'Onaylandı' :
+      status === 'Rejected' ? 'Reddedildi' :
+      'Bekliyor';
+
+    return (
+      <View style={[styles.card, { borderLeftColor: color }]}>
+        <Text style={styles.title}>{(payerName || 'İsim yok')} ➜ {(toName || 'İsim yok')}</Text>
+        <Text style={styles.sub}>{date ? new Date(date).toLocaleString('tr-TR') : '-'}</Text>
+        {note ? <Text style={styles.note}>📝 {note}</Text> : null}
+        <Text style={styles.sub}>💳 {paymentMethod}</Text>
+        <Text style={[styles.amount, { color }]}>{amount.toFixed(2)} ₺ • {statusText}</Text>
+      </View>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      <FlatList
+        ref={listRef}
+        data={items}
+        keyExtractor={(x, i) => String(x.id ?? x.paymentId ?? i)}
+        renderItem={renderItem}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
+        contentContainerStyle={{ padding: 12 }}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        ListHeaderComponent={
+          <View style={styles.headerRow}>
+            <Text style={styles.header}>Ödemeler</Text>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => {
+                const hid = route?.params?.houseId || user?.defaultHouseId;
+                if (hid) {
+                  navigation.navigate('CreatePaymentScreen', { houseId: hid, houseName: 'Ev' });
+                } else {
+                  navigation.navigate('GroupListScreen', { redirectTo: 'CreatePaymentScreen' });
+                }
+              }}
+            >
+              <Text style={styles.link}>+ Ödeme Ekle</Text>
+            </TouchableOpacity>
+          </View>
+        }
+        ListFooterComponent={
+          <View style={styles.filterBar}>
+            <TouchableOpacity
+              style={[styles.filterBtn, filterMode === 'all' && styles.filterBtnActive]}
+              onPress={() => setFilterMode('all')}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.filterText, filterMode === 'all' && styles.filterTextActive]}>Tümü</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterBtn, filterMode === 'mine' && styles.filterBtnActive]}
+              onPress={() => setFilterMode('mine')}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.filterText, filterMode === 'mine' && styles.filterTextActive]}>Benim</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterBtn, filterMode === 'incoming' && styles.filterBtnActive]}
+              onPress={() => setFilterMode('incoming')}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.filterText, filterMode === 'incoming' && styles.filterTextActive]}>Bana</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterBtn, filterMode === 'member' && styles.filterBtnActive]}
+              onPress={() => setFilterMode('member')}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.filterText, filterMode === 'member' && styles.filterTextActive]}>Üye Seç</Text>
+            </TouchableOpacity>
+          </View>
+        }
+        ListEmptyComponent={!loading ? <Text style={styles.empty}>Kayıt yok</Text> : null}
+      />
+      {filterMode === 'member' && (
+        <View style={styles.memberPicker}>
+          <Text style={styles.memberPickerLabel}>Üye:</Text>
+          <View style={styles.memberChips}>
+            {members.map(m => (
+              <TouchableOpacity
+                key={String(m.id)}
+                style={[styles.chip, Number(selectedMemberId) === Number(m.id) && styles.chipActive]}
+                onPress={() => setSelectedMemberId(m.id)}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.chipText, Number(selectedMemberId) === Number(m.id) && styles.chipTextActive]}>
+                  {m.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.surface },
+  headerRow: { paddingHorizontal: 12, paddingBottom: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  header: { fontSize: 20, fontWeight: '900', color: Colors.text.primary },
+  link: { color: Colors.primary[600], fontWeight: '800' },
+  card: { borderLeftWidth: 4, backgroundColor: Colors.background, borderRadius: 12, padding: 12, marginBottom: 10, borderColor: Colors.neutral[200], borderWidth: 1 },
+  title: { fontWeight: '900', color: Colors.text.primary },
+  sub: { color: Colors.text.secondary, marginTop: 2 },
+  note: { color: Colors.text.primary, marginTop: 6 },
+  amount: { fontWeight: '900', marginTop: 6 },
+  empty: { textAlign: 'center', color: Colors.text.secondary, padding: 24 },
+  filterBar: { flexDirection: 'row', gap: 8, marginTop: 8, paddingHorizontal: 12, paddingBottom: 8 },
+  filterBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20, backgroundColor: Colors.neutral[200] },
+  filterBtnActive: { backgroundColor: Colors.primary[600] },
+  filterText: { color: Colors.text.primary, fontWeight: '700' },
+  filterTextActive: { color: '#fff' },
+  memberPicker: { paddingHorizontal: 12, paddingBottom: 12 },
+  memberPickerLabel: { color: Colors.text.secondary, marginBottom: 8 },
+  memberChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: { paddingVertical: 6, paddingHorizontal: 10, backgroundColor: Colors.neutral[200], borderRadius: 16 },
+  chipActive: { backgroundColor: Colors.primary[600] },
+  chipText: { color: Colors.text.primary, fontWeight: '700' },
+  chipTextActive: { color: '#fff' },
+});
+
+export default PaymentsScreen;
