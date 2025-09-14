@@ -8,6 +8,7 @@ export const ColorThemes = {
   warning:   { background: Colors.warning[600], foreground: '#fff' },
   neutral:   { background: Colors.neutral[200], foreground: Colors.text.primary },
   error:     { background: Colors.error[600],   foreground: '#fff' },
+  info:      { background: Colors.info[600],    foreground: '#fff' },
 };
 
 export const CommonStyles = StyleSheet.create({

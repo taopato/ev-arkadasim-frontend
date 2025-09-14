@@ -161,6 +161,13 @@ const PaymentsScreen = ({ route, navigation }) => {
     const toName = item.toName && item.toName !== 'Bilinmeyen' ? item.toName : (lookupName(item.toId) || '');
     const note = item.note || '';
     const paymentMethod = item.paymentMethod || 'Cash';
+    const trMethod = (() => {
+      const t = String(paymentMethod).toLowerCase();
+      if (/(cash|nakit)/.test(t)) return 'Nakit';
+      if (/(bank|transfer|havale|eft)/.test(t)) return 'Havale/EFT';
+      if (/(card|kredi|debit)/.test(t)) return 'Kart';
+      return 'Ödeme';
+    })();
 
     const color =
       status === 'Approved' ? Colors.success[600] :
@@ -177,7 +184,7 @@ const PaymentsScreen = ({ route, navigation }) => {
         <Text style={styles.title}>{(payerName || 'İsim yok')} ➜ {(toName || 'İsim yok')}</Text>
         <Text style={styles.sub}>{date ? new Date(date).toLocaleString('tr-TR') : '-'}</Text>
         {note ? <Text style={styles.note}>📝 {note}</Text> : null}
-        <Text style={styles.sub}>💳 {paymentMethod}</Text>
+        <Text style={styles.sub}>💳 {trMethod}</Text>
         <Text style={[styles.amount, { color }]}>{amount.toFixed(2)} ₺ • {statusText}</Text>
       </View>
     );
@@ -202,9 +209,9 @@ const PaymentsScreen = ({ route, navigation }) => {
               onPress={() => {
                 const hid = route?.params?.houseId || user?.defaultHouseId;
                 if (hid) {
-                  navigation.navigate('CreatePaymentScreen', { houseId: hid, houseName: 'Ev' });
+                  navigation.navigate('OdemeEkle', { houseId: hid, houseName: 'Ev' });
                 } else {
-                  navigation.navigate('GroupListScreen', { redirectTo: 'CreatePaymentScreen' });
+                  navigation.navigate('GrupListesi', { redirectTo: 'OdemeEkle' });
                 }
               }}
             >

@@ -6,23 +6,23 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 
 // Auth
-import LoginScreen from '../screens/LoginScreen';
-import SignupScreen from '../screens/SignupScreen';
-import VerificationScreen from '../screens/VerificationScreen';
-import ResetPasswordScreen from '../screens/ResetPasswordScreen';
+import GirisYap from '../screens/GirisYap';
+import KayitOl from '../screens/KayitOl';
+import Dogrulama from '../screens/Dogrulama';
+import SifreSifirla from '../screens/SifreSifirla';
 
 // App
-import HomeScreen from '../screens/HomeScreen';
-import ExpensesScreen from '../screens/ExpensesScreen';
-import UtilityBillCreateScreen from '../screens/UtilityBillCreateScreen';
-import BillsOverviewScreen from '../screens/BillsOverviewScreen';
-import PaymentsScreen from '../screens/PaymentsScreen';
-import PendingPaymentsScreen from '../screens/PendingPaymentsScreen';
-import DebtSummaryScreen from '../screens/DebtSummaryScreen';
-import SettingsScreen from '../screens/SettingsScreen';
-import LanguageSettingsScreen from '../screens/LanguageSettingsScreen';
-import ThemeSettingsScreen from '../screens/ThemeSettingsScreen';
-import CreatePaymentScreen from '../screens/CreatePaymentScreen';
+import AnaSayfa from '../screens/AnaSayfa';
+import Harcamalar from '../screens/Harcamalar';
+import FaturaOlustur from '../screens/FaturaOlustur';
+import Faturalar from '../screens/Faturalar';
+import Odemeler from '../screens/Odemeler';
+import BekleyenOdemeler from '../screens/BekleyenOdemeler';
+import BorcAlacakOzeti from '../screens/BorcAlacakOzeti';
+import Ayarlar from '../screens/Ayarlar';
+import DilAyarlari from '../screens/DilAyarlari';
+import TemaAyarlari from '../screens/TemaAyarlari';
+import OdemeEkle from '../screens/OdemeEkle';
 
 const Stack = createNativeStackNavigator();
 
@@ -36,24 +36,24 @@ const AppNavigator = () => {
       <Stack.Navigator screenOptions={{ headerShown: true }}>
         {!user ? (
           <>
-            <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Giriş Yap' }} />
-            <Stack.Screen name="SignupScreen" component={SignupScreen} options={{ title: 'Kayıt Ol' }} />
-            <Stack.Screen name="VerificationScreen" component={VerificationScreen} options={{ title: 'Doğrulama' }} />
-            <Stack.Screen name="ForgotPasswordScreen" component={ResetPasswordScreen} options={{ title: 'Şifre Sıfırla' }} />
+            <Stack.Screen name="Login" component={GirisYap} options={{ title: 'Giriş Yap' }} />
+            <Stack.Screen name="SignupScreen" component={KayitOl} options={{ title: 'Kayıt Ol' }} />
+            <Stack.Screen name="VerificationScreen" component={Dogrulama} options={{ title: 'Doğrulama' }} />
+            <Stack.Screen name="ForgotPasswordScreen" component={SifreSifirla} options={{ title: 'Şifre Sıfırla' }} />
           </>
         ) : (
           <>
-            <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'Ev Arkadaşım' }} />
-            <Stack.Screen name="ExpensesScreen" component={ExpensesScreen} options={{ title: 'Harcamalar' }} />
-            <Stack.Screen name="UtilityBillCreate" component={UtilityBillCreateScreen} options={{ title: 'Fatura' }} />
-            <Stack.Screen name="BillsOverviewScreen" component={BillsOverviewScreen} options={{ title: 'Faturalar' }} />
-            <Stack.Screen name="PaymentsScreen" component={PaymentsScreen} options={{ title: 'Ödemeler' }} />
-            <Stack.Screen name="SettingsScreen" component={SettingsScreen} options={{ title: 'Ayarlar' }} />
-            <Stack.Screen name="LanguageSettingsScreen" component={LanguageSettingsScreen} options={{ title: 'Dil' }} />
-            <Stack.Screen name="ThemeSettingsScreen" component={ThemeSettingsScreen} options={{ title: 'Tema' }} />
-            <Stack.Screen name="CreatePaymentScreen" component={CreatePaymentScreen} options={{ title: 'Ödeme Ekle' }} />
-            <Stack.Screen name="PendingPaymentsScreen" component={PendingPaymentsScreen} options={{ title: 'Bekleyen Ödemeler' }} />
-            <Stack.Screen name="DebtSummaryScreen" component={DebtSummaryScreen} options={{ title: 'Borç/Alacak Özeti' }} />
+            <Stack.Screen name="Home" component={AnaSayfa} options={{ title: 'Ev Arkadaşım' }} />
+            <Stack.Screen name="ExpensesScreen" component={Harcamalar} options={{ title: 'Harcamalar' }} />
+            <Stack.Screen name="UtilityBillCreate" component={FaturaOlustur} options={{ title: 'Fatura' }} />
+            <Stack.Screen name="BillsOverviewScreen" component={Faturalar} options={{ title: 'Faturalar' }} />
+            <Stack.Screen name="PaymentsScreen" component={Odemeler} options={{ title: 'Ödemeler' }} />
+            <Stack.Screen name="SettingsScreen" component={Ayarlar} options={{ title: 'Ayarlar' }} />
+            <Stack.Screen name="LanguageSettingsScreen" component={DilAyarlari} options={{ title: 'Dil' }} />
+            <Stack.Screen name="ThemeSettingsScreen" component={TemaAyarlari} options={{ title: 'Tema' }} />
+            <Stack.Screen name="CreatePaymentScreen" component={OdemeEkle} options={{ title: 'Ödeme Ekle' }} />
+            <Stack.Screen name="PendingPaymentsScreen" component={BekleyenOdemeler} options={{ title: 'Bekleyen Ödemeler' }} />
+            <Stack.Screen name="DebtSummaryScreen" component={BorcAlacakOzeti} options={{ title: 'Borç/Alacak Özeti' }} />
           </>
         )}
       </Stack.Navigator>

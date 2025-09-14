@@ -69,34 +69,31 @@ const formatDate = (s) => {
   const d = new Date(s);
   return Number.isNaN(d) ? '—' : d.toLocaleDateString('tr-TR', { year: 'numeric', month: 'short', day: 'numeric' });
 };
+
 const formatAmount = (n) => `${Number(n || 0).toFixed(2)} ₺`;
-const ymOf = (s) => (String(s).slice(0, 7).match(/^\d{4}-\d{2}$/) ? String(s).slice(0, 7) : (() => {
-  const d = new Date(s);
-  if (Number.isNaN(d)) return '';
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-})());
-const nowYm = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-};
 
 const BillListScreen = ({ route, navigation }) => {
   const { houseId, houseName, utilityType, categoryName } = route.params || {};
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [ym] = useState(nowYm());
 
   const wantedKey = useMemo(() => mapRouteToBillKey({ utilityType, categoryName }), [utilityType, categoryName]);
   const showToast = (message, type = 'success') => setToast({ visible: true, message, type });
   const hideToast = () => setToast((p) => ({ ...p, visible: false }));
 
+  const getDate = (x) =>
+    x?.kayitTarihi || x?.postDate || x?.date || x?.createdDate || x?.createdAt || null;
+
+  const isMatured = (d) => {
+    const dt = new Date(d || 0);
+    return dt <= new Date();
+  };
+
   const fetchBills = async () => {
     try {
       if (!houseId) throw new Error('houseId eksik');
       setLoading(true);
-      setError(null);
 
       const res = await expensesApi.getByHouse(Number(houseId));
       const raw = res?.data?.data || res?.data || [];
@@ -105,23 +102,35 @@ const BillListScreen = ({ route, navigation }) => {
       const normalized = arr
         .map((x) => {
           const key = detectBillKey(x);
-          const date = x.kayitTarihi || x.postDate || x.date;
+          const date = getDate(x);
           return {
-            id: x.id ?? x.expenseId,
-            title: x.tur || `${billKeyToTitle(key)} Faturası`,
-            amount: Number(x.tutar ?? x.amount ?? 0),
+            id: x?.id ?? x?.expenseId,
+            title: x?.tur || `${billKeyToTitle(key)} Faturası`,
+            amount: Number(x?.tutar ?? x?.amount ?? 0),
             date,
-            payerName: x.odeyenKullaniciAdi,
+            payerName: x?.odeyenKullaniciAdi,
             billKey: key,
+            parentId: x?.parentExpenseId ?? x?.ParentExpenseId ?? null,
+            installmentCount: x?.installmentCount ?? x?.InstallmentCount ?? null,
           };
         })
-        .filter((it) => ymOf(it.date) === ym)
         .filter((it) => BILL_KEYS.includes(it.billKey))
-        .filter((it) => (wantedKey ? it.billKey === wantedKey : true));
+        // plan parent'ları gizle (sadece çocuklar + tek seferlikler)
+        .filter((it) => !(it.parentId === null && Number(it.installmentCount || 0) > 1))
+        // sadece "bugün ve öncesi"
+        .filter((it) => isMatured(it.date))
+        // kategori filtresi (varsa)
+        .filter((it) => (wantedKey ? it.billKey === wantedKey : true))
+        // sıralama: tarih DESC, id DESC
+        .sort((a, b) => {
+          const da = new Date(a.date || 0).getTime();
+          const db = new Date(b.date || 0).getTime();
+          if (db !== da) return db - da;
+          return (b.id || 0) - (a.id || 0);
+        });
 
       setBills(normalized);
     } catch (err) {
-      setError(err);
       showToast('Faturalar alınırken bir hata oluştu', 'error');
       setBills([]);
       console.error('❌ BillListScreen GetExpenses HATA:', {
@@ -151,10 +160,15 @@ const BillListScreen = ({ route, navigation }) => {
   );
 
   const handleAddBill = () => {
-    navigation.navigate('AddBillScreen', { houseId, houseName });
+    navigation.navigate('FaturaEkle', { houseId, houseName });
   };
   const handleBillPress = (bill) => {
-    navigation.navigate('BillDetailScreen', { billId: bill.id, houseId, houseName });
+    navigation.navigate('FaturaDetayi', {
+      billId: bill.id,        // detay hem billId hem expenseId’yi destekliyor
+      expenseId: bill.id,
+      houseId,
+      houseName
+    });
   };
 
   const headerTitle = categoryName || billKeyToTitle(wantedKey) || 'Faturalar';
@@ -176,7 +190,7 @@ const BillListScreen = ({ route, navigation }) => {
         <View style={CommonStyles.header}>
           <Text style={CommonStyles.title}>{headerTitle} Faturaları</Text>
           <Text style={CommonStyles.subtitle}>
-            {houseName} • {bills.length} fatura • Dönem: {ym}
+            {houseName} • {bills.length} kalem • (Bugün ve öncesi)
           </Text>
         </View>
 
@@ -219,9 +233,8 @@ const BillListScreen = ({ route, navigation }) => {
           <View style={CommonStyles.emptyContainer}>
             <Text style={CommonStyles.emptyIcon}>📄</Text>
             <Text style={CommonStyles.emptyText}>
-              {headerTitle} kategorisinde, {ym} döneminde fatura bulunmuyor.
+              {headerTitle} kategorisinde (bugün ve öncesi) kalem bulunmuyor.
             </Text>
-            <Text style={CommonStyles.emptyText}>İlk faturanızı eklemek için yukarıdaki butona tıklayın.</Text>
           </View>
         )}
 

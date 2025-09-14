@@ -143,8 +143,8 @@ export const houseApi = {
 
 // ---------------- LEDGER ----------------
 export const ledgerApi = {
-  getByExpense: (expenseId) => api.get(`/LedgerLines/ByExpense/${expenseId}`),
-  getByHouse: (houseId) => api.get(`/LedgerLines/ByHouse/${houseId}`),
+  byExpense: (expenseId) => api.get(`/LedgerLines/ByExpense/${expenseId}`),
+  byHouse: (houseId) => api.get(`/LedgerLines/ByHouse/${houseId}`),
 };
 
 // ---------------- PAYMENTS ----------------
@@ -207,13 +207,24 @@ export const paymentsApi = {
 
 // ---------------- EXPENSES ----------------
 export const expensesApi = {
-  createIrregular: (body) => api.post('/Expenses/CreateIrregular', body),
-  getExpenses: (houseId) => api.get(`/Expenses/GetExpenses/${Number(houseId)}`),
+  // Harcama ekleme - dokümantasyona göre
+  create: (body) => api.post('/Expenses', body), // Ana endpoint (mode destekli)
+  createIrregular: (body) => api.post('/Expenses/CreateIrregular', body), // Kısa yol
+  addExpense: (body) => api.post('/Expenses/AddExpense', body), // Alias
+  
+  // Harcama listeleme - dokümantasyona göre
+  getExpenses: (houseId, month) => {
+    const params = month ? { month } : {};
+    return api.get(`/Expenses/GetExpenses/${Number(houseId)}`, { params });
+  },
   getByHouse: (houseId, params) => api.get(`/Expenses/GetExpenses/${houseId}`, { params }),
   getById: (expenseId) => api.get(`/Expenses/GetExpense/${expenseId}`),
+  
+  // Harcama güncelleme/silme - dokümantasyona göre
   update: (expenseId, dto) => api.put(`/Expenses/UpdateExpense/${expenseId}`, dto),
   remove: (expenseId) => api.delete(`/Expenses/DeleteExpense/${expenseId}`),
 };
+
 
 // -------- GetUserDebts (Expenses Controller) için güvenli helper --------
 export const getUserDebtsSafe = async (userId, houseId) => {
@@ -226,5 +237,8 @@ export const getUserDebtsSafe = async (userId, houseId) => {
     return await api.get('/Expenses/GetUserDebts', { params: { userId: uid, houseId: hid } });
   }
 };
+
+// ---------------- CHARGES (Planlı Giderler) - Kaldırıldı, sadece Expenses API kullanılacak ----------------
+// chargesApi kaldırıldı - sadece expensesApi kullanılacak
 
 export default api;

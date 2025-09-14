@@ -56,6 +56,16 @@ const BILL_TYPES = [
 const AddBillScreen = ({ route, navigation }) => {
   const { houseId, houseName, billId, isEditing } = route.params || {};
   const { user } = useAuth();
+  
+  // 🔍 Debug: Hangi yoldan geldiğini göster
+  console.log('🔍 AddBillScreen açıldı:', {
+    houseId,
+    houseName,
+    billId,
+    isEditing,
+    routeName: route?.name,
+    params: route?.params
+  });
 
   // UI & data states
   const [loading, setLoading] = useState(false);

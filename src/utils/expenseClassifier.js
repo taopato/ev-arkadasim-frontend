@@ -34,30 +34,113 @@ const textToKey = (text = '') => {
 
 // Tek normalize noktası
 export const normalizeExpense = (raw) => {
-  const date =
-    raw?.kayitTarihi || raw?.postDate || raw?.date || raw?.createdAt || null;
+  // Backend'den gelen veriyi normalize et
+
+  // Yeni metadata alanları (camelCase ve PascalCase desteği)
+  const parentExpenseId = raw?.parentExpenseId ?? raw?.ParentExpenseId ?? null;
+  const dueDay = raw?.dueDay ?? raw?.DueDay ?? null;
+  const planStartMonth = raw?.planStartMonth ?? raw?.PlanStartMonth ?? null;
+  const installmentIndex = raw?.installmentIndex ?? raw?.InstallmentIndex ?? null;
+  const installmentCount = raw?.installmentCount ?? raw?.InstallmentCount ?? null;
+  
+  // Tarih: Backend artık çocuk satırların tarihini doğru ayarlıyor
+  const dateStr = raw?.kayitTarihi ?? raw?.KayitTarihi ?? raw?.createdDate ?? raw?.CreatedDate ?? raw?.postDate ?? raw?.PostDate;
 
   let key;
   if (raw?.category !== undefined && raw?.category !== null) {
     key = CATEGORY_ID_TO_KEY[Number(raw.category)];
   }
   if (!key) {
-    key = textToKey(`${raw?.tur ?? ''} ${raw?.note ?? ''}`);
+    // RecurringCharges için type alanını da kontrol et
+    const typeText = raw?.type || raw?.Type || '';
+    key = textToKey(`${raw?.tur ?? ''} ${raw?.note ?? ''} ${typeText}`);
   }
 
-  const kind = BILL_KEYS.includes(key) ? 'bill' : 'other';
+  // Taksitli planlar ve düzenli giderler "bill" kategorisinde
+  const isTaksitli = /taksit|installment/i.test(raw?.tur || '');
+  const isDüzenli = /kira|internet|su|elektrik|doğalgaz|dogalgaz/i.test(raw?.tur || '');
+  const kind = (BILL_KEYS.includes(key) || isTaksitli || isDüzenli) ? 'bill' : 'other';
 
-  return {
+  // Tutarı farklı kaynak alanlardan güvenli şekilde çek
+  const parseNum = (v) => {
+    const n = Number(String(v ?? '').toString().replace(',', '.'));
+    return Number.isFinite(n) ? n : 0;
+  };
+  const tryKeys = [
+    'tutar',
+    'amount',
+    'fixedAmount',
+    'monthlyAmount',
+    'aylikTutar',
+    'ortakHarcamaTutari',
+    'estimatedAmount',
+    'amountPerInstallment',
+    'Amount',
+    'Tutar',
+    'FixedAmount',
+    'MonthlyAmount',
+    'OrtakHarcamaTutari',
+    // RecurringCharges için ek alanlar
+    'monthlyAmount',
+    'estimatedAmount',
+    'amountPerMonth',
+  ];
+  let amount = 0;
+  for (const k of tryKeys) {
+    if (raw?.[k] != null) {
+      amount = parseNum(raw[k]);
+      // Amount found in field
+      if (amount > 0) break;
+    }
+  }
+  // Taksitli planlar için fallback: totalAmount/installmentCount
+  if (amount === 0 && raw?.totalAmount != null && raw?.installmentCount != null) {
+    const ta = parseNum(raw.totalAmount);
+    const ic = parseNum(raw.installmentCount);
+    if (ta > 0 && ic > 0) amount = ta / ic;
+    console.log(`💰 Calculated installment amount: ${amount} (${ta}/${ic})`);
+  }
+  
+  // 🔍 DEBUG: Tutar hesaplama
+  console.log('💰 AMOUNT DEBUG:', {
+    id: raw?.id,
+    tur: raw?.tur,
+    amount,
+    rawAmount: raw?.tutar,
+    tryKeys: tryKeys.map(k => ({ key: k, value: raw?.[k] }))
+  });
+
+  const result = {
     id: raw?.id ?? raw?.expenseId,
-    title: raw?.tur || `${key} harcaması`,
-    amount: Number(raw?.tutar ?? raw?.amount ?? 0),
-    date,
+    title: raw?.tur || `${getCategoryDisplayName(key)} harcaması`, // ✅ Doğru başlık
+    amount,
+    date: dateStr,
     payerName: raw?.odeyenKullaniciAdi,
     recorderName: raw?.kaydedenKullaniciAdi,
     key,   // category key
     kind,  // 'bill' | 'other'
-    _raw: raw,
+    _raw: { 
+      ...raw, 
+      parentExpenseId, 
+      dueDay, 
+      planStartMonth, 
+      installmentIndex, 
+      installmentCount 
+    },
   };
+
+  // 🔍 DEBUG: normalizeExpense sonucu
+  console.log('🔍 normalizeExpense result:', {
+    id: result.id,
+    title: result.title,
+    amount: result.amount,
+    date: result.date,
+    key: result.key,
+    kind: result.kind,
+    _raw: result._raw
+  });
+  
+  return result;
 };
 
 // YYYY-MM üret

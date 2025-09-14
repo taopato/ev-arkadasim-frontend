@@ -53,7 +53,7 @@ export default function ExpenseApprovalScreen({ navigation, route }) {
   };
 
   const handleExpensePress = (expense) => {
-    navigation.navigate('ExpenseDetailScreen', {
+    navigation.navigate('HarcamaDetayi', {
       expenseId: expense.id,
       houseId,
       houseName,
@@ -83,7 +83,7 @@ export default function ExpenseApprovalScreen({ navigation, route }) {
 
         <TouchableOpacity
           style={CommonStyles.menuButton}
-          onPress={() => navigation.navigate('AddExpenseScreen', { houseId, houseName })}
+          onPress={() => navigation.navigate('HarcamaEkle', { houseId, houseName })}
           activeOpacity={0.8}
         >
           <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.success.background }]}>

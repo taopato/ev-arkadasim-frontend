@@ -134,7 +134,7 @@ export default function DebtsScreen({ navigation, route }) {
     }
 
     // 3) Son çare: root dispatch (uyarı gösterebilir)
-    navigation.dispatch(CommonActions.navigate({ name: 'CreatePaymentScreen', params }));
+    navigation.dispatch(CommonActions.navigate({ name: 'OdemeEkle', params }));
 
     // 4) Yine de bulunamazsa kullanıcıya açık mesaj ver
     const allRoutes =
@@ -246,7 +246,7 @@ export default function DebtsScreen({ navigation, route }) {
         {/* Detay butonu */}
         <TouchableOpacity
           style={CommonStyles.menuButton}
-          onPress={() => navigation.navigate('ReceivablesDebtsSummaryScreen', { userId: user.id, houseId })}
+          onPress={() => navigation.navigate('Ozet', { userId: user.id, houseId })}
           activeOpacity={0.8}
         >
           <View style={[CommonStyles.buttonContent, { backgroundColor: Colors.primary[500] }]}>

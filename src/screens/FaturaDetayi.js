@@ -102,7 +102,7 @@ const BillDetailScreen = ({ route, navigation }) => {
   };
 
   const handleEditBill = () => {
-    navigation.navigate('AddBillScreen', {
+    navigation.navigate('FaturaEkle', {
       billId: billId,
       houseId: houseId,
       houseName: houseName,

@@ -185,9 +185,9 @@ const HouseSpendingOverviewScreen = ({ navigation, route }) => {
   const onCategoryPress = (name) => {
     const t = BILL_TYPE_BY_NAME[name];
     if (t) {
-      navigation.navigate('BillListScreen', { houseId, houseName, utilityType: t, categoryName: name });
+      navigation.navigate('FaturaListesi', { houseId, houseName, utilityType: t, categoryName: name });
     } else {
-      navigation.navigate('ExpenseListScreen', { houseId, houseName });
+      navigation.navigate('HarcamaListesi', { houseId, houseName });
     }
   };
 
@@ -261,7 +261,7 @@ const HouseSpendingOverviewScreen = ({ navigation, route }) => {
         <View style={styles.actionButtons}>
           <TouchableOpacity 
             style={CommonStyles.menuButton}
-            onPress={() => navigation.navigate('AddExpenseScreen', { houseId, houseName })}
+            onPress={() => navigation.navigate('HarcamaEkle', { houseId, houseName })}
             activeOpacity={0.8}
           >
             <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.success.background }]}>
@@ -273,7 +273,7 @@ const HouseSpendingOverviewScreen = ({ navigation, route }) => {
 
           <TouchableOpacity 
             style={CommonStyles.menuButton}
-            onPress={() => navigation.navigate('ExpenseListScreen', { houseId, houseName })}
+            onPress={() => navigation.navigate('HarcamaListesi', { houseId, houseName })}
             activeOpacity={0.8}
           >
             <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.primary.background }]}>

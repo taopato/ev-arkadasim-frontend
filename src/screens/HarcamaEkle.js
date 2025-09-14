@@ -21,6 +21,7 @@ const AddExpenseScreen = ({ navigation, route }) => {
   const [amount, setAmount] = useState('');
   const [categoryKey, setCategoryKey] = useState(''); // Market / Food / Other
   const [note, setNote] = useState('');
+  // Not: Taksitli akış Yeni Fatura (NewRecurringChargeScreen) ekranındadır
   const [members, setMembers] = useState([]);
   const [payerId, setPayerId] = useState('');
   const [loading, setLoading] = useState(false);
@@ -99,7 +100,7 @@ const AddExpenseScreen = ({ navigation, route }) => {
 
     const payload = {
       tur: QUICK_EXPENSES.find(x => x.key === categoryKey)?.label || 'Harcama',
-      category: toExpenseCategory(categoryKey), // enum'a çevir
+      category: toExpenseCategory(categoryKey),
       tutar: amountNum,
       houseId: Number(houseId),
       odeyenUserId: Number(payerId),
@@ -108,7 +109,7 @@ const AddExpenseScreen = ({ navigation, route }) => {
       dueDate: new Date().toISOString(),
       note,
       personalItems,
-      splitPolicy: 0, // eşit
+      splitPolicy: 0,
     };
 
     try {
@@ -132,13 +133,13 @@ const AddExpenseScreen = ({ navigation, route }) => {
     <KeyboardAvoidingView style={CommonStyles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}>
       <ScrollView style={CommonStyles.content} keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior="always">
         <View style={CommonStyles.header}>
-          <Text style={CommonStyles.title}>Add Expense</Text>
-          <Text style={CommonStyles.subtitle}>Non-bill expenses (Grocery / Food / Other)</Text>
+          <Text style={CommonStyles.title}>Harcama Ekle</Text>
+          <Text style={CommonStyles.subtitle}>Düzensiz harcamalar (Market / Yemek / Diğer)</Text>
         </View>
 
         {/* Tutar */}
         <View style={styles.card}>
-          <Text style={styles.label}>Amount (₺)</Text>
+          <Text style={styles.label}>Tutar (₺)</Text>
           <TextInput
             style={styles.input}
             placeholder="0.00"
@@ -146,12 +147,12 @@ const AddExpenseScreen = ({ navigation, route }) => {
             value={amount}
             onChangeText={setAmount}
           />
-          <Text style={styles.hint}>Ex: 350.50</Text>
+          <Text style={styles.hint}>Örn: 350.50</Text>
         </View>
 
         {/* Kategori (çip seçim) */}
         <View style={styles.card}>
-          <Text style={styles.label}>Category</Text>
+          <Text style={styles.label}>Kategori</Text>
           <View style={styles.chips}>
             {QUICK_EXPENSES.map(opt => {
               const active = categoryKey === opt.key;
@@ -167,11 +168,12 @@ const AddExpenseScreen = ({ navigation, route }) => {
               );
             })}
           </View>
+          {/* Taksitli akış burada değil, Yeni Fatura ekranındadır */}
         </View>
 
         {/* Ödeyen kişi */}
         <View style={styles.card}>
-          <Text style={styles.label}>Paid By</Text>
+          <Text style={styles.label}>Ödeyen</Text>
           <View style={styles.chips}>
             {(members || []).map(m => {
               const active = String(m.id) === String(payerId);
@@ -191,7 +193,7 @@ const AddExpenseScreen = ({ navigation, route }) => {
 
         {/* Not */}
         <View style={styles.card}>
-          <Text style={styles.label}>Description (optional)</Text>
+          <Text style={styles.label}>Açıklama (opsiyonel)</Text>
           <TextInput
             style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
             placeholder="Short note… (max. 180 characters)"
@@ -201,14 +203,16 @@ const AddExpenseScreen = ({ navigation, route }) => {
           />
         </View>
 
+        {/* Taksit alanları bu ekranda yer almaz */}
+
         {/* Kişisel kalemler */}
         <TouchableOpacity style={styles.toggle} onPress={() => setShowPersonal(v => !v)} activeOpacity={0.8}>
-          <Text style={styles.toggleText}>{showPersonal ? '❌ Hide personal items' : '➕ Add personal item'}</Text>
+          <Text style={styles.toggleText}>{showPersonal ? '❌ Kişisel kalemleri gizle' : '➕ Kişisel kalem ekle'}</Text>
         </TouchableOpacity>
 
         {showPersonal && (
           <View style={styles.card}>
-            <Text style={styles.label}>Personal Items</Text>
+            <Text style={styles.label}>Kişisel Kalemler</Text>
             {(members || []).map(m => (
               <View key={String(m.id)} style={styles.personalRow}>
                 <Text style={styles.personalName}>{m.fullName}</Text>
@@ -221,9 +225,7 @@ const AddExpenseScreen = ({ navigation, route }) => {
                 />
               </View>
             ))}
-            <Text style={styles.info}>
-              • Personal items are deducted from total, remaining amount is split equally.
-            </Text>
+            <Text style={styles.info}>• Kişisel kalemler toplamdan düşülür, kalan tutar eşit bölünür.</Text>
           </View>
         )}
 
@@ -234,7 +236,7 @@ const AddExpenseScreen = ({ navigation, route }) => {
           disabled={!amountNum || !categoryKey || !payerId || loading}
           activeOpacity={0.9}
         >
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Save</Text>}
+          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Kaydet</Text>}
         </TouchableOpacity>
 
         <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={hideToast} />

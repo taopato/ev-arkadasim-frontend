@@ -40,32 +40,32 @@ export default function GroupListScreen({ navigation, route }) {
   };
 
   const handleCreateHouse = () => {
-    navigation.navigate('NewGroupScreen');
+    navigation.navigate('YeniEvGrubu');
   };
 
   const handleHousePress = (house) => {
     const redirectTo = route?.params?.redirectTo;
-    if (redirectTo === 'ExpensesScreen') {
-      navigation.replace('ExpensesScreen', { houseId: house.id, houseName: house.name });
+    if (redirectTo === 'ExpensesScreen' || redirectTo === 'Harcamalar') {
+      navigation.replace('Harcamalar', { houseId: house.id, houseName: house.name });
       return;
     }
-    if (redirectTo === 'BillsOverviewScreen') {
-      navigation.replace('BillsOverviewScreen', { houseId: house.id, houseName: house.name });
+    if (redirectTo === 'BillsOverviewScreen' || redirectTo === 'Faturalar') {
+      navigation.replace('Faturalar', { houseId: house.id, houseName: house.name });
       return;
     }
-    if (redirectTo === 'NewRecurringChargeScreen') {
-      navigation.replace('NewRecurringChargeScreen', { houseId: house.id, houseName: house.name });
+    if (redirectTo === 'NewRecurringChargeScreen' || redirectTo === 'DuzenliGiderEkle') {
+      navigation.replace('DuzenliGiderEkle', { houseId: house.id, houseName: house.name });
       return;
     }
-    if (redirectTo === 'UtilityBillCreate') {
-      navigation.replace('UtilityBillCreate', { houseId: house.id, houseName: house.name, isEditing: false });
+    if (redirectTo === 'UtilityBillCreate' || redirectTo === 'FaturaOlustur') {
+      navigation.replace('FaturaOlustur', { houseId: house.id, houseName: house.name, isEditing: false });
       return;
     }
-    if (redirectTo === 'CreatePaymentScreen') {
-      navigation.replace('CreatePaymentScreen', { houseId: house.id, houseName: house.name });
+    if (redirectTo === 'CreatePaymentScreen' || redirectTo === 'OdemeEkle') {
+      navigation.replace('OdemeEkle', { houseId: house.id, houseName: house.name });
       return;
     }
-    navigation.navigate('HouseMembersScreen', {
+    navigation.navigate('EvUyeleri', {
       houseId: house.id,
       houseName: house.name
     });

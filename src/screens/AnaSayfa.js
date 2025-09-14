@@ -33,7 +33,7 @@ const HomeScreen = ({ navigation }) => {
               subtitle="Grupları görüntüle/oluştur"
               emoji="🏘️"
               color={Colors.primary[600]}
-              onPress={() => navigation.navigate('GroupListScreen')}
+              onPress={() => navigation.navigate('GrupListesi')}
             />
           </View>
           <View style={styles.gridItem}>
@@ -43,25 +43,25 @@ const HomeScreen = ({ navigation }) => {
               emoji="📋"
               color={Colors.warning[600]}
               onPress={() => {
-                navigation.navigate('GroupListScreen', { redirectTo: 'ExpensesScreen' });
+                navigation.navigate('GrupListesi', { redirectTo: 'Harcamalar' });
               }}
             />
           </View>
           <View style={styles.gridItem}>
             <NavButton
-              title="Faturalar"
-              subtitle="Düzenli ve tek seferlik"
+              title="Planlı Giderler"
+              subtitle="Düzenli ve taksitli"
               emoji="🧮"
               color={Colors.info[600]}
               onPress={() => {
-                navigation.navigate('GroupListScreen', { redirectTo: 'BillsOverviewScreen' });
+                navigation.navigate('GrupListesi', { redirectTo: 'Faturalar' });
               }}
             />
           </View>
           <View style={styles.gridItem}>
             <NavButton
-              title="Yeni Fatura"
-              subtitle="Düzenli mi düzensiz mi?"
+              title="Düzenli Gider Ekle"
+              subtitle="Kira, internet vb."
               emoji="🧾"
               color={Colors.success[700]}
               onPress={() => setBillModalVisible(true)}
@@ -74,7 +74,7 @@ const HomeScreen = ({ navigation }) => {
               emoji="💳"
               color={Colors.success[600]}
               onPress={() => {
-                navigation.navigate('PaymentsScreen');
+                navigation.navigate('Odemeler');
               }}
             />
           </View>
@@ -84,7 +84,7 @@ const HomeScreen = ({ navigation }) => {
               subtitle="Onay veya red işlemleri"
               emoji="⏳"
               color={Colors.neutral[600]}
-              onPress={() => navigation.navigate('PendingPaymentsScreen', { userId: user?.id })}
+              onPress={() => navigation.navigate('BekleyenOdemeler', { userId: user?.id })}
             />
           </View>
           <View style={styles.gridItem}>
@@ -93,7 +93,7 @@ const HomeScreen = ({ navigation }) => {
               subtitle="Uygulama ve hesap"
               emoji="⚙️"
               color={Colors.neutral[600]}
-              onPress={() => navigation.navigate('SettingsScreen')}
+              onPress={() => navigation.navigate('Ayarlar')}
             />
           </View>
           <View style={styles.gridItem}>
@@ -102,7 +102,7 @@ const HomeScreen = ({ navigation }) => {
               subtitle="Arkadaş ekle"
               emoji="📨"
               color={Colors.info[500]}
-              onPress={() => navigation.navigate('InviteFriendScreen', { houseId: user?.defaultHouseId })}
+              onPress={() => navigation.navigate('DavetEt', { houseId: user?.defaultHouseId })}
             />
           </View>
         </View>
@@ -133,8 +133,8 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.sheetBackdrop}>
             <View style={styles.sheet}>
               <View style={styles.sheetHandle} />
-              <Text style={styles.modalTitle}>Yeni Fatura</Text>
-              <Text style={styles.modalSub}>Düzenli mi, düzensiz mi?</Text>
+              <Text style={styles.modalTitle}>Düzenli Gider Ekle</Text>
+              <Text style={styles.modalSub}>Kira, internet veya abonelik</Text>
               <View style={{ gap: 12, marginTop: 12 }}>
                 <TouchableOpacity
                   style={[styles.modalBtn, { backgroundColor: Colors.primary[600] }]}
@@ -142,24 +142,13 @@ const HomeScreen = ({ navigation }) => {
                   onPress={() => {
                     setBillModalVisible(false);
                     const hid = user?.defaultHouseId;
-                    if (hid) navigation.navigate('NewRecurringChargeScreen', { houseId: hid, houseName: 'Ev' });
-                    else navigation.navigate('GroupListScreen', { redirectTo: 'NewRecurringChargeScreen' });
+                    if (hid) navigation.navigate('DuzenliGiderEkle', { houseId: hid, houseName: 'Ev', defaultMode: 'recurring' });
+                    else navigation.navigate('GrupListesi', { redirectTo: 'DuzenliGiderEkle' });
                   }}
                 >
-                  <Text style={styles.modalBtnText}>Düzenli Fatura</Text>
+                  <Text style={styles.modalBtnText}>Düzenli Gider</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalBtn, { backgroundColor: Colors.primary[500] }]}
-                  activeOpacity={0.85}
-                  onPress={() => {
-                    setBillModalVisible(false);
-                    const hid = user?.defaultHouseId;
-                    if (hid) navigation.navigate('UtilityBillCreate', { houseId: hid, houseName: 'Ev', isEditing: false });
-                    else navigation.navigate('GroupListScreen', { redirectTo: 'UtilityBillCreate' });
-                  }}
-                >
-                  <Text style={styles.modalBtnText}>Düzensiz Fatura</Text>
-                </TouchableOpacity>
+                
                 <TouchableOpacity
                   style={[styles.modalBtn, { backgroundColor: Colors.neutral[300] }]}
                   activeOpacity={0.85}

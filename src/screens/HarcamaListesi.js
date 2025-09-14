@@ -61,7 +61,7 @@ const ExpensesListScreen = ({ navigation, route }) => {
   }, [houseId]);
 
   const handleAdd = () => {
-    navigation.navigate('AddExpenseScreen', { houseId, houseName });
+    navigation.navigate('HarcamaEkle', { houseId, houseName });
   };
 
   if (loading) {
@@ -95,7 +95,16 @@ const ExpensesListScreen = ({ navigation, route }) => {
         {items.length > 0 ? (
           <View style={CommonStyles.card}>
             {items.map((it, idx) => (
-              <View key={String(it.id ?? idx)} style={CommonStyles.listItem}>
+              <TouchableOpacity 
+                key={String(it.id ?? idx)} 
+                style={CommonStyles.listItem}
+                onPress={() => navigation.navigate('HarcamaDetayi', { 
+                  expenseId: it.id, 
+                  houseId, 
+                  houseName 
+                })}
+                activeOpacity={0.7}
+              >
                 <View style={styles.iconCircle}><Text style={{ fontSize: 22 }}>{iconOf(it.key)}</Text></View>
                 <View style={CommonStyles.listItemContent}>
                   <Text style={CommonStyles.listItemTitle}>{it.title}</Text>
@@ -107,7 +116,7 @@ const ExpensesListScreen = ({ navigation, route }) => {
                   <Text style={{ fontSize: 16, fontWeight: '700' }}>{formatAmount(it.amount)}</Text>
                   <Text style={{ fontSize: 12, color: Colors.text.secondary }}>{trTitle(it.key)}</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         ) : (

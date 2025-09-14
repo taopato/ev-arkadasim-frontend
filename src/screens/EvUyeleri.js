@@ -126,7 +126,7 @@ const HouseMembersScreen = ({ route, navigation }) => {
   };
 
   const handleCategoryPress = (utilityType, categoryName) => {
-    navigation.navigate('BillListScreen', {
+    navigation.navigate('FaturaListesi', {
       houseId: houseId,
       houseName: houseName,
       utilityType: utilityType,
@@ -135,7 +135,7 @@ const HouseMembersScreen = ({ route, navigation }) => {
   };
 
   const handleAddExpense = () => {
-    navigation.navigate('AddExpenseScreen', {
+    navigation.navigate('HarcamaEkle', {
       houseId: houseId,
       houseName: houseName
     });
@@ -225,10 +225,10 @@ const HouseMembersScreen = ({ route, navigation }) => {
           <View style={styles.categoriesGrid}>
             <TouchableOpacity 
               style={[CommonStyles.menuButton, { flex: 1, minWidth: '48%' }]}
-              onPress={() => navigation.navigate('BillsOverviewScreen', { houseId, houseName })}
+              onPress={() => navigation.navigate('Faturalar', { houseId, houseName })}
               activeOpacity={0.8}
             >
-              <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.primary.background }]}>
+              <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes?.primary?.background || Colors.primary[500] }]}>
                 <Text style={CommonStyles.buttonIcon}>📄</Text>
                 <Text style={CommonStyles.buttonText}>Faturalar</Text>
                 <Text style={CommonStyles.buttonSubtext}>Kira ve faturalar</Text>
@@ -239,7 +239,7 @@ const HouseMembersScreen = ({ route, navigation }) => {
               onPress={() => navigation.navigate('NewRecurringCharge', { houseId, houseName })}
               activeOpacity={0.8}
             >
-              <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.success.background }]}>
+              <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes?.success?.background || Colors.success[600] }]}>
                 <Text style={CommonStyles.buttonIcon}>➕</Text>
                 <Text style={CommonStyles.buttonText}>Düzenli Gider Ekle</Text>
                 <Text style={CommonStyles.buttonSubtext}>Kira/abonelik ekle</Text>
@@ -250,7 +250,7 @@ const HouseMembersScreen = ({ route, navigation }) => {
               onPress={handleAddExpense}
               activeOpacity={0.8}
             >
-              <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.neutral.background }]}>
+              <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes?.neutral?.background || Colors.neutral[200] }]}>
                 <Text style={CommonStyles.buttonIcon}>🧾</Text>
                 <Text style={CommonStyles.buttonText}>Harcama Ekle</Text>
                 <Text style={CommonStyles.buttonSubtext}>Market/Yemek vb.</Text>
@@ -258,10 +258,10 @@ const HouseMembersScreen = ({ route, navigation }) => {
             </TouchableOpacity>
             <TouchableOpacity 
               style={[CommonStyles.menuButton, { flex: 1, minWidth: '48%' }]}
-              onPress={() => navigation.navigate('ExpenseListScreen', { houseId, houseName })}
+              onPress={() => navigation.navigate('HarcamaListesi', { houseId, houseName })}
               activeOpacity={0.8}
             >
-              <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.warning.background }]}>
+              <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes?.warning?.background || Colors.warning[600] }]}>
                 <Text style={CommonStyles.buttonIcon}>📋</Text>
                 <Text style={CommonStyles.buttonText}>Harcamalar</Text>
                 <Text style={CommonStyles.buttonSubtext}>Ev içi alışverişler</Text>
@@ -272,10 +272,21 @@ const HouseMembersScreen = ({ route, navigation }) => {
               onPress={() => navigation.navigate('PendingContributions', { houseId, houseName })}
               activeOpacity={0.8}
             >
-              <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.warning.background }]}>
+              <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes?.warning?.background || Colors.warning[600] }]}>
                 <Text style={CommonStyles.buttonIcon}>⏳</Text>
                 <Text style={CommonStyles.buttonText}>Bekleyen Onaylar</Text>
                 <Text style={CommonStyles.buttonSubtext}>Payer onayları</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[CommonStyles.menuButton, { flex: 1, minWidth: '48%' }]}
+              onPress={() => navigation.navigate('LedgerDetail', { houseId, houseName })}
+              activeOpacity={0.8}
+            >
+              <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes?.info?.background || Colors.info[600] }]}>
+                <Text style={CommonStyles.buttonIcon}>📊</Text>
+                <Text style={CommonStyles.buttonText}>Borç/Alacak Detayı</Text>
+                <Text style={CommonStyles.buttonSubtext}>Detaylı ledger</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -285,10 +296,10 @@ const HouseMembersScreen = ({ route, navigation }) => {
         <View style={styles.footerButtons}>
           <TouchableOpacity 
             style={CommonStyles.menuButton}
-            onPress={() => navigation.navigate('ReceivablesScreen', { houseId, houseName })}
+            onPress={() => navigation.navigate('AlacaklarListesi', { houseId, houseName })}
             activeOpacity={0.8}
           >
-            <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.success.background }]}>
+            <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes?.success?.background || Colors.success[600] }]}>
               <Text style={CommonStyles.buttonIcon}>💚</Text>
               <Text style={CommonStyles.buttonText}>Alacaklarım</Text>
               <Text style={CommonStyles.buttonSubtext}>Alacak durumun</Text>
@@ -297,10 +308,10 @@ const HouseMembersScreen = ({ route, navigation }) => {
           
           <TouchableOpacity 
             style={CommonStyles.menuButton}
-            onPress={() => navigation.navigate('DebtsScreen', { houseId, houseName })}
+            onPress={() => navigation.navigate('Borclar', { houseId, houseName })}
             activeOpacity={0.8}
           >
-            <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.error.background }]}>
+            <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes?.error?.background || Colors.error[600] }]}>
               <Text style={CommonStyles.buttonIcon}>💔</Text>
               <Text style={CommonStyles.buttonText}>Borçlarım</Text>
               <Text style={CommonStyles.buttonSubtext}>Borç durumun</Text>
@@ -311,10 +322,10 @@ const HouseMembersScreen = ({ route, navigation }) => {
         {/* Harcama Özeti Butonu */}
         <TouchableOpacity 
           style={CommonStyles.menuButton}
-          onPress={() => navigation.navigate('HouseSpendingOverviewScreen', { houseId, houseName })}
+          onPress={() => navigation.navigate('EvHarcamaOzeti', { houseId, houseName })}
           activeOpacity={0.8}
         >
-          <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.primary.background }]}> 
+          <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes?.primary?.background || Colors.primary[500] }]}> 
             <Text style={CommonStyles.buttonIcon}>📊</Text>
             <Text style={CommonStyles.buttonText}>Harcama Özeti</Text>
             <Text style={CommonStyles.buttonSubtext}>Genel harcama durumu</Text>

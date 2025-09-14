@@ -27,6 +27,14 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // 🔍 DEBUG: Giden istekleri logla
+    console.log('🔍 → REQUEST:', {
+      method: config.method?.toUpperCase(),
+      url: config.url,
+      data: config.data
+    });
+    
     return config;
   },
   error => {
@@ -37,12 +45,11 @@ api.interceptors.request.use(
 // Response interceptor - yanıtları normalize et, logla ve hataları yakala
 api.interceptors.response.use(
   response => {
-    console.log('🔍 Axios Response Interceptor:', {
+    // 🔍 DEBUG: Gelen yanıtları logla
+    console.log('🔍 ← RESPONSE:', {
       url: response.config.url,
-      method: response.config.method,
+      method: response.config.method?.toUpperCase(),
       status: response.status,
-      statusText: response.statusText,
-      dataType: typeof response.data,
       data: response.data
     });
 

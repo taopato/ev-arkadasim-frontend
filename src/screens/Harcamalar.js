@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
 import { Colors } from '../constants/Colors';
 import { expensesApi } from '../services/api';
-import { normalizeExpense } from '../utils/expenseClassifier';
+import { normalizeExpense, NON_BILL_KEYS } from '../utils/expenseClassifier';
 import { getCategoryIcon, getCategoryColor } from '../constants/ExpenseEnums';
 import { useAuth } from '../context/AuthContext';
 
@@ -21,7 +21,16 @@ const ExpensesScreen = ({ route, navigation }) => {
       const res = await expensesApi.getByHouse(houseId);
       const data = res?.data?.data ?? res?.data ?? [];
       const list = Array.isArray(data) ? data.map(normalizeExpense) : [];
-      setItems(list.sort((a, b) => (new Date(b.date) - new Date(a.date))));
+      const filtered = list.filter(x => {
+        // Yalnız tek seferlikler: Market, Food, Other
+        if (!NON_BILL_KEYS.includes(x.key)) return false;
+        // Taksit çocuklarını ele: parentExpenseId varsa gösterme
+        const raw = x._raw || {};
+        const hasParent = raw.parentExpenseId != null || raw.ParentExpenseId != null;
+        if (hasParent) return false;
+        return true;
+      });
+      setItems(filtered.sort((a, b) => (new Date(b.date || 0) - new Date(a.date || 0))));
     } catch (e) {
       // noop: basit ekran
     } finally { setLoading(false); }
@@ -57,8 +66,8 @@ const ExpensesScreen = ({ route, navigation }) => {
         ListHeaderComponent={
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Harcama Listesi</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('UtilityBillCreate', { houseId, houseName: 'Ev', isEditing: false })} activeOpacity={0.85}>
-              <Text style={styles.link}>+ Yeni Fatura</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('NewRecurringChargeScreen', { houseId, defaultMode: 'irregular' })} activeOpacity={0.85}>
+              <Text style={styles.link}>+ Yeni Harcama</Text>
             </TouchableOpacity>
           </View>
         }

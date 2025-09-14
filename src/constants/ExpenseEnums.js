@@ -16,6 +16,15 @@ export const SplitPolicy = { Esit: 'Esit', KisiBazli: 'KisiBazli' };
 export const PaymentMethod = { Cash: 'Cash', BankTransfer: 'BankTransfer' };
 export const PaymentStatus = { Pending: 'Pending', Approved: 'Approved', Rejected: 'Rejected' };
 
+// Backend PaylasimTuru enum (1-5)
+export const PaylasimTuru = {
+  Ortak: 1,      // Ortak harcama
+  Kira: 2,       // Kira
+  Elektrik: 3,   // Elektrik
+  Su: 4,         // Su
+  Yemek: 5       // Yemek
+};
+
 // Kategori ID -> Anahtar
 const CATEGORY_ID_TO_KEY = {
   0: 'Rent',
