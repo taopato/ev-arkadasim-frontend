@@ -1,5 +1,7 @@
 // src/utils/expenseClassifier.js
 
+import { getCategoryDisplayName } from '../constants/ExpenseEnums';
+
 export const CATEGORY_ID_TO_KEY = {
   0: 'Rent',
   1: 'Internet',

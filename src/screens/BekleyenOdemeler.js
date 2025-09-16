@@ -53,7 +53,7 @@ const PendingPaymentsScreen = ({ route }) => {
       <View style={styles.card}>
         <Text style={styles.title}>{fromName} ➜ {toName}</Text>
         <Text style={styles.sub}>{date ? new Date(date).toLocaleString('tr-TR') : '-'}</Text>
-        <Text style={styles.amount}>{amount.toFixed(2)} ₺</Text>
+        <Text style={styles.amount}>{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)}</Text>
 
         <View style={styles.row}>
           <TouchableOpacity style={[styles.btn, { backgroundColor: Colors.success[600] }]} onPress={() => doAction(id, 'approve')} activeOpacity={0.85} disabled={isBusy}>

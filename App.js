@@ -79,7 +79,7 @@ import KayitOl from './src/screens/KayitOl';
 import SifremiUnuttum from './src/screens/SifremiUnuttum';
 import AnaSayfa from './src/screens/AnaSayfa';
 import EvArkadasiEkle from './src/screens/EvArkadasiEkle';
-import HarcamaListesi from './src/screens/HarcamaListesi';
+import TumHarcamalar from './src/screens/TumHarcamalar';
 import BorcAlacakOzeti from './src/screens/BorcAlacakOzeti';
 import HarcamaOnayi from './src/screens/HarcamaOnayi';
 import KayitOlEkran from './src/screens/KayitOl';
@@ -111,7 +111,7 @@ import FaturaOlustur from './src/screens/FaturaOlustur';
 import BekleyenKatkilar from './src/screens/BekleyenKatkilar';
 import KisiDetayi from './src/screens/KisiDetayi';
 // Eksik kayıtlar: HomeScreen düğmeleri için
-import Harcamalar from './src/screens/Harcamalar';
+import GunlukHarcamalar from './src/screens/GunlukHarcamalar';
 import Odemeler from './src/screens/Odemeler';
 import BekleyenOdemeler from './src/screens/BekleyenOdemeler';
 // Ek akışlar
@@ -124,6 +124,10 @@ import HarcamaEkleEkran from './src/screens/HarcamaEkle';
 import AlacakBorcIcmi from './src/screens/AlacakBorcIcmi';
 import DuzenliGiderEkle from './src/screens/DuzenliGiderEkle';
 import Ayarlar from './src/screens/Ayarlar';
+import DefterDetayi from './src/screens/DefterDetayi';
+import PlanliOdemeler from './src/screens/PlanliOdemeler';
+import HarcamaListesi from './src/screens/HarcamaListesi';
+import HarcamaOzeti from './src/screens/HarcamaOzeti';
 
 const Stack = createNativeStackNavigator();
 
@@ -175,12 +179,12 @@ export default function App() {
             {/* Ana Menü ve Alt Ekranlar */}
             <Stack.Screen name="Home" component={AnaSayfa} options={{ title: 'Ana Menü' }} />
             {/* Eksik ekran kayıtları eklendi */}
-            <Stack.Screen name="ExpensesScreen" component={Harcamalar} options={{ title: 'Harcamalar' }} />
+            <Stack.Screen name="ExpensesScreen" component={GunlukHarcamalar} options={{ title: 'Günlük Harcamalar' }} />
             <Stack.Screen name="PaymentsScreen" component={Odemeler} options={{ title: 'Ödemeler' }} />
             <Stack.Screen name="PendingPaymentsScreen" component={BekleyenOdemeler} options={{ title: 'Bekleyen Ödemeler' }} />
             <Stack.Screen name="Odemeler" component={Odemeler} options={{ title: 'Ödemeler' }} />
             <Stack.Screen name="BekleyenOdemeler" component={BekleyenOdemeler} options={{ title: 'Bekleyen Ödemeler' }} />
-            <Stack.Screen name="Harcamalar" component={Harcamalar} options={{ title: 'Harcamalar' }} />
+            <Stack.Screen name="Harcamalar" component={GunlukHarcamalar} options={{ title: 'Günlük Harcamalar' }} />
             <Stack.Screen name="NewRecurringChargeScreen" component={DuzenliGiderEkle} options={{ title: 'Düzenli Gider Ekle' }} />
             <Stack.Screen name="ExpenseDetail" component={HarcamaDetayi} options={{ title: 'Harcama Detayı' }} />
             <Stack.Screen name="Ayarlar" component={Ayarlar} options={{ title: 'Ayarlar' }} />
@@ -191,13 +195,13 @@ export default function App() {
             />
             <Stack.Screen
               name="HarcamaListesi"
-              component={HarcamaListesi}
-              options={{ title: '📋 Harcama Listesi (GetExpenses)' }}
+              component={TumHarcamalar}
+              options={{ title: '📋 Tüm Harcamalar' }}
             />
             <Stack.Screen
               name="ExpenseListScreen"
-              component={HarcamaListesi}
-              options={{ title: '📋 Harcama Listesi (GetExpenses)' }}
+              component={TumHarcamalar}
+              options={{ title: '📋 Tüm Harcamalar' }}
             />
             <Stack.Screen name="DebtSummaryScreen" component={BorcAlacakOzeti} options={{ title: 'Borç Özeti' }} />
             <Stack.Screen
@@ -276,6 +280,17 @@ export default function App() {
               component={KisiDetayi}
               options={{ title: '👥 İkili Borç/Alacak Detayı' }}
             />
+            
+            {/* Eksik ekran kayıtları */}
+            <Stack.Screen name="LedgerDetail" component={DefterDetayi} options={{ title: 'Borç/Alacak Detayları' }} />
+            <Stack.Screen name="BillsOverviewScreen" component={Faturalar} options={{ title: 'Faturalar' }} />
+            <Stack.Screen name="UtilityBillCreate" component={DuzenliGiderEkle} options={{ title: 'Düzenli Gider Ekle' }} />
+            <Stack.Screen name="PendingContributions" component={BekleyenKatkilar} options={{ title: 'Bekleyen Onaylar' }} />
+            
+            {/* Yeni tasarlanan ekranlar */}
+            <Stack.Screen name="PlanliOdemeler" component={PlanliOdemeler} options={{ title: 'Planlı Ödemeler' }} />
+            <Stack.Screen name="TumHarcamalar" component={TumHarcamalar} options={{ title: 'Tüm Harcamalar' }} />
+            <Stack.Screen name="HarcamaOzeti" component={HarcamaOzeti} options={{ title: 'Harcama Özeti' }} />
           </Stack.Navigator>
             </NavigationContainer>
           </AuthProvider>

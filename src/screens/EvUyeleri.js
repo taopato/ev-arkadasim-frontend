@@ -225,7 +225,7 @@ const HouseMembersScreen = ({ route, navigation }) => {
           <View style={styles.categoriesGrid}>
             <TouchableOpacity 
               style={[CommonStyles.menuButton, { flex: 1, minWidth: '48%' }]}
-              onPress={() => navigation.navigate('Faturalar', { houseId, houseName })}
+              onPress={() => navigation.navigate('BillsOverviewScreen', { houseId, houseName })}
               activeOpacity={0.8}
             >
               <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes?.primary?.background || Colors.primary[500] }]}>
@@ -236,7 +236,7 @@ const HouseMembersScreen = ({ route, navigation }) => {
             </TouchableOpacity>
             <TouchableOpacity 
               style={[CommonStyles.menuButton, { flex: 1, minWidth: '48%' }]}
-              onPress={() => navigation.navigate('NewRecurringCharge', { houseId, houseName })}
+              onPress={() => navigation.navigate('UtilityBillCreate', { houseId, houseName })}
               activeOpacity={0.8}
             >
               <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes?.success?.background || Colors.success[600] }]}>

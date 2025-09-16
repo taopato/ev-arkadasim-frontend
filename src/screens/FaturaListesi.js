@@ -70,7 +70,15 @@ const formatDate = (s) => {
   return Number.isNaN(d) ? '—' : d.toLocaleDateString('tr-TR', { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
-const formatAmount = (n) => `${Number(n || 0).toFixed(2)} ₺`;
+// Para formatlaması - Türk Lirası standardı
+const formatAmount = (amount) => {
+  return new Intl.NumberFormat('tr-TR', {
+    style: 'currency',
+    currency: 'TRY',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(amount);
+};
 
 const BillListScreen = ({ route, navigation }) => {
   const { houseId, houseName, utilityType, categoryName } = route.params || {};

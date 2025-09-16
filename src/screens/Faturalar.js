@@ -1,6 +1,5 @@
-// BillsOverviewScreen.js  (veya sende hangi isimle duruyorsa)
 // Planlı Giderler — yalnızca içinde bulunulan ayın, bugün/öncesi kayıtları.
-// Plan parent (başlık) gizlenir. Her plan için ayda en fazla 1 çocuk gösterilir.
+// Plan parent (başlık) her durumda gizlenir. Her plan için ayda en fazla 1 çocuk gösterilir.
 // Sıralama: tarih DESC, eşitlikte id DESC.
 
 import React, { useEffect, useMemo, useRef } from "react";
@@ -18,11 +17,19 @@ import { Colors } from "../constants/Colors";
 import { CommonStyles } from "../shared/ui/CommonStyles";
 import Toast from "../components/Toast";
 import eventBus from "../shared/events/bus";
-import { normalizeExpense } from "../utils/expenseClassifier";
+import { normalizeExpense, NON_BILL_KEYS } from "../utils/expenseClassifier";
 import { useFocusEffect } from "@react-navigation/native";
 import useScrollRestore from "../hooks/useScrollRestore";
 
-const formatAmount = (n) => `${Number(n || 0).toFixed(2)} ₺`;
+// Para formatlaması - Türk Lirası standardı
+const formatAmount = (amount) => {
+  return new Intl.NumberFormat("tr-TR", {
+    style: "currency",
+    currency: "TRY",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(amount || 0));
+};
 
 const UTILITY_META = {
   Electricity: { label: "Elektrik", icon: "⚡" },
@@ -33,11 +40,15 @@ const UTILITY_META = {
   Other: { label: "Diğer", icon: "📄" },
 };
 
+// Günlük harcama anahtarları utils/expenseClassifier içindeki NON_BILL_KEYS'te.
+// Fatura sayılanlar = NON_BILL_KEYS dışında kalanlar
+const isUtilityKey = (k) => !NON_BILL_KEYS.includes(k);
+
 function toUtilityKey(k) {
   return UTILITY_META[k] ? k : "Other";
 }
 
-// UTC bazlı: içinden bulunduğumuz ayın [start, end) aralığı
+// UTC bazlı: içinde bulunulan ay [start, end)
 const getMonthWindow = (base = new Date()) => {
   const y = base.getUTCFullYear();
   const m = base.getUTCMonth();
@@ -46,10 +57,17 @@ const getMonthWindow = (base = new Date()) => {
   return { start, end };
 };
 
-// Backend normalizeExpense → tek kaynaktan oku
+// normalizeExpense → tek kaynaktan oku, yoksa güvenli fallback
 const getItemDate = (it) => {
-  const d = new Date(it?.date || 0);
-  return d;
+  const v =
+    it?.date ||
+    it?._raw?.kayitTarihi ||
+    it?._raw?.postDate ||
+    it?._raw?.createdDate ||
+    it?.kayitTarihi ||
+    it?.postDate ||
+    it?.createdDate;
+  return new Date(v || 0);
 };
 
 // “tarih DESC, eşitlikte id DESC”
@@ -64,55 +82,73 @@ const cmpByDateThenIdDesc = (a, b) => {
 
 export default function BillsOverviewScreen({ navigation, route }) {
   const { houseId, houseName } = route.params || {};
-  const detailRouteName = route?.params?.detailScreenName || "HarcamaDetayi"; // sende farklıysa buradan ver
+  const detailRouteName = route?.params?.detailScreenName || "HarcamaDetayi";
   const { user } = useAuth();
   const [loading, setLoading] = React.useState(false);
-  const [toast, setToast] = React.useState({ visible: false, message: "", type: "success" });
+  const [toast, setToast] = React.useState({
+    visible: false,
+    message: "",
+    type: "success",
+  });
   const [items, setItems] = React.useState([]);
   const lastFetchedAtRef = useRef(0);
   const debounceRef = useRef(null);
-  const { listRef, handleScroll } = useScrollRestore(`BillsOverviewScreen:${houseId ?? "all"}`);
+  const { listRef, handleScroll } = useScrollRestore(
+    `BillsOverviewScreen:${houseId ?? "all"}`
+  );
 
   // (isteğe bağlı) basit filtre state'leri
   const [category, setCategory] = React.useState(null);
   const [paidFilter, setPaidFilter] = React.useState("all"); // all | paid | unpaid
 
-  const showToast = (message, type = "success") => setToast({ visible: true, message, type });
+  const showToast = (message, type = "success") =>
+    setToast({ visible: true, message, type });
   const hideToast = () => setToast((p) => ({ ...p, visible: false }));
 
   const fetchData = async (opts = { silent: false }) => {
     if (!houseId) return;
     if (!opts?.silent) setLoading(true);
     try {
-      // Planlı giderler ve tek seferlikler aynı uçtan geliyor
       const resExp = await expensesApi.getByHouse(Number(houseId));
-      const rawExp = resExp?.data?.data || resExp?.data || [];
+      const rawExp =
+        resExp?.data?.data ??
+        resExp?.data?.list ??
+        resExp?.data ??
+        [];
       const arrExp = Array.isArray(rawExp) ? rawExp : [];
 
+      // normalize
       const normalized = arrExp.map(normalizeExpense);
 
-      // 🔸 Filtre mantığı:
-      // 1) Parent (başlık) gizle — parentExpenseId == null && installmentCount>1 → gizli
-      // 2) Adaylar: (a) plan çocukları (parentExpenseId != null)
-      //             (b) utility tek seferlikler (parent yok)
-      // 3) Sadece bu ayın penceresi [monthStart, monthEnd) ve bugün/öncesi
-      // 4) (Güvenlik) Aynı parent+ay anahtarında tek kayıt kalsın (teorik olarak zaten 1 olmalı)
       const now = new Date();
       const { start: monthStart, end: monthEnd } = getMonthWindow(now);
 
       const candidates = normalized.filter((x) => {
         const raw = x._raw || {};
-        const parentId = raw.parentExpenseId ?? raw.ParentExpenseId ?? null;
-        const installmentCount = raw.installmentCount ?? raw.InstallmentCount ?? null;
+        const parentId =
+          raw.parentExpenseId ?? raw.ParentExpenseId ?? null;
 
-        // Parent başlık gizli
-        if (parentId == null && Number(installmentCount) > 1) return false;
-
-        // Adaylık
+        // plan sinyal/çocuk tespiti
         const isChild = parentId != null;
-        const isUtilitySingle =
-          !isChild && ["Electricity", "Water", "Gas", "Internet", "Rent", "Other"].includes(x.key);
-        if (!isChild && !isUtilitySingle) return false;
+        const installmentCount =
+          Number(raw.installmentCount ?? raw.InstallmentCount ?? 0);
+        const hasPlanSignals =
+          installmentCount > 1 ||
+          (raw.dueDay ?? raw.DueDay ?? null) != null ||
+          (raw.planStartMonth ??
+            raw.PlanStartMonth ??
+            raw.startMonth ??
+            raw.StartMonth ??
+            null) != null;
+
+        // Yalnız planlı kayıtlar (child veya plan sinyali taşıyanlar)
+        if (!(isChild || hasPlanSignals)) return false;
+
+        // Plan parent'ı hiçbir zaman gösterme
+        if (!isChild && hasPlanSignals) return false;
+
+        // Yalnız fatura kategorileri (günlük harcamaları dışla)
+        if (!isUtilityKey(x.key)) return false;
 
         // Ay penceresi + olgunlaşma
         const d = getItemDate(x);
@@ -126,26 +162,30 @@ export default function BillsOverviewScreen({ navigation, route }) {
       const pickMap = new Map();
       for (const it of candidates) {
         const raw = it._raw || {};
-        const parentId = raw.parentExpenseId ?? raw.ParentExpenseId;
+        const parentId =
+          raw.parentExpenseId ?? raw.ParentExpenseId ?? null;
         const d = getItemDate(it);
-        const ym = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+        const ym = `${d.getUTCFullYear()}-${String(
+          d.getUTCMonth() + 1
+        ).padStart(2, "0")}`;
 
-        // Çocuklar için parent üzerinden anahtar; tek seferlikte kendisi
         const key =
-          parentId != null ? `p-${parentId}-${ym}` : `s-${it.id || raw.id || `${it.title}-${ym}`}`;
+          parentId != null
+            ? `p-${parentId}-${ym}`
+            : `s-${it.id || raw.id || `${it.title}-${ym}`}`;
 
         const prev = pickMap.get(key);
         if (!prev) {
           pickMap.set(key, it);
         } else {
-          // En günceli tercih et: tarih DESC, id DESC
           const better = cmpByDateThenIdDesc(it, prev) < 0 ? prev : it;
           pickMap.set(key, better);
         }
       }
 
-      const onlyThisMonth = Array.from(pickMap.values())
-        .sort(cmpByDateThenIdDesc);
+      const onlyThisMonth = Array.from(pickMap.values()).sort(
+        cmpByDateThenIdDesc
+      );
 
       setItems(onlyThisMonth);
       lastFetchedAtRef.current = Date.now();
@@ -158,7 +198,9 @@ export default function BillsOverviewScreen({ navigation, route }) {
     }
   };
 
-  useEffect(() => { fetchData({ silent: false }); }, [houseId]);
+  useEffect(() => {
+    fetchData({ silent: false });
+  }, [houseId]);
 
   useEffect(() => {
     const onUpdated = ({ houseId: changedId }) => {
@@ -181,17 +223,23 @@ export default function BillsOverviewScreen({ navigation, route }) {
       const elapsed = Date.now() - (lastFetchedAtRef.current || 0);
       if (elapsed < 2 * 60 * 1000) return;
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => fetchData({ silent: true }), 400);
-      return () => debounceRef.current && clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(
+        () => fetchData({ silent: true }),
+        400
+      );
+      return () =>
+        debounceRef.current && clearTimeout(debounceRef.current);
     }, [houseId])
   );
 
-  // (opsiyonel) ek filtre
   const filtered = useMemo(() => {
     return items.filter((b) => {
       if (category && toUtilityKey(b.key) !== category) return false;
       if (paidFilter !== "all") {
-        const paid = typeof b.isPaid === "boolean" ? b.isPaid : String(b.status || "").toLowerCase() === "paid";
+        const paid =
+          typeof b.isPaid === "boolean"
+            ? b.isPaid
+            : String(b.status || "").toLowerCase() === "paid";
         if (paidFilter === "paid" && !paid) return false;
         if (paidFilter === "unpaid" && paid) return false;
       }
@@ -200,12 +248,19 @@ export default function BillsOverviewScreen({ navigation, route }) {
   }, [items, category, paidFilter]);
 
   const totals = useMemo(() => {
-    const all = filtered.reduce((s, b) => s + (Number(b.amount) || 0), 0);
+    const all = filtered.reduce(
+      (s, b) => s + (Number(b.amount) || 0),
+      0
+    );
     return { all };
   }, [filtered]);
 
   const handleAddBill = () => {
-    navigation.navigate("NewRecurringChargeScreen", { houseId, houseName, defaultMode: "recurring" });
+    navigation.navigate("NewRecurringChargeScreen", {
+      houseId,
+      houseName,
+      defaultMode: "recurring",
+    });
   };
 
   if (loading && items.length === 0) {
@@ -239,7 +294,9 @@ export default function BillsOverviewScreen({ navigation, route }) {
         <View style={styles.summaryRow}>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>Toplam Fatura</Text>
-            <Text style={styles.summaryAmount}>{formatAmount(totals.all)}</Text>
+            <Text style={styles.summaryAmount}>
+              {formatAmount(totals.all)}
+            </Text>
           </View>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>Fatura Sayısı</Text>
@@ -257,8 +314,19 @@ export default function BillsOverviewScreen({ navigation, route }) {
                 : "Bu ay için görünür planlı gider bulunmuyor."}
             </Text>
             {!loading && (
-              <TouchableOpacity onPress={handleAddBill} style={styles.resetBtn}>
-                <Text style={{ fontSize: 12, fontWeight: "600", color: "#fff" }}>+ Düzenli Gider Ekle</Text>
+              <TouchableOpacity
+                onPress={handleAddBill}
+                style={styles.resetBtn}
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: "600",
+                    color: "#fff",
+                  }}
+                >
+                  + Düzenli Gider Ekle
+                </Text>
               </TouchableOpacity>
             )}
           </View>
@@ -270,9 +338,13 @@ export default function BillsOverviewScreen({ navigation, route }) {
               const meta = UTILITY_META[keyK] || UTILITY_META.Other;
               const titleSuffix = (() => {
                 const raw = it._raw || {};
-                const idxNo = raw.installmentIndex || raw.InstallmentIndex || null;
-                const cnt = raw.installmentCount || raw.InstallmentCount || null;
-                return idxNo != null && cnt != null ? ` • Taksit ${idxNo}/${cnt}` : "";
+                const idxNo =
+                  raw.installmentIndex || raw.InstallmentIndex || null;
+                const cnt =
+                  raw.installmentCount || raw.InstallmentCount || null;
+                return idxNo != null && cnt != null
+                  ? ` • Taksit ${idxNo}/${cnt}`
+                  : "";
               })();
 
               return (
@@ -280,7 +352,6 @@ export default function BillsOverviewScreen({ navigation, route }) {
                   key={String(it.id ?? idx)}
                   style={CommonStyles.listItem}
                   onPress={() => {
-                    // Detay ekranı ismi sende farklı ise route.params.detailScreenName ile geç
                     navigation.navigate(detailRouteName, {
                       expenseId: it.id,
                       houseId,
@@ -294,7 +365,8 @@ export default function BillsOverviewScreen({ navigation, route }) {
                   </View>
                   <View style={CommonStyles.listItemContent}>
                     <Text style={CommonStyles.listItemTitle}>
-                      {meta.label}{titleSuffix}
+                      {meta.label}
+                      {titleSuffix}
                     </Text>
                     <Text style={CommonStyles.listItemSubtitle}>
                       Tarih: {d.toLocaleDateString("tr-TR")}
@@ -310,7 +382,12 @@ export default function BillsOverviewScreen({ navigation, route }) {
             })}
           </View>
         )}
-        <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={hideToast} />
+        <Toast
+          visible={toast.visible}
+          message={toast.message}
+          type={toast.type}
+          onHide={hideToast}
+        />
       </ScrollView>
     </View>
   );
@@ -347,8 +424,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     elevation: 2,
   },
-  summaryLabel: { fontSize: 12, color: Colors.text?.secondary || "#666" },
-  summaryAmount: { fontSize: 16, fontWeight: "700", color: Colors.text?.primary || "#111" },
+  summaryLabel: {
+    fontSize: 12,
+    color: Colors.text?.secondary || "#666",
+  },
+  summaryAmount: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.text?.primary || "#111",
+  },
   iconCircle: {
     width: 40,
     height: 40,
@@ -364,7 +448,11 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   emptyIcon: { fontSize: 32, marginBottom: 8 },
-  emptyText: { fontSize: 14, color: Colors.text?.secondary || "#666", marginBottom: 8 },
+  emptyText: {
+    fontSize: 14,
+    color: Colors.text?.secondary || "#666",
+    marginBottom: 8,
+  },
   resetBtn: {
     paddingHorizontal: 12,
     paddingVertical: 8,

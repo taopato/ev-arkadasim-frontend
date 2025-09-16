@@ -79,6 +79,7 @@ export const endpoints = {
       if (params?.toMonth) queryParams.append('toMonth', params.toMonth);
       return `/RecurringCharges?${queryParams.toString()}`;
     },
+    
     getById: (chargeId: string | number) => `/RecurringCharges/${chargeId}`,
     update: (chargeId: string | number) => `/RecurringCharges/${chargeId}`,
     delete: (chargeId: string | number) => `/RecurringCharges/${chargeId}`,

@@ -38,23 +38,34 @@ const HomeScreen = ({ navigation }) => {
           </View>
           <View style={styles.gridItem}>
             <NavButton
-              title="Harcamalar"
-              subtitle="Ev harcamalarını görüntüle"
-              emoji="📋"
+              title="Planlı Ödemeler"
+              subtitle="Bu ay ödenecekler"
+              emoji="📅"
               color={Colors.warning[600]}
               onPress={() => {
-                navigation.navigate('GrupListesi', { redirectTo: 'Harcamalar' });
+                navigation.navigate('GrupListesi', { redirectTo: 'PlanliOdemeler' });
               }}
             />
           </View>
           <View style={styles.gridItem}>
             <NavButton
-              title="Planlı Giderler"
-              subtitle="Düzenli ve taksitli"
-              emoji="🧮"
+              title="Tüm Harcamalar"
+              subtitle="Tam hareket dökümü"
+              emoji="📋"
               color={Colors.info[600]}
               onPress={() => {
-                navigation.navigate('GrupListesi', { redirectTo: 'Faturalar' });
+                navigation.navigate('GrupListesi', { redirectTo: 'TumHarcamalar' });
+              }}
+            />
+          </View>
+          <View style={styles.gridItem}>
+            <NavButton
+              title="Harcama Özeti"
+              subtitle="Analitik & denge"
+              emoji="📊"
+              color={Colors.success[600]}
+              onPress={() => {
+                navigation.navigate('GrupListesi', { redirectTo: 'HarcamaOzeti' });
               }}
             />
           </View>

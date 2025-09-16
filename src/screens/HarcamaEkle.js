@@ -1,3 +1,5 @@
+// AddExpenseScreen.js
+
 import React, { useEffect, useState } from "react";
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, ScrollView, Platform, KeyboardAvoidingView } from "react-native";
 import { useAuth } from "../context/AuthContext";
@@ -6,6 +8,22 @@ import { CommonStyles } from "../shared/ui/CommonStyles";
 import { Colors } from "../constants/Colors";
 import Toast from "../components/Toast";
 import { toExpenseCategory } from "../constants/ExpenseEnums";
+
+// Binlik ayırıcı ile (kuruşsuz) Türkçe tutar formatı: "1000" -> "1.000"
+const formatThousandsTRInput = (text) => {
+  if (text == null) return "";
+  const digits = String(text).replace(/\D/g, "");
+  if (!digits) return "";
+  const intStr = digits.replace(/^0+(?=\d)/, "");
+  return intStr.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+};
+
+// "1.000" -> 1000 (number)
+const parseIntFromTR = (s) => {
+  if (!s) return 0;
+  const digits = String(s).replace(/\D/g, "");
+  return digits ? Number(digits) : 0;
+};
 
 // Bu ekranda sadece fatura DIŞI türler isteniyor
 const QUICK_EXPENSES = [
@@ -67,7 +85,7 @@ const AddExpenseScreen = ({ navigation, route }) => {
     }
   };
 
-  const amountNum = Number(String(amount).replace(',', '.')) || 0;
+  const amountNum = parseIntFromTR(amount) || 0;
 
   const save = async () => {
     if (!amountNum || amountNum <= 0) {
@@ -100,21 +118,25 @@ const AddExpenseScreen = ({ navigation, route }) => {
 
     const payload = {
       tur: QUICK_EXPENSES.find(x => x.key === categoryKey)?.label || 'Harcama',
-      category: toExpenseCategory(categoryKey),
       tutar: amountNum,
       houseId: Number(houseId),
       odeyenUserId: Number(payerId),
       kaydedenUserId: Number(user?.id),
+      date: new Date().toISOString(),
       postDate: new Date().toISOString(),
-      dueDate: new Date().toISOString(),
       note,
-      personalItems,
-      splitPolicy: 0,
+      Aciklama: note,
+      aciklama: note,
+      // 🔹 create’te de tüm isimlerle gönderelim
+      description: note,
+      Description: note,
+      ortakHarcamaTutari: amountNum,
+      sahsiHarcamalar: personalItems,
     };
 
     try {
       setLoading(true);
-      await expensesApi.createIrregular(payload);
+      await expensesApi.create(payload);
       try {
         const bus = (await import('../shared/events/bus')).default;
         bus.emit('expenses:updated', { houseId: Number(houseId) });
@@ -142,12 +164,12 @@ const AddExpenseScreen = ({ navigation, route }) => {
           <Text style={styles.label}>Tutar (₺)</Text>
           <TextInput
             style={styles.input}
-            placeholder="0.00"
-            keyboardType="decimal-pad"
+            placeholder="1.000"
+            keyboardType="numeric"
             value={amount}
-            onChangeText={setAmount}
+            onChangeText={(t) => setAmount(formatThousandsTRInput(t))}
           />
-          <Text style={styles.hint}>Örn: 350.50</Text>
+          <Text style={styles.hint}>Örn: 1.000</Text>
         </View>
 
         {/* Kategori (çip seçim) */}
@@ -202,8 +224,6 @@ const AddExpenseScreen = ({ navigation, route }) => {
             multiline
           />
         </View>
-
-        {/* Taksit alanları bu ekranda yer almaz */}
 
         {/* Kişisel kalemler */}
         <TouchableOpacity style={styles.toggle} onPress={() => setShowPersonal(v => !v)} activeOpacity={0.8}>

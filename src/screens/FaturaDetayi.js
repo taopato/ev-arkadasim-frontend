@@ -96,9 +96,14 @@ const BillDetailScreen = ({ route, navigation }) => {
     }
   };
 
+  // Para formatlaması - Türk Lirası standardı
   const formatAmount = (amount) => {
-    if (!amount) return '0 ₺';
-    return `${parseFloat(amount).toFixed(2)} ₺`;
+    return new Intl.NumberFormat('tr-TR', {
+      style: 'currency',
+      currency: 'TRY',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(Number(amount || 0));
   };
 
   const handleEditBill = () => {

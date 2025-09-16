@@ -25,7 +25,12 @@ export const PaylasimTuru = {
   Yemek: 5       // Yemek
 };
 
-// Kategori ID -> Anahtar
+// UI/filtrelerde kullanılan yardımcı sabitler
+// Günlük harcamalar (fatura dışı) — diğer ekranlar bunları kullanıyor.
+export const NON_BILL_KEYS = ['Market', 'Food', 'Other'];
+export const BILL_KEYS = ['Water', 'Electricity', 'Rent', 'Gas', 'Internet', 'Other'];
+
+// Kategori ID -> Anahtar (backend'ten gelebilecek numerik kategori alanı için)
 const CATEGORY_ID_TO_KEY = {
   0: 'Rent',
   1: 'Internet',
@@ -48,8 +53,11 @@ export const getCategoryDisplayName = (category) => {
     Internet: 'İnternet',
     Market: 'Market',
     Food: 'Yemek',
-    0: 'Kira', 1: 'İnternet', 2: 'Elektrik', 3: 'Su', 4: 'Doğalgaz', 5: 'Yemek', 99: 'Diğer',
+    0: 'Kira', 1: 'İnternet', 2: 'Elektrik', 3: 'Su', 4: 'Doğalgaz', 5: 'Yemek', 6: 'Market', 99: 'Diğer',
   };
+  // number ya da "2" gibi string-numeric değerler için de güvenli erişim
+  const numKey = Number(category);
+  if (!Number.isNaN(numKey) && map[numKey] != null) return map[numKey];
   return map[category] ?? String(category);
 };
 
@@ -63,6 +71,9 @@ export const toExpenseCategory = (nameOrId) => {
   };
   const byId = { 0:0, 1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 99:99 };
   if (typeof nameOrId === 'number') return byId[nameOrId] ?? 99;
+  // "6" gibi string numeric gelirse:
+  const asNum = Number(nameOrId);
+  if (!Number.isNaN(asNum) && byId[asNum] != null) return byId[asNum];
   return byName[nameOrId] ?? 99;
 };
 
@@ -71,6 +82,8 @@ export const getCategoryIcon = (category) => {
     Water: '💧', Electricity: '⚡', Rent: '🏠', Gas: '🔥',
     Other: '📄', Internet: '🌐', Market: '🛒', Food: '🍽️',
   };
+  // numerik kategori id ile gelirse önce anahtara çevir
+  if (typeof category === 'number') category = CATEGORY_ID_TO_KEY[category] ?? category;
   return iconMap[category] || '💰';
 };
 
@@ -79,22 +92,36 @@ export const getCategoryColor = (category) => {
     Water: '#3b82f6', Electricity: '#f59e0b', Rent: '#10b981', Gas: '#ef4444',
     Other: '#6b7280', Internet: '#8b5cf6', Market: '#f97316', Food: '#ec4899',
   };
+  if (typeof category === 'number') category = CATEGORY_ID_TO_KEY[category] ?? category;
   return colorMap[category] || '#6b7280';
 };
 
 export const isBillCategory = (category) =>
-  ['Water', 'Electricity', 'Rent', 'Gas', 'Other', 'Internet'].includes(category);
+  BILL_KEYS.includes(typeof category === 'number' ? CATEGORY_ID_TO_KEY[category] ?? category : category);
 
-export const isFixedExpense = (category) => ['Rent', 'Internet'].includes(category);
-export const isVariableExpense = (category) => ['Water', 'Electricity', 'Gas'].includes(category);
+export const isFixedExpense = (category) => {
+  const key = typeof category === 'number' ? CATEGORY_ID_TO_KEY[category] ?? category : category;
+  return ['Rent', 'Internet'].includes(key);
+};
 
-export const getSplitPolicyOptions = (category) =>
-  (category === 'Market' || category === 'Food') ? [SplitPolicy.Esit, SplitPolicy.KisiBazli] : [SplitPolicy.Esit];
+export const isVariableExpense = (category) => {
+  const key = typeof category === 'number' ? CATEGORY_ID_TO_KEY[category] ?? category : category;
+  return ['Water', 'Electricity', 'Gas'].includes(key);
+};
 
+export const getSplitPolicyOptions = (category) => {
+  const key = typeof category === 'number' ? CATEGORY_ID_TO_KEY[category] ?? category : category;
+  return (key === 'Market' || key === 'Food') ? [SplitPolicy.Esit, SplitPolicy.KisiBazli] : [SplitPolicy.Esit];
+};
+
+// Para formatlaması - Türk Lirası standardı
 export const formatAmount = (amount) => {
-  const num = Number(amount);
-  if (Number.isNaN(num)) return '0 ₺';
-  return `${num.toFixed(2)} ₺`;
+  return new Intl.NumberFormat('tr-TR', {
+    style: 'currency',
+    currency: 'TRY',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(Number(amount || 0));
 };
 
 export const formatDate = (dateString) => {
@@ -117,18 +144,22 @@ const textToKey = (text = '') => {
 };
 
 export const normalizeExpense = (raw = {}) => {
-  const date = raw.kayitTarihi || raw.postDate || raw.date || raw.createdAt || null;
+  const date = raw.kayitTarihi || raw.postDate || raw.date || raw.createdAt || raw.CreatedDate || null;
+
+  // Kategori anahtarı
   let key;
   if (raw.category != null) key = CATEGORY_ID_TO_KEY[Number(raw.category)];
-  if (!key) key = textToKey(`${raw.tur ?? ''} ${raw.note ?? ''}`);
+  if (!key) key = textToKey(`${raw.tur ?? ''} ${raw.description ?? raw.Description ?? raw.note ?? ''}`);
+
   const kind = isBillCategory(key) ? 'bill' : 'other';
+
   return {
-    id: raw.id ?? raw.expenseId,
-    title: raw.tur || `${getCategoryDisplayName(key)} harcaması`,
-    amount: Number(raw.tutar ?? raw.amount ?? 0),
+    id: raw.id ?? raw.expenseId ?? raw.ExpenseId,
+    title: raw.description ?? raw.Description ?? raw.tur ?? `${getCategoryDisplayName(key)} harcaması`,
+    amount: Number(raw.tutar ?? raw.amount ?? raw.Amount ?? 0),
     date,
-    payerName: raw.odeyenKullaniciAdi,
-    recorderName: raw.kaydedenKullaniciAdi,
+    payerName: raw.odeyenKullaniciAdi ?? raw.OdeyenKullaniciAdi,
+    recorderName: raw.kaydedenKullaniciAdi ?? raw.KaydedenKullaniciAdi,
     key,   // category key
     kind,  // 'bill' | 'other'
     _raw: raw,
@@ -147,8 +178,9 @@ export const nowYm = () => {
 };
 
 export default {
-  ExpenseCategory, SplitPolicy, PaymentMethod, PaymentStatus,
-  toExpenseCategory, getCategoryDisplayName, getCategoryIcon,
+  ExpenseCategory, SplitPolicy, PaymentMethod, PaymentStatus, PaylasimTuru,
+  NON_BILL_KEYS, BILL_KEYS,
+  toExpenseCategory, getCategoryDisplayName, getCategoryIcon, getCategoryColor,
   isBillCategory, isFixedExpense, isVariableExpense, getSplitPolicyOptions,
   formatAmount, formatDate, normalizeExpense, ymOf, nowYm,
 };

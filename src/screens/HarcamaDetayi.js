@@ -1,18 +1,32 @@
+// HarcamaDetayi.js
+
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, TextInput } from 'react-native';
 import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
 import { Colors } from '../../constants/Colors';
 import { expensesApi, ledgerApi } from '../services/api';
+import { houseApi } from '../services/api';
+import eventBus from '../shared/events/bus';
 import { useAuth } from '../context/AuthContext';
 
 const HarcamaDetayi = ({ navigation, route }) => {
   const { expenseId: expenseIdParam, billId: billIdParam, houseId, houseName } = route.params || {};
-  const expenseId = expenseIdParam ?? billIdParam; // her iki param ismini de destekle
+  const expenseId = expenseIdParam ?? billIdParam;
   const { user } = useAuth();
 
   const [expense, setExpense] = useState(null);
   const [ledgerLines, setLedgerLines] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Düzenleme modu
+  const [isEditing, setIsEditing] = useState(false);
+  const [formTitle, setFormTitle] = useState('');
+  const [formTotal, setFormTotal] = useState('');
+  const [formShared, setFormShared] = useState('');
+  const [formPersonal, setFormPersonal] = useState({}); // { userId: '1000.00' }
+  const [formNote, setFormNote] = useState('');
+  // Kullanıcı adları (ev üyeleri)
+  const [membersMap, setMembersMap] = useState({});
 
   // Plan özeti
   const [planStats, setPlanStats] = useState({
@@ -32,6 +46,23 @@ const HarcamaDetayi = ({ navigation, route }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expenseId]);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!houseId) return;
+        const res = await houseApi.getMembers(houseId);
+        const raw = res?.data?.data || res?.data || [];
+        const map = {};
+        (Array.isArray(raw) ? raw : []).forEach((m) => {
+          const uid = Number(m?.userId ?? m?.UserId ?? m?.id ?? m?.user?.id);
+          const name = m?.fullName ?? m?.FullName ?? m?.name ?? m?.Name ?? m?.user?.fullName ?? `Kullanıcı ${uid}`;
+          if (Number.isFinite(uid)) map[uid] = name;
+        });
+        setMembersMap(map);
+      } catch {}
+    })();
+  }, [houseId]);
+
   const parseDate = (v) => {
     const d = v ? new Date(v) : null;
     return d && !Number.isNaN(d.getTime()) ? d : null;
@@ -49,15 +80,20 @@ const HarcamaDetayi = ({ navigation, route }) => {
     });
   };
 
-  const formatAmount = (amount) =>
-    new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' })
-      .format(Number(amount || 0));
+  // Para formatlaması - Türk Lirası standardı
+  const formatAmount = (amount) => {
+    return new Intl.NumberFormat('tr-TR', {
+      style: 'currency',
+      currency: 'TRY',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(Number(amount || 0));
+  };
 
   const fetchExpenseDetail = async () => {
     try {
       setLoading(true);
 
-      // Harcama + Ledger paralel
       const [expenseResponse, ledgerResponse] = await Promise.all([
         expensesApi.getById(expenseId),
         ledgerApi.byExpense(expenseId),
@@ -69,6 +105,25 @@ const HarcamaDetayi = ({ navigation, route }) => {
       setExpense(expenseData);
       setLedgerLines(Array.isArray(ledgerData) ? ledgerData : []);
 
+      // Edit formunu doldur (read-only görüntülemeden bağımsız)
+      try {
+        const title = expenseData?.tur || expenseData?.category || '';
+        const totalRaw = String(expenseData?.tutar ?? expenseData?.amount ?? '');
+        const sharedRaw = String(expenseData?.ortakHarcamaTutari ?? '');
+        const personalArr = Array.isArray(expenseData?.sahsiHarcamalar) ? expenseData.sahsiHarcamalar : [];
+        const pMap = {};
+        for (const it of personalArr) {
+          const uid = Number(it?.userId ?? it?.UserId);
+          const val = Number(it?.tutar ?? it?.Tutar ?? it?.amount ?? 0);
+          if (Number.isFinite(uid)) pMap[String(uid)] = String(val);
+        }
+        setFormTitle(title);
+        setFormTotal(formatThousandsTRInput(totalRaw));
+        setFormShared(formatThousandsTRInput(sharedRaw));
+        setFormPersonal(pMap);
+        setFormNote(String(expenseData?.note ?? expenseData?.Note ?? expenseData?.description ?? expenseData?.Description ?? expenseData?.aciklama ?? expenseData?.Aciklama ?? ''));
+      } catch {}
+
       // Plan özeti (kardeşler)
       if (houseId && expenseData) {
         const listRes = await expensesApi.getByHouse(Number(houseId));
@@ -79,23 +134,18 @@ const HarcamaDetayi = ({ navigation, route }) => {
 
         let siblings = [];
         if (isChild) {
-          // Child'a tıklandıysa: aynı parent altındaki tüm çocuklar
           siblings = all.filter(
             (x) => (x?.parentExpenseId ?? x?.ParentExpenseId ?? null) === parentId
           );
         } else {
-          // Parent'a tıklandıysa: onun tüm çocukları
           const thisId = expenseData?.id ?? expenseData?.Id;
           siblings = all.filter(
             (x) => (x?.parentExpenseId ?? x?.ParentExpenseId ?? null) === thisId
           );
         }
 
-        // dueDay/planStartMonth child üzerinde taşınıyor
-        const dueDay =
-          expenseData?.dueDay ?? expenseData?.DueDay ?? null;
-        const planStartMonth =
-          expenseData?.planStartMonth ?? expenseData?.PlanStartMonth ?? null;
+        const dueDay = expenseData?.dueDay ?? expenseData?.DueDay ?? null;
+        const planStartMonth = expenseData?.planStartMonth ?? expenseData?.PlanStartMonth ?? null;
 
         const now = new Date();
         const matured = siblings.filter((c) => {
@@ -104,7 +154,6 @@ const HarcamaDetayi = ({ navigation, route }) => {
           return d && d <= now;
         });
 
-        // tür (installment mi?)
         const anyChild = siblings[0] || {};
         const installCount =
           anyChild?.installmentCount ??
@@ -141,6 +190,77 @@ const HarcamaDetayi = ({ navigation, route }) => {
     }
   };
 
+  const parseNumber = (v) => {
+    const s = String(v ?? '').replace(',', '.');
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  // Binlik ayırıcı (kuruş yok) yardımcıları
+  const formatThousandsTRInput = (text) => {
+    if (text == null) return '';
+    const digits = String(text).replace(/\D/g, '');
+    if (!digits) return '';
+    const intStr = digits.replace(/^0+(?=\d)/, '');
+    return intStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+  const parseIntFromTR = (s) => {
+    if (!s) return 0;
+    const digits = String(s).replace(/\D/g, '');
+    return digits ? Number(digits) : 0;
+  };
+
+  const handleStartEdit = () => {
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    // Formu mevcut expense verisine geri al
+    if (expense) {
+      setFormTitle(expense?.tur || expense?.category || '');
+      setFormTotal(formatThousandsTRInput(String(expense?.tutar ?? expense?.amount ?? '')));
+      setFormShared(formatThousandsTRInput(String(expense?.ortakHarcamaTutari ?? '')));
+      const pMap = {};
+      (expense?.sahsiHarcamalar || []).forEach(it => {
+        const uid = Number(it?.userId ?? it?.UserId);
+        const val = Number(it?.tutar ?? it?.Tutar ?? it?.amount ?? 0);
+        if (Number.isFinite(uid)) pMap[String(uid)] = String(val);
+      });
+      setFormPersonal(pMap);
+      setFormNote(String(expense?.note ?? expense?.Note ?? expense?.description ?? expense?.Description ?? expense?.aciklama ?? expense?.Aciklama ?? ''));
+    }
+    setIsEditing(false);
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      const dto = {
+        Tur: String(formTitle || '').trim(),
+        Tutar: parseIntFromTR(formTotal),
+        OrtakHarcamaTutari: parseIntFromTR(formShared),
+        SahsiHarcamalar: Object.entries(formPersonal)
+          .map(([uid, val]) => ({ UserId: Number(uid), Tutar: parseNumber(val) }))
+          .filter(x => Number.isFinite(x.UserId) && x.Tutar >= 0),
+        Aciklama: String(formNote || '').trim(),
+        Note: String(formNote || '').trim(),
+        // 🔹 Backend'in üçüncü fallback'i de garanti olsun
+        Description: String(formNote || '').trim(),
+      };
+
+      if (!dto.Tur) return Alert.alert('Hata', 'Başlık/Tür boş olamaz');
+      if (!(dto.Tutar > 0)) return Alert.alert('Hata', 'Toplam tutar > 0 olmalı');
+      if (dto.OrtakHarcamaTutari < 0) return Alert.alert('Hata', 'Ortak tutar 0 veya daha büyük olmalı');
+
+      await expensesApi.update(expenseId, dto);
+      Alert.alert('Başarılı', 'Harcama güncellendi');
+      setIsEditing(false);
+      await fetchExpenseDetail();
+    } catch (error) {
+      const msg = error?.response?.data?.message || error?.message || 'Güncelleme başarısız';
+      Alert.alert('Hata', msg);
+    }
+  };
+
   const handleDeleteExpense = () => {
     Alert.alert(
       'Harcamayı Sil',
@@ -152,12 +272,16 @@ const HarcamaDetayi = ({ navigation, route }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await expensesApi.remove(expenseId);
+              console.log('🗑️ Deleting expense:', expenseId);
+              const response = await expensesApi.remove(expenseId);
+              console.log('✅ Delete response:', response?.data);
               Alert.alert('Başarılı', 'Harcama silindi');
+              try { eventBus.emit('expenses:updated', { houseId: Number(houseId) }); } catch {}
               navigation.goBack();
             } catch (error) {
               console.error('❌ Delete expense error:', error);
-              Alert.alert('Hata', 'Harcama silinirken bir hata oluştu');
+              console.error('❌ Delete error response:', error?.response?.data);
+              Alert.alert('Hata', `Harcama silinirken bir hata oluştu:\n\n${error?.response?.data?.message || error?.message || 'Bilinmeyen hata'}`);
             }
           },
         },
@@ -220,45 +344,101 @@ const HarcamaDetayi = ({ navigation, route }) => {
         <View style={CommonStyles.card}>
           <Text style={styles.sectionTitle}>💰 Harcama Bilgileri</Text>
 
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Kategori:</Text>
-            <Text style={styles.detailValue}>{titleText}</Text>
-          </View>
+          {!isEditing ? (
+            <>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Kategori/Başlık:</Text>
+                <Text style={styles.detailValue}>{titleText}</Text>
+              </View>
 
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Tutar (kalem):</Text>
-            <Text style={[styles.detailValue, styles.amountText]}>
-              {formatAmount(expense?.tutar ?? expense?.amount ?? 0)}
-            </Text>
-          </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Tutar (kalem):</Text>
+                <Text style={[styles.detailValue, styles.amountText]}>
+                  {formatAmount(expense?.tutar ?? expense?.amount ?? 0)}
+                </Text>
+              </View>
 
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Ortak Harcama:</Text>
-            <Text style={styles.detailValue}>
-              {formatAmount(expense?.ortakHarcamaTutari ?? 0)}
-            </Text>
-          </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Ortak Harcama:</Text>
+                <Text style={styles.detailValue}>
+                  {formatAmount(expense?.ortakHarcamaTutari ?? 0)}
+                </Text>
+              </View>
 
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Tarih:</Text>
-            <Text style={styles.detailValue}>
-              {safeDateForUI(expense?.postDate || expense?.kayitTarihi || expense?.createdAt || expense?.createdDate)}
-            </Text>
-          </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Tarih:</Text>
+                <Text style={styles.detailValue}>
+                  {safeDateForUI(expense?.postDate || expense?.kayitTarihi || expense?.createdAt || expense?.createdDate)}
+                </Text>
+              </View>
 
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Ödeyen:</Text>
-            <Text style={styles.detailValue}>
-              {expense?.odeyenKullaniciAdi || expense?.odeyenUser?.fullName || 'Bilinmiyor'}
-            </Text>
-          </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Ödeyen:</Text>
+                <Text style={styles.detailValue}>
+                  {expense?.odeyenKullaniciAdi || expense?.odeyenUser?.fullName || 'Bilinmiyor'}
+                </Text>
+              </View>
 
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Kaydeden:</Text>
-            <Text style={styles.detailValue}>
-              {expense?.kaydedenKullaniciAdi || expense?.kaydedenUser?.fullName || 'Bilinmiyor'}
-            </Text>
-          </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Kaydeden:</Text>
+                <Text style={styles.detailValue}>
+                  {expense?.kaydedenKullaniciAdi || expense?.kaydedenUser?.fullName || 'Bilinmiyor'}
+                </Text>
+              </View>
+
+              <View style={[styles.detailRow, { alignItems: 'flex-start' }]}>
+                <Text style={styles.detailLabel}>Açıklama:</Text>
+                <Text style={[styles.detailValue, { textAlign: 'left' }]}>
+                  {String(expense?.note ?? expense?.Note ?? expense?.description ?? expense?.Description ?? expense?.aciklama ?? expense?.Aciklama ?? '—')}
+                </Text>
+              </View>
+              {!(expense?.note || expense?.Note || expense?.description || expense?.Description || expense?.aciklama || expense?.Aciklama) ? (
+                <View style={[styles.detailRow, { alignItems: 'flex-start' }]}>
+                  <Text style={[styles.detailLabel, { color: Colors.text.secondary }]}>Teşhis:</Text>
+                  <Text style={[styles.detailValue, { textAlign: 'left', color: Colors.text.secondary }]}>
+                    Not alanı bulunamadı. Lütfen yeni bir notla kaydedip tekrar deneyin.
+                  </Text>
+                </View>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <View style={styles.editRow}>
+                <Text style={styles.detailLabel}>Başlık</Text>
+                <TextInput style={styles.input} value={formTitle} onChangeText={setFormTitle} placeholder="Örn: Market" />
+              </View>
+              <View style={styles.editRow}>
+                <Text style={styles.detailLabel}>Toplam Tutar</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formTotal}
+                  onChangeText={(t) => setFormTotal(formatThousandsTRInput(t))}
+                  keyboardType="numeric"
+                  placeholder="2.500"
+                />
+              </View>
+              <View style={styles.editRow}>
+                <Text style={styles.detailLabel}>Ortak Tutar</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formShared}
+                  onChangeText={(t) => setFormShared(formatThousandsTRInput(t))}
+                  keyboardType="numeric"
+                  placeholder="2.000"
+                />
+              </View>
+              <View style={[styles.editRow, { alignItems: 'flex-start' }]}>
+                <Text style={styles.detailLabel}>Açıklama</Text>
+                <TextInput
+                  style={[styles.input, { height: 80, textAlignVertical: 'top', flex: 1 }]}
+                  value={formNote}
+                  onChangeText={setFormNote}
+                  placeholder="Not / açıklama"
+                  multiline
+                />
+              </View>
+            </>
+          )}
         </View>
 
         {/* Plan Özeti (varsa) */}
@@ -303,16 +483,27 @@ const HarcamaDetayi = ({ navigation, route }) => {
         {expense?.sahsiHarcamalar && expense.sahsiHarcamalar.length > 0 && (
           <View style={CommonStyles.card}>
             <Text style={styles.sectionTitle}>👥 Kişisel Harcamalar</Text>
-            {expense.sahsiHarcamalar.map((item, index) => (
-              <View key={index} style={styles.personalItem}>
-                <Text style={styles.personalName}>
-                  {item?.kullaniciAdi || `Kullanıcı ${item?.userId}`}
-                </Text>
-                <Text style={styles.personalAmount}>
-                  {formatAmount(item?.tutar || item?.amount || 0)}
-                </Text>
-              </View>
-            ))}
+            {(!isEditing ? expense.sahsiHarcamalar : expense.sahsiHarcamalar).map((item, index) => {
+              const uid = String(item?.userId ?? item?.UserId);
+              const name = item?.kullaniciAdi || `Kullanıcı ${uid}`;
+              const val = formPersonal[uid] ?? String(item?.tutar || item?.amount || 0);
+              return (
+                <View key={index} style={styles.personalItem}>
+                  <Text style={styles.personalName}>{name}</Text>
+                  {!isEditing ? (
+                    <Text style={styles.personalAmount}>{formatAmount(Number(val))}</Text>
+                  ) : (
+                    <TextInput
+                      style={[styles.input, { width: 120, textAlign: 'right' }]}
+                      value={val}
+                      onChangeText={(t) => setFormPersonal((p) => ({ ...p, [uid]: t }))}
+                      keyboardType="decimal-pad"
+                      placeholder="0"
+                    />
+                  )}
+                </View>
+              );
+            })}
           </View>
         )}
 
@@ -324,11 +515,9 @@ const HarcamaDetayi = ({ navigation, route }) => {
             userShares.map((u) => (
               <View key={u.uid} style={styles.ledgerItem}>
                 <View style={styles.ledgerInfo}>
-                  <Text style={styles.ledgerFrom}>
-                    {u.uid === user?.id ? 'Sen' : `Kullanıcı ${u.uid}`}
-                  </Text>
+                  <Text style={styles.ledgerFrom}>{membersMap[u.uid] || (u.uid === user?.id ? 'Sen' : `Kullanıcı ${u.uid}`)}</Text>
                   <Text style={[styles.ledgerArrow, { marginLeft: 6, marginRight: 6 }]}>→</Text>
-                  <Text style={styles.ledgerTo}>Ödeyen</Text>
+                  <Text style={styles.ledgerTo}>{expense?.odeyenKullaniciAdi || expense?.odeyenUser?.fullName || membersMap[Number(expense?.odeyenUserId)] || 'Ödeyen'}</Text>
                 </View>
                 <Text style={styles.ledgerAmount}>{formatAmount(u.total)}</Text>
               </View>
@@ -343,16 +532,55 @@ const HarcamaDetayi = ({ navigation, route }) => {
 
         {/* İşlem Butonları */}
         <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={[CommonStyles.menuButton, { backgroundColor: ColorThemes.error.background }]}
-            onPress={handleDeleteExpense}
-            activeOpacity={0.8}
-          >
-            <View style={CommonStyles.buttonContent}>
-              <Text style={CommonStyles.buttonIcon}>🗑️</Text>
-              <Text style={CommonStyles.buttonText}>Harcamayı Sil</Text>
-            </View>
-          </TouchableOpacity>
+          {!isEditing ? (
+            <>
+              <TouchableOpacity
+                style={[CommonStyles.menuButton, { backgroundColor: ColorThemes.primary.background }]}
+                onPress={handleStartEdit}
+                activeOpacity={0.8}
+              >
+                <View style={CommonStyles.buttonContent}>
+                  <Text style={CommonStyles.buttonIcon}>✏️</Text>
+                  <Text style={CommonStyles.buttonText}>Düzenle</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[CommonStyles.menuButton, { backgroundColor: ColorThemes.error.background }]}
+                onPress={handleDeleteExpense}
+                activeOpacity={0.8}
+              >
+                <View style={CommonStyles.buttonContent}>
+                  <Text style={CommonStyles.buttonIcon}>🗑️</Text>
+                  <Text style={CommonStyles.buttonText}>Harcamayı Sil</Text>
+                </View>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <TouchableOpacity
+                style={[CommonStyles.menuButton, { backgroundColor: ColorThemes.success.background }]}
+                onPress={handleSaveEdit}
+                activeOpacity={0.8}
+              >
+                <View style={CommonStyles.buttonContent}>
+                  <Text style={CommonStyles.buttonIcon}>💾</Text>
+                  <Text style={CommonStyles.buttonText}>Kaydet</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[CommonStyles.menuButton, { backgroundColor: ColorThemes.warning.background }]}
+                onPress={handleCancelEdit}
+                activeOpacity={0.8}
+              >
+                <View style={CommonStyles.buttonContent}>
+                  <Text style={CommonStyles.buttonIcon}>↩️</Text>
+                  <Text style={CommonStyles.buttonText}>İptal</Text>
+                </View>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -456,6 +684,22 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
     textAlign: 'center',
     padding: 20,
+  },
+  editRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: Colors.neutral[300],
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: Colors.white,
+    color: Colors.text.primary,
+    flex: 1,
   },
 });
 

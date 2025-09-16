@@ -1,19 +1,30 @@
+// NewRecurringChargeScreen.js
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../../constants/Colors';
+import { Colors } from '../constants/Colors';
 import api, { houseApi, expensesApi } from '../services/api';
 import eventBus from '../shared/events/bus';
+import { getCategoryDisplayName, toExpenseCategory } from '../constants/ExpenseEnums';
 
-const getCategoryDisplayName = (category) => {
-  const map = { Electricity: 'Elektrik', Water: 'Su', Internet: 'İnternet', Rent: 'Kira', Gas: 'Doğalgaz', Other: 'Diğer' };
-  return map[category] || 'Diğer';
+// ==== TR Para Girişi Yardımcıları (Kuruş YOK) ====
+// "20000"  -> "20.000"
+// "2000000" -> "2.000.000"
+const formatThousandsTRInput = (text) => {
+  if (text == null) return '';
+  const digits = String(text).replace(/\D/g, '');
+  if (!digits) return '';
+  const intStr = digits.replace(/^0+(?=\d)/, '');
+  return intStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 };
 
-const toExpenseCategory = (category) => {
-  const map = { Rent: 0, Internet: 1, Electricity: 2, Water: 3, Gas: 6, Other: 99 };
-  return map[category] || 99;
+// "20.000" -> 20000
+const parseIntFromTR = (s) => {
+  if (!s) return 0;
+  const digits = String(s).replace(/\D/g, '');
+  return digits ? Number(digits) : 0;
 };
 
 const NewRecurringChargeScreen = ({ navigation, route }) => {
@@ -24,9 +35,12 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
   const [mode, setMode] = useState(route?.params?.defaultMode || 'recurring'); // irregular | recurring | installment
   const [type, setType] = useState('Rent');                                     // Rent | Internet | Electricity | Water | Gas | Other
   const [payerUserId, setPayerUserId] = useState('');
-  const [fixedAmount, setFixedAmount] = useState('');
+
+  // >>> Tutar alanları artık formatlı string tutuyor
+  const [fixedAmount, setFixedAmount] = useState('');      // "20.000,00"
+  const [totalAmount, setTotalAmount] = useState('');      // "120.000,00"
+
   const [dueDay, setDueDay] = useState('5');
-  const [totalAmount, setTotalAmount] = useState('');
   const [installmentCount, setInstallmentCount] = useState('6');
   const [startMonth, setStartMonth] = useState(() => {
     const d = new Date();
@@ -53,19 +67,12 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
     })();
   }, [houseId]);
 
-  const normalizeAmount = (amount) => {
-    const cleanAmount = String(amount).replace(',', '.').replace(/[^\d.-]/g, '');
-    const result = Number(cleanAmount);
-    return result;
-  };
-
   const onSave = async () => {
     try {
       if (!payerUserId) return Alert.alert('Hata', 'Ödeyecek kişi seçiniz');
       const dueDayNum = Number(dueDay);
       if (!(dueDayNum >= 1 && dueDayNum <= 28)) return Alert.alert('Hata', 'Vade günü 1-28');
 
-      // Backend beklentisi: StartMonth = ayın 1’i (UTC), vade ise dueDay ile belirlenir
       if (!startMonth || !/^\d{4}-\d{2}$/.test(startMonth)) {
         return Alert.alert('Hata', 'Başlangıç ayı YYYY-MM olmalı');
       }
@@ -73,13 +80,14 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
       const isoStart = `${year}-${month}-01T00:00:00Z`;
 
       if (mode === 'installment') {
-        if (!(Number(totalAmount) > 0)) return Alert.alert('Hata', 'Toplam tutar > 0 olmalı');
+        const total = parseIntFromTR(totalAmount);
+        if (!(total > 0)) return Alert.alert('Hata', 'Toplam tutar > 0 olmalı');
         if (!(Number(installmentCount) >= 2)) return Alert.alert('Hata', 'Taksit sayısı en az 2 olmalı');
 
         const body = {
           mode: 'installment',
-          tur: type === 'Other' ? 'Diğer' : String(type),
-          tutar: normalizeAmount(totalAmount),
+          tur: getCategoryDisplayName(type),
+          tutar: total, // toplam tutar
           installmentCount: Number(installmentCount),
           dueDay: dueDayNum,
           startMonth: isoStart,
@@ -87,7 +95,8 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
           odeyenUserId: Number(payerUserId),
           kaydedenUserId: Number(user?.id),
           cardholderUserId: Number(payerUserId),
-          participants: participants.length ? participants.map((id) => Number(id)) : []
+          participants: participants.length ? participants.map((id) => Number(id)) : [],
+          note: '' // Taksitli giderler için not alanı
         };
         await expensesApi.create(body);
         Alert.alert('Başarılı', 'Taksitli plan oluşturuldu');
@@ -97,22 +106,25 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
       }
 
       if (mode === 'recurring') {
-        if (!(Number(fixedAmount) > 0)) return Alert.alert('Hata', 'Aylık tutar > 0 olmalı');
+        const monthly = parseIntFromTR(fixedAmount);
+        if (!(monthly > 0)) return Alert.alert('Hata', 'Aylık tutar > 0 olmalı');
 
-        const monthly = normalizeAmount(fixedAmount);
         const body = {
           mode: 'recurring',
           tur: getCategoryDisplayName(type),
-          tutar: monthly,                 // aylık tutar
+          tutar: monthly,                 // AYLIK tutar (12 ile çarpma yok)
           houseId: Number(houseId),
           odeyenUserId: Number(payerUserId),
           kaydedenUserId: Number(user?.id),
           dueDay: dueDayNum,              // 1–28
           startMonth: isoStart,           // YYYY-MM-01T00:00:00Z
           ortakHarcamaTutari: monthly,
-          sahsiHarcamalar: []
+          sahsiHarcamalar: [],
+          note: '' // Düzenli giderler için not alanı
         };
-        await expensesApi.create(body);
+        console.log('🔍 Düzenli gider payload:', body);
+        const response = await expensesApi.create(body);
+        console.log('✅ Düzenli gider response:', response?.data);
         Alert.alert('Başarılı', 'Düzenli gider oluşturuldu');
         eventBus.emit('expenses:updated', { houseId });
         navigation.goBack();
@@ -120,40 +132,29 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
       }
 
       // IRREGULAR (tek seferlik)
-      if (!(Number(fixedAmount) > 0)) return Alert.alert('Hata', 'Tutar > 0 olmalı');
+      const once = parseIntFromTR(fixedAmount);
+      if (!(once > 0)) return Alert.alert('Hata', 'Tutar > 0 olmalı');
 
       const payload = {
         tur: getCategoryDisplayName(type),
-        tutar: normalizeAmount(fixedAmount),
+        tutar: once,
         houseId: Number(houseId),
         odeyenUserId: Number(payerUserId),
         kaydedenUserId: Number(user?.id),
-        category: toExpenseCategory(type),
-        postDate: new Date().toISOString(),
-        splitPolicy: 0,
-        personalItems: [],
+        date: new Date().toISOString(),
+        ortakHarcamaTutari: once,
+        sahsiHarcamalar: [],
         note: ''
       };
 
-      if (expensesApi.createIrregular) {
-        await expensesApi.createIrregular(payload);
-      } else {
-        await expensesApi.create({
-          tur: payload.tur,
-          tutar: payload.tutar,
-          houseId: payload.houseId,
-          odeyenUserId: payload.odeyenUserId,
-          kaydedenUserId: payload.kaydedenUserId,
-          date: payload.postDate,
-          ortakHarcamaTutari: payload.tutar,
-          sahsiHarcamalar: []
-        });
-      }
+      await expensesApi.create(payload);
 
       Alert.alert('Başarılı', 'Düzensiz gider oluşturuldu');
       eventBus.emit('expenses:updated', { houseId });
       navigation.goBack();
     } catch (e) {
+      console.error('❌ Düzenli gider ekleme hatası:', e);
+      console.error('❌ Error response:', e?.response?.data);
       Alert.alert('Hata', e?.response?.data?.message || e?.message || 'Kaydedilemedi');
     }
   };
@@ -236,12 +237,9 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
               <TextInput
                 style={styles.input}
                 value={fixedAmount}
-                onChangeText={(text) => {
-                  const cleanText = text.replace(/[^\d.]/g, '');
-                  setFixedAmount(cleanText);
-                }}
+                onChangeText={(text) => setFixedAmount(formatThousandsTRInput(text))}
                 keyboardType="numeric"
-                placeholder={mode==='recurring' ? "78000" : "2500"}
+                placeholder="20.000"
               />
               <Text style={CommonStyles.label}>Vade günü (1-28)</Text>
               <TextInput style={styles.input} value={dueDay} onChangeText={setDueDay} keyboardType="numeric" placeholder="20" />
@@ -260,12 +258,9 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
               <TextInput
                 style={styles.input}
                 value={totalAmount}
-                onChangeText={(text) => {
-                  const cleanText = text.replace(/[^\d.]/g, '');
-                  setTotalAmount(cleanText);
-                }}
+                onChangeText={(text) => setTotalAmount(formatThousandsTRInput(text))}
                 keyboardType="numeric"
-                placeholder="36000"
+                placeholder="120.000"
               />
               <Text style={CommonStyles.label}>Taksit sayısı</Text>
               <View style={styles.row}>

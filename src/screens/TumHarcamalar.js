@@ -1,5 +1,5 @@
-// Harcama Listesi — "tam hareket dökümü"
-// Evdeki tüm harcama satırlarını (düzenli/taksitli çocuklar + düzensiz tekil kalemler) tarih akışında gösterir
+// Harcamalar (Harcama Listesi) — "tam hareket dökümü"
+// Evdeki tüm harcama satırlarını (düzenli/taksitli çocuklar + düzensiz tekil kalemler) tarih akışında göster
 
 import React, { useState, useEffect, useMemo } from 'react';
 import {
@@ -12,15 +12,14 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
-  TextInput,
-  Modal
+  Modal,
+  TextInput
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { expensesApi, houseApi } from '../services/api';
 import { Colors } from '../constants/Colors';
 import { CommonStyles } from '../shared/ui/CommonStyles';
 import { normalizeExpense } from '../utils/expenseClassifier';
-import { getCategoryDisplayName, getCategoryIcon, getCategoryColor } from '../constants/ExpenseEnums';
 import {
   getUTCMonthWindow,
   formatCurrency,
@@ -32,12 +31,16 @@ import {
   isParentExpense,
   deduplicateMonthlyPlans,
   sortByDateDesc,
+  getStatusBadges,
+  getCategoryDisplayName,
+  getCategoryIcon,
+  getCategoryColor,
   calculateTotals
 } from '../utils/expenseHelpers';
 
-const HarcamaListesiScreen = ({ navigation, route }) => {
+const TumHarcamalarScreen = ({ navigation, route }) => {
   const { user } = useAuth();
-  const { houseId: routeHouseId } = route.params || {};
+  const { houseId: routeHouseId, houseName } = route.params || {};
   const houseId = routeHouseId || user?.defaultHouseId;
 
   const [items, setItems] = useState([]);
@@ -47,12 +50,14 @@ const HarcamaListesiScreen = ({ navigation, route }) => {
   const [membersMap, setMembersMap] = useState({});
 
   // Filtreler
-  const [selectedPeriod, setSelectedPeriod] = useState('current'); // current, last3, last6, year, custom
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedPayer, setSelectedPayer] = useState('all');
-  const [selectedPlanType, setSelectedPlanType] = useState('all'); // all, recurring, installment, irregular
+  const [selectedPeriod, setSelectedPeriod] = useState('current');
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [selectedMembers, setSelectedMembers] = useState([]);
+  const [selectedPlanTypes, setSelectedPlanTypes] = useState(['all']);
   const [searchText, setSearchText] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [sortBy, setSortBy] = useState('date');
+  const [sortOrder, setSortOrder] = useState('desc');
 
   // Dönem seçenekleri
   const periodOptions = [
@@ -63,12 +68,32 @@ const HarcamaListesiScreen = ({ navigation, route }) => {
     { key: 'all', label: 'Tümü' }
   ];
 
+  // Kategori seçenekleri
+  const categoryOptions = [
+    { key: 'Rent', label: 'Kira', icon: '🏠' },
+    { key: 'Internet', label: 'İnternet', icon: '🌐' },
+    { key: 'Electricity', label: 'Elektrik', icon: '⚡' },
+    { key: 'Water', label: 'Su', icon: '💧' },
+    { key: 'Gas', label: 'Doğalgaz', icon: '🔥' },
+    { key: 'Market', label: 'Market', icon: '🛒' },
+    { key: 'Food', label: 'Yemek', icon: '🍽️' },
+    { key: 'Other', label: 'Diğer', icon: '📄' }
+  ];
+
   // Plan türü seçenekleri
   const planTypeOptions = [
     { key: 'all', label: 'Hepsi' },
     { key: 'recurring', label: 'Düzenli' },
     { key: 'installment', label: 'Taksitli' },
     { key: 'irregular', label: 'Düzensiz' }
+  ];
+
+  // Sıralama seçenekleri
+  const sortOptions = [
+    { key: 'date', label: 'Tarih' },
+    { key: 'amount', label: 'Tutar' },
+    { key: 'category', label: 'Kategori' },
+    { key: 'payer', label: 'Ödeyen' }
   ];
 
   // Veri yükleme
@@ -105,7 +130,7 @@ const HarcamaListesiScreen = ({ navigation, route }) => {
       setMembersMap(map);
 
     } catch (error) {
-      console.error('❌ Harcama listesi yükleme hatası:', error);
+      console.error('❌ Harcamalar yükleme hatası:', error);
       Alert.alert('Hata', 'Veriler yüklenirken bir hata oluştu');
     } finally {
       setLoading(false);
@@ -139,7 +164,7 @@ const HarcamaListesiScreen = ({ navigation, route }) => {
     }
   };
 
-  // Filtrelenmiş veriler
+  // Filtrelenmiş ve sıralanmış veriler
   const filteredItems = useMemo(() => {
     let filtered = items;
 
@@ -153,52 +178,78 @@ const HarcamaListesiScreen = ({ navigation, route }) => {
     }
 
     // Kategori filtresi
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(item => item.key === selectedCategory);
+    if (selectedCategories.length > 0) {
+      filtered = filtered.filter(item => selectedCategories.includes(item.key));
     }
 
-    // Ödeyen filtresi
-    if (selectedPayer !== 'all') {
-      const raw = filtered[0]?._raw || {};
+    // Üye filtresi
+    if (selectedMembers.length > 0) {
       filtered = filtered.filter(item => {
         const raw = item._raw || {};
         const payerId = raw.odeyenUserId ?? raw.OdeyenUserId;
-        return String(payerId) === String(selectedPayer);
+        return selectedMembers.includes(String(payerId));
       });
     }
 
     // Plan türü filtresi
-    if (selectedPlanType !== 'all') {
-      filtered = filtered.filter(item => getPlanType(item) === selectedPlanType);
+    if (!selectedPlanTypes.includes('all')) {
+      filtered = filtered.filter(item => {
+        const planType = getPlanType(item);
+        return selectedPlanTypes.includes(planType);
+      });
     }
 
     // Arama filtresi
     if (searchText.trim()) {
-      const search = searchText.toLowerCase();
+      const searchLower = searchText.toLowerCase();
       filtered = filtered.filter(item => {
-        const title = getCategoryDisplayName(item.key).toLowerCase();
+        const title = item.title?.toLowerCase() || '';
         const note = getItemNote(item).toLowerCase();
-        return title.includes(search) || note.includes(search);
+        return title.includes(searchLower) || note.includes(searchLower);
       });
     }
 
+    // Sıralama
+    filtered.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case 'date':
+          comparison = getItemDate(b).getTime() - getItemDate(a).getTime();
+          break;
+        case 'amount':
+          comparison = b.amount - a.amount;
+          break;
+        case 'category':
+          comparison = a.key.localeCompare(b.key);
+          break;
+        case 'payer':
+          const payerA = membersMap[a._raw?.odeyenUserId ?? a._raw?.OdeyenUserId] || '';
+          const payerB = membersMap[b._raw?.odeyenUserId ?? b._raw?.OdeyenUserId] || '';
+          comparison = payerA.localeCompare(payerB);
+          break;
+        default:
+          comparison = 0;
+      }
+      
+      if (sortOrder === 'asc') comparison = -comparison;
+      
+      // Eşitlik durumunda ID'ye göre sırala
+      if (comparison === 0) {
+        comparison = (b.id ?? 0) - (a.id ?? 0);
+      }
+      
+      return comparison;
+    });
+
     return filtered;
-  }, [items, selectedPeriod, selectedCategory, selectedPayer, selectedPlanType, searchText]);
+  }, [items, selectedPeriod, selectedCategories, selectedMembers, selectedPlanTypes, searchText, sortBy, sortOrder, membersMap]);
 
   // Özet hesaplamaları
   const summary = useMemo(() => {
     const { total, count } = calculateTotals(filteredItems);
-    
-    // Kullanıcı bazlı hesaplamalar
-    const userExpenses = filteredItems.filter(item => {
-      const raw = item._raw || {};
-      const payerId = raw.odeyenUserId ?? raw.OdeyenUserId;
-      return String(payerId) === String(user?.id);
-    });
-    const userTotal = calculateTotals(userExpenses).total;
-
-    return { total, count, userTotal };
-  }, [filteredItems, user?.id]);
+    return { total, count };
+  }, [filteredItems]);
 
   // Kart render
   const renderItem = ({ item }) => {
@@ -208,23 +259,11 @@ const HarcamaListesiScreen = ({ navigation, route }) => {
     const date = getItemDate(item);
     const note = getItemNote(item);
     const planType = getPlanType(item);
-    const icon = getCategoryIcon(item.key);
-    const color = getCategoryColor(item.key);
-
-    // Plan etiketi
-    const getPlanLabel = () => {
-      if (planType === 'installment') {
-        const installmentNumber = raw.installmentNumber ?? raw.InstallmentNumber ?? 0;
-        const installmentCount = raw.installmentCount ?? raw.InstallmentCount ?? 0;
-        return `Taksit ${installmentNumber}/${installmentCount}`;
-      }
-      if (planType === 'recurring') return 'Düzenli';
-      return 'Düzensiz';
-    };
+    const badges = getStatusBadges(item);
 
     return (
       <TouchableOpacity
-        style={[styles.card, { borderLeftColor: color }]}
+        style={styles.card}
         onPress={() => navigation.navigate('HarcamaDetayi', { 
           expenseId: item.id, 
           houseId 
@@ -233,35 +272,61 @@ const HarcamaListesiScreen = ({ navigation, route }) => {
       >
         <View style={styles.cardHeader}>
           <View style={styles.cardTitle}>
-            <Text style={styles.cardIcon}>{icon}</Text>
-            <View style={styles.cardTitleText}>
-              <Text style={styles.cardTitleMain}>{getCategoryDisplayName(item.key)}</Text>
-              <Text style={styles.cardSubtitle}>
-                {formatDate(date)} • Ödeyen: {payerName}
-              </Text>
-            </View>
+            <Text style={styles.cardIcon}>{getCategoryIcon(item.key)}</Text>
+            <Text style={styles.cardTitleText}>{item.title}</Text>
           </View>
           <Text style={styles.cardAmount}>{formatCurrency(item.amount)}</Text>
         </View>
 
-        {note !== '—' && (
-          <Text style={styles.cardNote} numberOfLines={2}>
-            {note}
+        <View style={styles.cardDetails}>
+          <Text style={styles.cardSubtitle}>
+            {formatDate(date)} • Ödeyen: {payerName}
           </Text>
-        )}
+          {note !== '—' && (
+            <Text style={styles.cardNote} numberOfLines={1}>
+              {note}
+            </Text>
+          )}
+        </View>
 
         <View style={styles.cardFooter}>
-          <View style={[styles.planBadge, { backgroundColor: color + '20' }]}>
-            <Text style={[styles.planBadgeText, { color }]}>
-              {getPlanLabel()}
-            </Text>
+          <View style={styles.badgesContainer}>
+            {planType !== 'irregular' && (
+              <View style={[styles.badge, { backgroundColor: Colors.info[100] }]}>
+                <Text style={styles.badgeText}>
+                  {planType === 'recurring' ? 'Düzenli' : 'Taksitli'}
+                </Text>
+              </View>
+            )}
+            {badges.map((badge, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.badge,
+                  { backgroundColor: getBadgeColor(badge.type) }
+                ]}
+              >
+                <Text style={styles.badgeText}>{badge.text}</Text>
+              </View>
+            ))}
           </View>
         </View>
       </TouchableOpacity>
     );
   };
 
-  // Filtre modal render
+  // Badge rengi
+  const getBadgeColor = (type) => {
+    switch (type) {
+      case 'error': return Colors.error[100];
+      case 'warning': return Colors.warning[100];
+      case 'success': return Colors.success[100];
+      case 'info': return Colors.info[100];
+      default: return Colors.neutral[100];
+    }
+  };
+
+  // Filtre Modal Render
   const renderFilterModal = () => (
     <Modal
       visible={showFilters}
@@ -277,6 +342,17 @@ const HarcamaListesiScreen = ({ navigation, route }) => {
         </View>
 
         <ScrollView style={styles.modalContent}>
+          {/* Arama */}
+          <View style={styles.filterSection}>
+            <Text style={styles.filterSectionTitle}>Arama</Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Başlık veya açıklamada ara..."
+              value={searchText}
+              onChangeText={setSearchText}
+            />
+          </View>
+
           {/* Dönem */}
           <View style={styles.filterSection}>
             <Text style={styles.filterSectionTitle}>Dönem</Text>
@@ -299,6 +375,40 @@ const HarcamaListesiScreen = ({ navigation, route }) => {
             ))}
           </View>
 
+          {/* Kategoriler */}
+          <View style={styles.filterSection}>
+            <Text style={styles.filterSectionTitle}>Kategoriler</Text>
+            <TouchableOpacity
+              style={styles.filterOption}
+              onPress={() => setSelectedCategories([])}
+            >
+              <Text style={styles.filterOptionText}>Hepsi</Text>
+            </TouchableOpacity>
+            {categoryOptions.map(option => (
+              <TouchableOpacity
+                key={option.key}
+                style={[
+                  styles.filterOption,
+                  selectedCategories.includes(option.key) && styles.filterOptionActive
+                ]}
+                onPress={() => {
+                  if (selectedCategories.includes(option.key)) {
+                    setSelectedCategories(prev => prev.filter(c => c !== option.key));
+                  } else {
+                    setSelectedCategories(prev => [...prev, option.key]);
+                  }
+                }}
+              >
+                <Text style={[
+                  styles.filterOptionText,
+                  selectedCategories.includes(option.key) && styles.filterOptionTextActive
+                ]}>
+                  {option.icon} {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           {/* Plan Türü */}
           <View style={styles.filterSection}>
             <Text style={styles.filterSectionTitle}>Plan Türü</Text>
@@ -307,13 +417,22 @@ const HarcamaListesiScreen = ({ navigation, route }) => {
                 key={option.key}
                 style={[
                   styles.filterOption,
-                  selectedPlanType === option.key && styles.filterOptionActive
+                  selectedPlanTypes.includes(option.key) && styles.filterOptionActive
                 ]}
-                onPress={() => setSelectedPlanType(option.key)}
+                onPress={() => {
+                  if (option.key === 'all') {
+                    setSelectedPlanTypes(['all']);
+                  } else {
+                    const newTypes = selectedPlanTypes.includes(option.key)
+                      ? selectedPlanTypes.filter(t => t !== option.key)
+                      : [...selectedPlanTypes.filter(t => t !== 'all'), option.key];
+                    setSelectedPlanTypes(newTypes.length === 0 ? ['all'] : newTypes);
+                  }
+                }}
               >
                 <Text style={[
                   styles.filterOptionText,
-                  selectedPlanType === option.key && styles.filterOptionTextActive
+                  selectedPlanTypes.includes(option.key) && styles.filterOptionTextActive
                 ]}>
                   {option.label}
                 </Text>
@@ -321,37 +440,30 @@ const HarcamaListesiScreen = ({ navigation, route }) => {
             ))}
           </View>
 
-          {/* Ödeyen */}
+          {/* Sıralama */}
           <View style={styles.filterSection}>
-            <Text style={styles.filterSectionTitle}>Ödeyen</Text>
-            <TouchableOpacity
-              style={[
-                styles.filterOption,
-                selectedPayer === 'all' && styles.filterOptionActive
-              ]}
-              onPress={() => setSelectedPayer('all')}
-            >
-              <Text style={[
-                styles.filterOptionText,
-                selectedPayer === 'all' && styles.filterOptionTextActive
-              ]}>
-                Hepsi
-              </Text>
-            </TouchableOpacity>
-            {members.map(member => (
+            <Text style={styles.filterSectionTitle}>Sıralama</Text>
+            {sortOptions.map(option => (
               <TouchableOpacity
-                key={member.userId ?? member.UserId}
+                key={option.key}
                 style={[
                   styles.filterOption,
-                  selectedPayer === String(member.userId ?? member.UserId) && styles.filterOptionActive
+                  sortBy === option.key && styles.filterOptionActive
                 ]}
-                onPress={() => setSelectedPayer(String(member.userId ?? member.UserId))}
+                onPress={() => {
+                  if (sortBy === option.key) {
+                    setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
+                  } else {
+                    setSortBy(option.key);
+                    setSortOrder('desc');
+                  }
+                }}
               >
                 <Text style={[
                   styles.filterOptionText,
-                  selectedPayer === String(member.userId ?? member.UserId) && styles.filterOptionTextActive
+                  sortBy === option.key && styles.filterOptionTextActive
                 ]}>
-                  {member.fullName ?? member.FullName}
+                  {option.label} {sortBy === option.key && (sortOrder === 'desc' ? '↓' : '↑')}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -372,36 +484,14 @@ const HarcamaListesiScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.container}>
-      {/* Özet */}
-      <View style={styles.summaryContainer}>
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Toplam</Text>
-          <Text style={styles.summaryValue}>{formatCurrency(summary.total)}</Text>
-          <Text style={styles.summaryCount}>{summary.count} kalem</Text>
-        </View>
-        
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Senin Ödediklerin</Text>
-          <Text style={styles.summaryValue}>{formatCurrency(summary.userTotal)}</Text>
-          <Text style={styles.summaryCount}>
-            {filteredItems.filter(item => {
-              const raw = item._raw || {};
-              const payerId = raw.odeyenUserId ?? raw.OdeyenUserId;
-              return String(payerId) === String(user?.id);
-            }).length} kalem
+      {/* Header */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.headerTitle}>Harcamalar</Text>
+          <Text style={styles.headerSubtitle}>
+            {houseName} • {summary.count} harcama • {formatCurrency(summary.total)}
           </Text>
         </View>
-      </View>
-
-      {/* Arama ve Filtreler */}
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Harcama ara..."
-          value={searchText}
-          onChangeText={setSearchText}
-          placeholderTextColor={Colors.text.secondary}
-        />
         <TouchableOpacity
           style={styles.filterButton}
           onPress={() => setShowFilters(true)}
@@ -428,10 +518,10 @@ const HarcamaListesiScreen = ({ navigation, route }) => {
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>📋</Text>
+            <Text style={styles.emptyIcon}>🧾</Text>
             <Text style={styles.emptyTitle}>Harcama bulunamadı</Text>
             <Text style={styles.emptySubtitle}>
-              Seçilen filtreler için harcama kaydı bulunmuyor
+              Filtreleri değiştirerek daha fazla sonuç görebilirsiniz
             </Text>
           </View>
         }
@@ -461,59 +551,31 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary
   },
   
-  // Özet
-  summaryContainer: {
+  // Header
+  header: {
     flexDirection: 'row',
-    padding: 16,
-    gap: 12
-  },
-  summaryCard: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    borderRadius: 12,
-    padding: 16,
+    justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.neutral[200]
-  },
-  summaryLabel: {
-    fontSize: 12,
-    color: Colors.text.secondary,
-    marginBottom: 4
-  },
-  summaryValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
-    marginBottom: 2
-  },
-  summaryCount: {
-    fontSize: 11,
-    color: Colors.text.secondary
-  },
-
-  // Arama
-  searchContainer: {
-    flexDirection: 'row',
     padding: 16,
-    paddingTop: 0,
-    gap: 12
-  },
-  searchInput: {
-    flex: 1,
     backgroundColor: Colors.background,
-    borderRadius: 8,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: Colors.neutral[300],
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.neutral[200]
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
     color: Colors.text.primary
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    marginTop: 2
   },
   filterButton: {
     backgroundColor: Colors.primary[500],
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    justifyContent: 'center'
+    paddingVertical: 8,
+    borderRadius: 8
   },
   filterButtonText: {
     color: 'white',
@@ -522,71 +584,94 @@ const styles = StyleSheet.create({
 
   // Liste
   listContainer: {
-    padding: 16,
-    paddingTop: 0
+    padding: 16
   },
   card: {
     backgroundColor: Colors.background,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    borderLeftWidth: 4,
     borderWidth: 1,
     borderColor: Colors.neutral[200]
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 8
   },
   cardTitle: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     flex: 1
   },
   cardIcon: {
     fontSize: 20,
-    marginRight: 12,
-    marginTop: 2
+    marginRight: 8
   },
   cardTitleText: {
-    flex: 1
-  },
-  cardTitleMain: {
     fontSize: 16,
     fontWeight: 'bold',
     color: Colors.text.primary,
-    marginBottom: 2
-  },
-  cardSubtitle: {
-    fontSize: 13,
-    color: Colors.text.secondary
+    flex: 1
   },
   cardAmount: {
     fontSize: 16,
     fontWeight: 'bold',
     color: Colors.text.primary
   },
+  cardDetails: {
+    marginBottom: 8
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    marginBottom: 4
+  },
   cardNote: {
     fontSize: 13,
     color: Colors.text.secondary,
-    fontStyle: 'italic',
-    marginBottom: 8,
-    lineHeight: 18
+    fontStyle: 'italic'
   },
   cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end'
+    marginTop: 8
   },
-  planBadge: {
+  badgesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6
+  },
+  badge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12
   },
-  planBadgeText: {
+  badgeText: {
     fontSize: 11,
-    fontWeight: '600'
+    fontWeight: '600',
+    color: Colors.text.primary
+  },
+
+  // Boş Durum
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 48
+  },
+  emptyIcon: {
+    fontSize: 48,
+    marginBottom: 16
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: Colors.text.primary,
+    marginBottom: 8
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: 20
   },
 
   // Modal
@@ -625,6 +710,14 @@ const styles = StyleSheet.create({
     color: Colors.text.primary,
     marginBottom: 12
   },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: Colors.neutral[300],
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: Colors.background
+  },
   filterOption: {
     padding: 12,
     borderRadius: 8,
@@ -644,29 +737,7 @@ const styles = StyleSheet.create({
   filterOptionTextActive: {
     color: Colors.primary[700],
     fontWeight: '600'
-  },
-
-  // Boş Durum
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 48
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
-    marginBottom: 8
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: Colors.text.secondary,
-    textAlign: 'center',
-    lineHeight: 20
   }
 });
 
-export default HarcamaListesiScreen;
+export default TumHarcamalarScreen;

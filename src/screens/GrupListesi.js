@@ -45,6 +45,22 @@ export default function GroupListScreen({ navigation, route }) {
 
   const handleHousePress = (house) => {
     const redirectTo = route?.params?.redirectTo;
+    
+    // Yeni harcama ekranları
+    if (redirectTo === 'PlanliOdemeler') {
+      navigation.navigate('PlanliOdemeler', { houseId: house.id, houseName: house.name });
+      return;
+    }
+    if (redirectTo === 'TumHarcamalar') {
+      navigation.navigate('TumHarcamalar', { houseId: house.id, houseName: house.name });
+      return;
+    }
+    if (redirectTo === 'HarcamaOzeti') {
+      navigation.navigate('HarcamaOzeti', { houseId: house.id, houseName: house.name });
+      return;
+    }
+    
+    // Mevcut ekranlar
     if (redirectTo === 'ExpensesScreen' || redirectTo === 'Harcamalar') {
       navigation.replace('Harcamalar', { houseId: house.id, houseName: house.name });
       return;
@@ -65,6 +81,8 @@ export default function GroupListScreen({ navigation, route }) {
       navigation.replace('OdemeEkle', { houseId: house.id, houseName: house.name });
       return;
     }
+    
+    // Varsayılan: Ev üyeleri ekranına git
     navigation.navigate('EvUyeleri', {
       houseId: house.id,
       houseName: house.name

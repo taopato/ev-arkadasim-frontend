@@ -1,6 +1,5 @@
-// src/screens/ExpensesScreen.js
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, ActionSheetIOS, Alert, Platform } from 'react-native';
 import { Colors } from '../constants/Colors';
 import { expensesApi } from '../services/api';
 import { normalizeExpense, NON_BILL_KEYS } from '../utils/expenseClassifier';
@@ -12,8 +11,25 @@ const ExpensesScreen = ({ route, navigation }) => {
   const { houseId: routeHouseId } = route.params || {};
   const houseId = routeHouseId || user?.defaultHouseId;
 
+  // Para formatlaması - Türk Lirası standardı
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('tr-TR', {
+      style: 'currency',
+      currency: 'TRY',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  };
+
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // Yardımcı: kayıt tarihini oku
+  const getItemDate = (x) => {
+    const r = x?._raw || {};
+    const v = x?.date || r.kayitTarihi || r.postDate || r.createdDate || x?.kayitTarihi || x?.postDate || x?.createdDate;
+    return new Date(v || 0);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -21,37 +37,82 @@ const ExpensesScreen = ({ route, navigation }) => {
       const res = await expensesApi.getByHouse(houseId);
       const data = res?.data?.data ?? res?.data ?? [];
       const list = Array.isArray(data) ? data.map(normalizeExpense) : [];
+
+      // 🔹 Günlük harcamalar: sadece NON_BILL_KEYS (Market, Food, Other)
+      // 🔹 Plan öğelerini tamamen dışla: parent çocukları ve plan sinyali olan single kayıtlar
       const filtered = list.filter(x => {
-        // Yalnız tek seferlikler: Market, Food, Other
-        if (!NON_BILL_KEYS.includes(x.key)) return false;
-        // Taksit çocuklarını ele: parentExpenseId varsa gösterme
         const raw = x._raw || {};
+        const key = x.key; // normalizeExpense key
+        // yalnız günlük türler
+        if (!NON_BILL_KEYS.includes(key)) return false;
+
+        // plan/child tespiti
         const hasParent = raw.parentExpenseId != null || raw.ParentExpenseId != null;
-        if (hasParent) return false;
+        const isPlannedSignal =
+          Number(raw.installmentCount ?? raw.InstallmentCount ?? 0) > 1 ||
+          (raw.dueDay ?? raw.DueDay ?? null) != null ||
+          (raw.planStartMonth ?? raw.PlanStartMonth ?? raw.startMonth ?? raw.StartMonth ?? null) != null;
+
+        if (hasParent) return false;       // planın çocuğuysa gösterme
+        if (isPlannedSignal) return false; // plan sinyali taşıyorsa (tekil olsa da) gösterme
+
         return true;
       });
-      setItems(filtered.sort((a, b) => (new Date(b.date || 0) - new Date(a.date || 0))));
+
+      setItems(filtered.sort((a, b) => getItemDate(b) - getItemDate(a)));
     } catch (e) {
-      // noop: basit ekran
+      // noop
     } finally { setLoading(false); }
   };
 
   useEffect(() => { if (houseId) load(); }, [houseId]);
 
+  // Yeni harcama türü seçimi
+  const showHarcamaOptions = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions({
+        options: ['İptal', 'Günlük Harcama', 'Düzenli Gider'],
+        cancelButtonIndex: 0,
+        title: 'Yeni Harcama Türü Seçin'
+      }, (buttonIndex) => {
+        if (buttonIndex === 1) {
+          navigation.navigate('HarcamaEkle', { houseId, houseName: 'Ev' });
+        } else if (buttonIndex === 2) {
+          navigation.navigate('DuzenliGiderEkle', { houseId, houseName: 'Ev' });
+        }
+      });
+    } else {
+      // Android için Alert
+      Alert.alert(
+        'Yeni Harcama Türü Seçin',
+        'Hangi tür harcama eklemek istiyorsunuz?',
+        [
+          { text: 'İptal', style: 'cancel' },
+          { text: 'Günlük Harcama', onPress: () => navigation.navigate('HarcamaEkle', { houseId, houseName: 'Ev' }) },
+          { text: 'Düzenli Gider', onPress: () => navigation.navigate('DuzenliGiderEkle', { houseId, houseName: 'Ev' }) }
+        ]
+      );
+    }
+  };
+
   const renderItem = ({ item }) => {
     const color = getCategoryColor(item.key);
     const icon = getCategoryIcon(item.key);
     return (
-      <View style={[styles.card, { borderLeftColor: color }]}>
+      <TouchableOpacity
+        style={[styles.card, { borderLeftColor: color }]}
+        activeOpacity={0.85}
+        onPress={() => navigation.navigate('HarcamaDetayi', { expenseId: item.id, houseId })}
+      >
         <View style={styles.row}>
           <Text style={styles.icon}>{icon}</Text>
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>{item.title}</Text>
             <Text style={styles.sub}>{item.date ? new Date(item.date).toLocaleDateString('tr-TR') : '-'}</Text>
           </View>
-          <Text style={styles.amount}>{item.amount.toFixed(2)} ₺</Text>
+          <Text style={styles.amount}>{formatCurrency(item.amount)}</Text>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -66,7 +127,7 @@ const ExpensesScreen = ({ route, navigation }) => {
         ListHeaderComponent={
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Harcama Listesi</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('NewRecurringChargeScreen', { houseId, defaultMode: 'irregular' })} activeOpacity={0.85}>
+            <TouchableOpacity onPress={showHarcamaOptions} activeOpacity={0.85}>
               <Text style={styles.link}>+ Yeni Harcama</Text>
             </TouchableOpacity>
           </View>

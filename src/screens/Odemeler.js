@@ -185,7 +185,7 @@ const PaymentsScreen = ({ route, navigation }) => {
         <Text style={styles.sub}>{date ? new Date(date).toLocaleString('tr-TR') : '-'}</Text>
         {note ? <Text style={styles.note}>📝 {note}</Text> : null}
         <Text style={styles.sub}>💳 {trMethod}</Text>
-        <Text style={[styles.amount, { color }]}>{amount.toFixed(2)} ₺ • {statusText}</Text>
+        <Text style={[styles.amount, { color }]}>{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)} • {statusText}</Text>
       </View>
     );
   };

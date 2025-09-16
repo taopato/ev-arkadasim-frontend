@@ -6,7 +6,15 @@ import { Colors } from '../constants/Colors';
 import { houseApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
-const fmt = (n) => `${Number(n || 0).toFixed(2)} ₺`;
+// Para formatlaması - Türk Lirası standardı
+const fmt = (n) => {
+  return new Intl.NumberFormat('tr-TR', {
+    style: 'currency',
+    currency: 'TRY',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(Number(n || 0));
+};
 
 const DebtSummaryScreen = ({ route }) => {
   const { user } = useAuth();

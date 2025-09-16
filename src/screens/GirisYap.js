@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { authApi } from '../services/api';
 import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
 
-const LoginScreen = ({ navigation }) => {
+const GirisYap = ({ navigation }) => {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -146,4 +146,4 @@ const styles = StyleSheet.create({
   link: { color: '#0ea5e9', marginTop: 12, textAlign: 'center' },
 });
 
-export default LoginScreen;
+export default GirisYap;
