@@ -29,8 +29,8 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.grid}>
           <View style={[styles.gridItemFull]}>
             <NavButton
-              title="Ev Gruplarım"
-              subtitle="Grupları görüntüle/oluştur"
+              title="Evlerim"
+              subtitle="Üye olduğum evler"
               emoji="🏘️"
               color={Colors.primary[600]}
               onPress={() => navigation.navigate('GrupListesi')}
@@ -38,18 +38,18 @@ const HomeScreen = ({ navigation }) => {
           </View>
           <View style={styles.gridItem}>
             <NavButton
-              title="Planlı Ödemeler"
+              title="Faturalar (Planlı)"
               subtitle="Bu ay ödenecekler"
               emoji="📅"
               color={Colors.warning[600]}
               onPress={() => {
-                navigation.navigate('GrupListesi', { redirectTo: 'PlanliOdemeler' });
+                navigation.navigate('GrupListesi', { redirectTo: 'BillsOverviewScreen' });
               }}
             />
           </View>
           <View style={styles.gridItem}>
             <NavButton
-              title="Tüm Harcamalar"
+              title="Harcamalar (Serbest)"
               subtitle="Tam hareket dökümü"
               emoji="📋"
               color={Colors.info[600]}
@@ -60,22 +60,13 @@ const HomeScreen = ({ navigation }) => {
           </View>
           <View style={styles.gridItem}>
             <NavButton
-              title="Harcama Özeti"
-              subtitle="Analitik & denge"
+              title="Analitik"
+              subtitle="Grafikler & özetler"
               emoji="📊"
               color={Colors.success[600]}
               onPress={() => {
                 navigation.navigate('GrupListesi', { redirectTo: 'HarcamaOzeti' });
               }}
-            />
-          </View>
-          <View style={styles.gridItem}>
-            <NavButton
-              title="Düzenli Gider Ekle"
-              subtitle="Kira, internet vb."
-              emoji="🧾"
-              color={Colors.success[700]}
-              onPress={() => setBillModalVisible(true)}
             />
           </View>
           <View style={styles.gridItem}>
@@ -91,8 +82,19 @@ const HomeScreen = ({ navigation }) => {
           </View>
           <View style={styles.gridItem}>
             <NavButton
-              title="Bekleyen Ödemeler"
-              subtitle="Onay veya red işlemleri"
+              title="Borç–Alacak"
+              subtitle="Net bakiyeler"
+              emoji="💰"
+              color={Colors.info[600]}
+              onPress={() => {
+                navigation.navigate('GrupListesi', { redirectTo: 'DebtSummaryScreen' });
+              }}
+            />
+          </View>
+          <View style={styles.gridItem}>
+            <NavButton
+              title="Bekleyen İşlemler"
+              subtitle="Onay bekleyenler"
               emoji="⏳"
               color={Colors.neutral[600]}
               onPress={() => navigation.navigate('BekleyenOdemeler', { userId: user?.id })}

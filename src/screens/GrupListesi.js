@@ -51,6 +51,10 @@ export default function GroupListScreen({ navigation, route }) {
       navigation.navigate('PlanliOdemeler', { houseId: house.id, houseName: house.name });
       return;
     }
+    if (redirectTo === 'BillsOverviewScreen') {
+      navigation.navigate('BillsOverviewScreen', { houseId: house.id, houseName: house.name });
+      return;
+    }
     if (redirectTo === 'TumHarcamalar') {
       navigation.navigate('TumHarcamalar', { houseId: house.id, houseName: house.name });
       return;
@@ -79,6 +83,18 @@ export default function GroupListScreen({ navigation, route }) {
     }
     if (redirectTo === 'CreatePaymentScreen' || redirectTo === 'OdemeEkle') {
       navigation.replace('OdemeEkle', { houseId: house.id, houseName: house.name });
+      return;
+    }
+    if (redirectTo === 'DebtSummaryScreen') {
+      navigation.navigate('DebtSummaryScreen', { houseId: house.id, houseName: house.name });
+      return;
+    }
+    if (redirectTo === 'HarcamaEkle') {
+      navigation.navigate('HarcamaEkle', { houseId: house.id, houseName: house.name });
+      return;
+    }
+    if (redirectTo === 'DuzenliGiderEkle') {
+      navigation.navigate('DuzenliGiderEkle', { houseId: house.id, houseName: house.name });
       return;
     }
     

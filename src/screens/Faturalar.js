@@ -1,5 +1,6 @@
+// BillsOverviewScreen.js
 // Planlı Giderler — yalnızca içinde bulunulan ayın, bugün/öncesi kayıtları.
-// Plan parent (başlık) her durumda gizlenir. Her plan için ayda en fazla 1 çocuk gösterilir.
+// Plan parent (başlık) gizlenir. Her plan için ayda en fazla 1 çocuk gösterilir.
 // Sıralama: tarih DESC, eşitlikte id DESC.
 
 import React, { useEffect, useMemo, useRef } from "react";
@@ -85,24 +86,17 @@ export default function BillsOverviewScreen({ navigation, route }) {
   const detailRouteName = route?.params?.detailScreenName || "HarcamaDetayi";
   const { user } = useAuth();
   const [loading, setLoading] = React.useState(false);
-  const [toast, setToast] = React.useState({
-    visible: false,
-    message: "",
-    type: "success",
-  });
+  const [toast, setToast] = React.useState({ visible: false, message: "", type: "success" });
   const [items, setItems] = React.useState([]);
   const lastFetchedAtRef = useRef(0);
   const debounceRef = useRef(null);
-  const { listRef, handleScroll } = useScrollRestore(
-    `BillsOverviewScreen:${houseId ?? "all"}`
-  );
+  const { listRef, handleScroll } = useScrollRestore(`BillsOverviewScreen:${houseId ?? "all"}`);
 
   // (isteğe bağlı) basit filtre state'leri
   const [category, setCategory] = React.useState(null);
   const [paidFilter, setPaidFilter] = React.useState("all"); // all | paid | unpaid
 
-  const showToast = (message, type = "success") =>
-    setToast({ visible: true, message, type });
+  const showToast = (message, type = "success") => setToast({ visible: true, message, type });
   const hideToast = () => setToast((p) => ({ ...p, visible: false }));
 
   const fetchData = async (opts = { silent: false }) => {
@@ -110,11 +104,7 @@ export default function BillsOverviewScreen({ navigation, route }) {
     if (!opts?.silent) setLoading(true);
     try {
       const resExp = await expensesApi.getByHouse(Number(houseId));
-      const rawExp =
-        resExp?.data?.data ??
-        resExp?.data?.list ??
-        resExp?.data ??
-        [];
+      const rawExp = resExp?.data?.data ?? resExp?.data?.list ?? resExp?.data ?? [];
       const arrExp = Array.isArray(rawExp) ? rawExp : [];
 
       // normalize
@@ -123,15 +113,14 @@ export default function BillsOverviewScreen({ navigation, route }) {
       const now = new Date();
       const { start: monthStart, end: monthEnd } = getMonthWindow(now);
 
+      // 🔹 Yeni filtre mantığı
       const candidates = normalized.filter((x) => {
         const raw = x._raw || {};
-        const parentId =
-          raw.parentExpenseId ?? raw.ParentExpenseId ?? null;
+        const parentId = raw.parentExpenseId ?? raw.ParentExpenseId ?? null;
 
         // plan sinyal/çocuk tespiti
         const isChild = parentId != null;
-        const installmentCount =
-          Number(raw.installmentCount ?? raw.InstallmentCount ?? 0);
+        const installmentCount = Number(raw.installmentCount ?? raw.InstallmentCount ?? 0);
         const hasPlanSignals =
           installmentCount > 1 ||
           (raw.dueDay ?? raw.DueDay ?? null) != null ||
@@ -162,17 +151,11 @@ export default function BillsOverviewScreen({ navigation, route }) {
       const pickMap = new Map();
       for (const it of candidates) {
         const raw = it._raw || {};
-        const parentId =
-          raw.parentExpenseId ?? raw.ParentExpenseId ?? null;
+        const parentId = raw.parentExpenseId ?? raw.ParentExpenseId ?? null;
         const d = getItemDate(it);
-        const ym = `${d.getUTCFullYear()}-${String(
-          d.getUTCMonth() + 1
-        ).padStart(2, "0")}`;
+        const ym = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 
-        const key =
-          parentId != null
-            ? `p-${parentId}-${ym}`
-            : `s-${it.id || raw.id || `${it.title}-${ym}`}`;
+        const key = parentId != null ? `p-${parentId}-${ym}` : `s-${it.id || raw.id || `${it.title}-${ym}`}`;
 
         const prev = pickMap.get(key);
         if (!prev) {
@@ -183,9 +166,7 @@ export default function BillsOverviewScreen({ navigation, route }) {
         }
       }
 
-      const onlyThisMonth = Array.from(pickMap.values()).sort(
-        cmpByDateThenIdDesc
-      );
+      const onlyThisMonth = Array.from(pickMap.values()).sort(cmpByDateThenIdDesc);
 
       setItems(onlyThisMonth);
       lastFetchedAtRef.current = Date.now();
@@ -198,9 +179,7 @@ export default function BillsOverviewScreen({ navigation, route }) {
     }
   };
 
-  useEffect(() => {
-    fetchData({ silent: false });
-  }, [houseId]);
+  useEffect(() => { fetchData({ silent: false }); }, [houseId]);
 
   useEffect(() => {
     const onUpdated = ({ houseId: changedId }) => {
@@ -223,15 +202,12 @@ export default function BillsOverviewScreen({ navigation, route }) {
       const elapsed = Date.now() - (lastFetchedAtRef.current || 0);
       if (elapsed < 2 * 60 * 1000) return;
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(
-        () => fetchData({ silent: true }),
-        400
-      );
-      return () =>
-        debounceRef.current && clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => fetchData({ silent: true }), 400);
+      return () => debounceRef.current && clearTimeout(debounceRef.current);
     }, [houseId])
   );
 
+  // (opsiyonel) ek filtre
   const filtered = useMemo(() => {
     return items.filter((b) => {
       if (category && toUtilityKey(b.key) !== category) return false;
@@ -248,19 +224,12 @@ export default function BillsOverviewScreen({ navigation, route }) {
   }, [items, category, paidFilter]);
 
   const totals = useMemo(() => {
-    const all = filtered.reduce(
-      (s, b) => s + (Number(b.amount) || 0),
-      0
-    );
+    const all = filtered.reduce((s, b) => s + (Number(b.amount) || 0), 0);
     return { all };
   }, [filtered]);
 
   const handleAddBill = () => {
-    navigation.navigate("NewRecurringChargeScreen", {
-      houseId,
-      houseName,
-      defaultMode: "recurring",
-    });
+    navigation.navigate("NewRecurringChargeScreen", { houseId, houseName, defaultMode: "recurring" });
   };
 
   if (loading && items.length === 0) {
@@ -294,9 +263,7 @@ export default function BillsOverviewScreen({ navigation, route }) {
         <View style={styles.summaryRow}>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>Toplam Fatura</Text>
-            <Text style={styles.summaryAmount}>
-              {formatAmount(totals.all)}
-            </Text>
+            <Text style={styles.summaryAmount}>{formatAmount(totals.all)}</Text>
           </View>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>Fatura Sayısı</Text>
@@ -314,19 +281,8 @@ export default function BillsOverviewScreen({ navigation, route }) {
                 : "Bu ay için görünür planlı gider bulunmuyor."}
             </Text>
             {!loading && (
-              <TouchableOpacity
-                onPress={handleAddBill}
-                style={styles.resetBtn}
-              >
-                <Text
-                  style={{
-                    fontSize: 12,
-                    fontWeight: "600",
-                    color: "#fff",
-                  }}
-                >
-                  + Düzenli Gider Ekle
-                </Text>
+              <TouchableOpacity onPress={handleAddBill} style={styles.resetBtn}>
+                <Text style={{ fontSize: 12, fontWeight: "600", color: "#fff" }}>+ Düzenli Gider Ekle</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -338,13 +294,9 @@ export default function BillsOverviewScreen({ navigation, route }) {
               const meta = UTILITY_META[keyK] || UTILITY_META.Other;
               const titleSuffix = (() => {
                 const raw = it._raw || {};
-                const idxNo =
-                  raw.installmentIndex || raw.InstallmentIndex || null;
-                const cnt =
-                  raw.installmentCount || raw.InstallmentCount || null;
-                return idxNo != null && cnt != null
-                  ? ` • Taksit ${idxNo}/${cnt}`
-                  : "";
+                const idxNo = raw.installmentIndex || raw.InstallmentIndex || null;
+                const cnt = raw.installmentCount || raw.InstallmentCount || null;
+                return idxNo != null && cnt != null ? ` • Taksit ${idxNo}/${cnt}` : "";
               })();
 
               return (
@@ -365,8 +317,7 @@ export default function BillsOverviewScreen({ navigation, route }) {
                   </View>
                   <View style={CommonStyles.listItemContent}>
                     <Text style={CommonStyles.listItemTitle}>
-                      {meta.label}
-                      {titleSuffix}
+                      {meta.label}{titleSuffix}
                     </Text>
                     <Text style={CommonStyles.listItemSubtitle}>
                       Tarih: {d.toLocaleDateString("tr-TR")}
@@ -382,12 +333,7 @@ export default function BillsOverviewScreen({ navigation, route }) {
             })}
           </View>
         )}
-        <Toast
-          visible={toast.visible}
-          message={toast.message}
-          type={toast.type}
-          onHide={hideToast}
-        />
+        <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={hideToast} />
       </ScrollView>
     </View>
   );
@@ -424,15 +370,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     elevation: 2,
   },
-  summaryLabel: {
-    fontSize: 12,
-    color: Colors.text?.secondary || "#666",
-  },
-  summaryAmount: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: Colors.text?.primary || "#111",
-  },
+  summaryLabel: { fontSize: 12, color: Colors.text?.secondary || "#666" },
+  summaryAmount: { fontSize: 16, fontWeight: "700", color: Colors.text?.primary || "#111" },
   iconCircle: {
     width: 40,
     height: 40,
@@ -448,11 +387,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   emptyIcon: { fontSize: 32, marginBottom: 8 },
-  emptyText: {
-    fontSize: 14,
-    color: Colors.text?.secondary || "#666",
-    marginBottom: 8,
-  },
+  emptyText: { fontSize: 14, color: Colors.text?.secondary || "#666", marginBottom: 8 },
   resetBtn: {
     paddingHorizontal: 12,
     paddingVertical: 8,

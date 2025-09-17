@@ -24,12 +24,15 @@ import DilAyarlari from '../screens/DilAyarlari';
 import TemaAyarlari from '../screens/TemaAyarlari';
 import OdemeEkle from '../screens/OdemeEkle';
 import LedgerDetailScreen from '../screens/DefterDetayi';
+import GrupListesi from '../screens/GrupListesi';
+import EvUyeleri from '../screens/EvUyeleri';
+import AlacakBorcIcmi from '../screens/AlacakBorcIcmi';
 
 // Yeni Harcama Ekranları
 import TumHarcamalarTestScreen from '../screens/TumHarcamalarTest';
+import HarcamaEkle from '../screens/HarcamaEkle';
+import DuzenliGiderEkle from '../screens/DuzenliGiderEkle';
 // import HarcamaDetayi from '../screens/HarcamaDetayi';
-// import HarcamaEkle from '../screens/HarcamaEkle';
-// import DuzenliGiderEkle from '../screens/DuzenliGiderEkle';
 
 const Stack = createNativeStackNavigator();
 
@@ -65,11 +68,16 @@ const AppNavigator = () => {
             <Stack.Screen name="DebtSummaryScreen" component={BorcAlacakOzeti} options={{ title: 'Borç/Alacak Özeti' }} />
             <Stack.Screen name="LedgerDetail" component={LedgerDetailScreen} options={{ title: 'Borç/Alacak Detayları' }} />
             
+            {/* Ev Yönetimi */}
+            <Stack.Screen name="GrupListesi" component={GrupListesi} options={{ title: 'Ev Gruplarım' }} />
+            <Stack.Screen name="EvUyeleri" component={EvUyeleri} options={{ title: 'Ev Üyeleri' }} />
+            <Stack.Screen name="AlacakBorcIcmi" component={AlacakBorcIcmi} options={{ title: 'Borç/Alacak Detayı' }} />
+            
             {/* Yeni Harcama Ekranları */}
             <Stack.Screen name="TumHarcamalar" component={TumHarcamalarTestScreen} options={{ title: 'Tüm Harcamalar' }} />
-            {/* <Stack.Screen name="HarcamaDetayi" component={HarcamaDetayi} options={{ title: 'Harcama Detayı' }} />
             <Stack.Screen name="HarcamaEkle" component={HarcamaEkle} options={{ title: 'Harcama Ekle' }} />
-            <Stack.Screen name="DuzenliGiderEkle" component={DuzenliGiderEkle} options={{ title: 'Düzenli Gider Ekle' }} /> */}
+            <Stack.Screen name="DuzenliGiderEkle" component={DuzenliGiderEkle} options={{ title: 'Düzenli Gider Ekle' }} />
+            {/* <Stack.Screen name="HarcamaDetayi" component={HarcamaDetayi} options={{ title: 'Harcama Detayı' }} /> */}
           </>
         )}
       </Stack.Navigator>

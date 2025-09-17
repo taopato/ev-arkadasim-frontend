@@ -41,11 +41,29 @@ const DebtSummaryScreen = ({ route }) => {
           const totalsArr = Array.isArray(body.totals) ? body.totals : [];
           const my = totalsArr.find((t) => Number(t.userId) === me) || {};
 
+          // Üye isimlerini al
+          let nameById = new Map();
+          try {
+            const memRes = await houseApi.getMembers(houseId);
+            const members = memRes?.data?.data ?? memRes?.data ?? [];
+            nameById = new Map(
+              members
+                .map(m => ({
+                  id: Number(m.userId ?? m.user?.id ?? m.id),
+                  name: m.fullName ?? m.name ?? m.user?.fullName ?? `Kullanıcı #${m.userId ?? m.id ?? '?'}`
+                }))
+                .filter(x => Number.isFinite(x.id))
+                .map(x => [x.id, x.name])
+            );
+          } catch (error) {
+            console.error('Üye isimleri alınamadı:', error);
+          }
+
           const recv = pairs
             .filter((p) => Number(p.toUserId) === me && Number(p.netAmount) > 0)
             .map((p) => ({
               userId: Number(p.fromUserId),
-              name: p.fromUserName || p.fromFullName || p.fromName || `Kullanıcı #${p.fromUserId}`,
+              name: p.fromUserName || p.fromFullName || p.fromName || nameById.get(Number(p.fromUserId)) || `Kullanıcı #${p.fromUserId}`,
               amount: Number(p.netAmount),
             }));
 
@@ -53,7 +71,7 @@ const DebtSummaryScreen = ({ route }) => {
             .filter((p) => Number(p.fromUserId) === me && Number(p.netAmount) > 0)
             .map((p) => ({
               userId: Number(p.toUserId),
-              name: p.toUserName || p.toFullName || p.toName || `Kullanıcı #${p.toUserId}`,
+              name: p.toUserName || p.toFullName || p.toName || nameById.get(Number(p.toUserId)) || `Kullanıcı #${p.toUserId}`,
               amount: Number(p.netAmount),
             }));
 
@@ -69,12 +87,39 @@ const DebtSummaryScreen = ({ route }) => {
 
         // Eski şema: kullaniciBazliDurumlar/toplamAlacak/toplamBorc/netDurum
         const arr = Array.isArray(body.kullaniciBazliDurumlar) ? body.kullaniciBazliDurumlar : [];
+        
+        // Üye isimlerini al (eski şema için de)
+        let nameById = new Map();
+        try {
+          const memRes = await houseApi.getMembers(houseId);
+          const members = memRes?.data?.data ?? memRes?.data ?? [];
+          nameById = new Map(
+            members
+              .map(m => ({
+                id: Number(m.userId ?? m.user?.id ?? m.id),
+                name: m.fullName ?? m.name ?? m.user?.fullName ?? `Kullanıcı #${m.userId ?? m.id ?? '?'}`
+              }))
+              .filter(x => Number.isFinite(x.id))
+              .map(x => [x.id, x.name])
+          );
+        } catch (error) {
+          console.error('Üye isimleri alınamadı:', error);
+        }
+        
         const recv = arr
           .filter((p) => Number(p.amount) < 0)
-          .map((p) => ({ userId: Number(p.userId), name: p.userName || p.fullName || `Kullanıcı #${p.userId}` , amount: Math.abs(Number(p.amount)) }));
+          .map((p) => ({ 
+            userId: Number(p.userId), 
+            name: p.userName || p.fullName || nameById.get(Number(p.userId)) || `Kullanıcı #${p.userId}`, 
+            amount: Math.abs(Number(p.amount)) 
+          }));
         const dbt = arr
           .filter((p) => Number(p.amount) > 0)
-          .map((p) => ({ userId: Number(p.userId), name: p.userName || p.fullName || `Kullanıcı #${p.userId}` , amount: Number(p.amount) }));
+          .map((p) => ({ 
+            userId: Number(p.userId), 
+            name: p.userName || p.fullName || nameById.get(Number(p.userId)) || `Kullanıcı #${p.userId}`, 
+            amount: Number(p.amount) 
+          }));
         setReceivables(recv);
         setDebts(dbt);
         setTotals({

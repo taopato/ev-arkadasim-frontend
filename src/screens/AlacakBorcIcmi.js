@@ -13,7 +13,7 @@ import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
 import { Colors } from '../../constants/Colors';
 
 export default function AlacakBorcIcmiScreen({ route, navigation }) {
-  const { userId, houseId } = route.params;
+  const { userId, houseId, userName } = route.params;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -45,7 +45,7 @@ export default function AlacakBorcIcmiScreen({ route, navigation }) {
           <>
             <View style={CommonStyles.header}>
               <Text style={CommonStyles.title}>Borç/Alacak Detayı</Text>
-              <Text style={CommonStyles.subtitle}>Kullanıcının borç ve alacak durumu</Text>
+              <Text style={CommonStyles.subtitle}>{userName || 'Kullanıcı'} - Borç ve alacak durumu</Text>
             </View>
 
             <View style={CommonStyles.card}>
