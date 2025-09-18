@@ -13,6 +13,11 @@ export const CATEGORY_ID_TO_KEY = {
   99: 'Other',
 };
 
+// Ters eşleme: FE → BE (form gönderimleri için gerekli olabilir)
+export const CATEGORY_KEY_TO_ID = Object.fromEntries(
+  Object.entries(CATEGORY_ID_TO_KEY).map(([id, key]) => [key, Number(id)])
+);
+
 // “Fatura” sayfasında gösterilecek anahtarlar
 export const BILL_KEYS = ['Water', 'Electricity', 'Rent', 'Gas', 'Internet'];
 
@@ -48,12 +53,49 @@ export const normalizeExpense = (raw) => {
   // Tarih: Backend artık çocuk satırların tarihini doğru ayarlıyor
   const dateStr = raw?.kayitTarihi ?? raw?.KayitTarihi ?? raw?.createdDate ?? raw?.CreatedDate ?? raw?.postDate ?? raw?.PostDate;
 
+  // 1) CategoryId / Category / UtilityType öncelikli
   let key;
-  if (raw?.category !== undefined && raw?.category !== null) {
-    key = CATEGORY_ID_TO_KEY[Number(raw.category)];
+  const categoryIdCandidate =
+    raw?.categoryId ??
+    raw?.CategoryId ??
+    (typeof raw?.category === 'number' ? raw?.category : undefined) ??
+    (typeof raw?.Category === 'number' ? raw?.Category : undefined);
+
+  if (categoryIdCandidate != null) {
+    const mapped = CATEGORY_ID_TO_KEY[Number(categoryIdCandidate)];
+    if (mapped) key = mapped;
   }
+
   if (!key) {
-    // RecurringCharges için type alanını da kontrol et
+    const categoryNameCandidate =
+      (typeof raw?.category === 'string' && raw?.category) ||
+      (typeof raw?.Category === 'string' && raw?.Category) ||
+      (typeof raw?.utilityType === 'string' && raw?.utilityType) ||
+      (typeof raw?.UtilityType === 'string' && raw?.UtilityType) ||
+      undefined;
+    if (categoryNameCandidate) {
+      const lower = String(categoryNameCandidate).toLowerCase();
+      // Doğrudan İngilizce enum ismi eşleşmesi
+      const direct = Object.keys(CATEGORY_KEY_TO_ID).find(
+        (k) => k.toLowerCase() === lower ||
+          // BE varyasyonları
+          (lower === 'naturalgas' && k === 'Gas')
+      );
+      if (direct) key = direct;
+      else {
+        // Türkçe/diğer eşanlamlar → İngilizce anahtara çevir
+        if (lower.includes('kira')) key = 'Rent';
+        else if (lower.includes('elektrik') || lower.includes('electric') || lower.includes('electricity')) key = 'Electricity';
+        else if (lower === 'su' || lower.includes(' water') || lower.includes('su ' ) || lower.includes('water')) key = 'Water';
+        else if (lower.includes('doğalgaz') || lower.includes('dogalgaz') || lower.includes('naturalgas') || lower === 'gaz' || lower.includes(' gas')) key = 'Gas';
+        else if (lower.includes('internet') || lower.includes('ınternet')) key = 'Internet';
+        else if (lower.includes('diğer') || lower.includes('diger') || lower === 'other') key = 'Other';
+      }
+    }
+  }
+
+  // 2) Fallback: Tur / not / type metninden kategoriyi çıkar
+  if (!key) {
     const typeText = raw?.type || raw?.Type || '';
     key = textToKey(`${raw?.tur ?? ''} ${raw?.note ?? ''} ${typeText}`);
   }

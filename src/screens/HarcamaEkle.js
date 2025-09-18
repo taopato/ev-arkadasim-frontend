@@ -116,8 +116,12 @@ const AddExpenseScreen = ({ navigation, route }) => {
       return;
     }
 
+    const catId = toExpenseCategory(categoryKey);
     const payload = {
       tur: QUICK_EXPENSES.find(x => x.key === categoryKey)?.label || 'Harcama',
+      Tur: QUICK_EXPENSES.find(x => x.key === categoryKey)?.label || 'Harcama',
+      categoryId: catId,
+      CategoryId: catId,
       tutar: amountNum,
       houseId: Number(houseId),
       odeyenUserId: Number(payerId),

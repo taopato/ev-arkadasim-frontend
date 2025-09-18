@@ -1,16 +1,8 @@
 // src/screens/AddBillScreen.js
 import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  ScrollView,
-  Animated,
-  Platform,
-  TextInput,
-  Keyboard
+  View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
+  ScrollView, Animated, Platform, TextInput, Keyboard
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { KeyboardAvoidingView } from 'react-native';
@@ -21,29 +13,15 @@ import { houseApi, expensesApi } from '../services/api';
 import Toast from '../components/Toast';
 import { toExpenseCategory } from '../constants/ExpenseEnums';
 
-// Kategori → Türkçe görünüm
 const getCategoryDisplayName = (category) => {
   const categoryMap = {
-    'Electricity': 'Elektrik',
-    'Water': 'Su',
-    'Internet': 'İnternet',
-    'Rent': 'Kira',
-    'Gas': 'Doğalgaz',
-    'Market': 'Market',
-    'Food': 'Yemek',
-    'Other': 'Diğer',
-    0: 'Kira',
-    1: 'İnternet',
-    2: 'Elektrik',
-    3: 'Su',
-    4: 'Doğalgaz',
-    5: 'Yemek',
-    99: 'Diğer',
+    Electricity: 'Elektrik', Water: 'Su', Internet: 'İnternet', Rent: 'Kira', Gas: 'Doğalgaz',
+    Market: 'Market', Food: 'Yemek', Other: 'Diğer',
+    0: 'Kira', 1: 'İnternet', 2: 'Elektrik', 3: 'Su', 4: 'Doğalgaz', 5: 'Yemek', 99: 'Diğer',
   };
   return categoryMap[category] || category;
 };
 
-// Fatura türleri
 const BILL_TYPES = [
   { key: 'Water', label: '💧 Su', isFixed: false, description: 'Değişken harcama - Aylık değişir' },
   { key: 'Electricity', label: '⚡ Elektrik', isFixed: false, description: 'Değişken harcama - Aylık değişir' },
@@ -56,41 +34,26 @@ const BILL_TYPES = [
 const AddBillScreen = ({ route, navigation }) => {
   const { houseId, houseName, billId, isEditing } = route.params || {};
   const { user } = useAuth();
-  
-  // 🔍 Debug: Hangi yoldan geldiğini göster
-  console.log('🔍 AddBillScreen açıldı:', {
-    houseId,
-    houseName,
-    billId,
-    isEditing,
-    routeName: route?.name,
-    params: route?.params
-  });
 
-  // UI & data states
   const [loading, setLoading] = useState(false);
   const [members, setMembers] = useState([]);
 
-  // Form
   const [amount, setAmount] = useState('100.00');
-  const [billDate, setBillDate] = useState('');         // YYYY-MM-DD
-  const [month, setMonth] = useState('');               // YYYY-MM (billDate'den hesaplanacak)
-  const [note, setNote] = useState('');                 // Şimdilik göndermiyoruz (DB Note kolon hatası)
+  const [billDate, setBillDate] = useState(''); // YYYY-MM-DD
+  const [month, setMonth] = useState('');       // YYYY-MM
+  const [note, setNote] = useState('');
   const [billType, setBillType] = useState('Water');
   const [responsibleUserId, setResponsibleUserId] = useState(null);
   const [isRecurring, setIsRecurring] = useState(false);
 
-  // Toast
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
 
-  // Animasyon
   const [fadeAnim] = useState(new Animated.Value(0));
   const [slideAnim] = useState(new Animated.Value(50));
 
   const showToast = (message, type = 'success') => setToast({ visible: true, message, type });
   const hideToast = () => setToast(prev => ({ ...prev, visible: false }));
 
-  // Üye verilerini normalize et
   const normalizeMembers = (raw) =>
     (Array.isArray(raw) ? raw : [])
       .map(m => ({
@@ -105,8 +68,6 @@ const AddBillScreen = ({ route, navigation }) => {
       navigation.goBack();
       return;
     }
-
-    // Varsayılan tarih: bugün
     const now = new Date();
     const y = now.getFullYear();
     const m = String(now.getMonth() + 1).padStart(2, '0');
@@ -115,11 +76,8 @@ const AddBillScreen = ({ route, navigation }) => {
     setBillDate(today);
     setMonth(`${y}-${m}`);
 
-    // İlk yüklemeler
     fetchMembers();
-    if (isEditing && billId) {
-      fetchBillData();
-    }
+    if (isEditing && billId) fetchBillData();
 
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: Platform.OS !== 'web' }),
@@ -127,34 +85,20 @@ const AddBillScreen = ({ route, navigation }) => {
     ]).start();
   }, [houseId, billId, isEditing]);
 
-  // Ekran odaklandığında üye listesini yenile
   useFocusEffect(
-    React.useCallback(() => {
-      if (houseId) {
-        fetchMembers();
-      }
-    }, [houseId])
+    React.useCallback(() => { if (houseId) fetchMembers(); }, [houseId])
   );
 
   useEffect(() => {
     const selected = BILL_TYPES.find(t => t.key === billType);
     if (!selected) return;
-    if (selected.isFixed === true) {
-      setIsRecurring(true);
-      showToast(`${selected.label} - ${selected.description}`, 'info');
-    } else if (selected.isFixed === false) {
-      setIsRecurring(false);
-      showToast(`${selected.label} - ${selected.description}`, 'info');
-    } else {
-      setIsRecurring(false);
-    }
+    if (selected.isFixed === true) { setIsRecurring(true);  showToast(`${selected.label} - ${selected.description}`, 'info'); }
+    else if (selected.isFixed === false) { setIsRecurring(false); showToast(`${selected.label} - ${selected.description}`, 'info'); }
+    else { setIsRecurring(false); }
   }, [billType]);
 
-  // billDate değişince month'u türet
   useEffect(() => {
-    if (billDate && /^\d{4}-\d{2}-\d{2}$/.test(billDate)) {
-      setMonth(billDate.slice(0, 7));
-    }
+    if (billDate && /^\d{4}-\d{2}-\d{2}$/.test(billDate)) setMonth(billDate.slice(0, 7));
   }, [billDate]);
 
   const fetchMembers = async () => {
@@ -162,11 +106,9 @@ const AddBillScreen = ({ route, navigation }) => {
       const res = await houseApi.getMembers(houseId);
       const list = normalizeMembers(res?.data);
       setMembers(list);
-      // Varsayılan ödeyen: mevcut kullanıcı
       const me = list.find(x => x.userId === Number(user?.id));
       if (me) setResponsibleUserId(me.userId);
     } catch (err) {
-      console.error('🔍 Ev üyeleri alınamadı:', err);
       showToast('Ev üyeleri alınamadı', 'error');
     }
   };
@@ -178,20 +120,14 @@ const AddBillScreen = ({ route, navigation }) => {
       const bill = response?.data;
       if (!bill) return;
 
-      setAmount(
-        (bill.amount ?? bill.tutar ?? 0).toString()
-      );
+      setAmount(String(bill.amount ?? bill.tutar ?? 0));
       const pDate = bill.postDate ? String(bill.postDate).slice(0, 10) : '';
       setBillDate(pDate || billDate);
       setMonth((pDate || billDate).slice(0, 7));
       setNote(bill.note ?? '');
-
-      setBillType(
-        typeof bill.category === 'number' ? getCategoryDisplayName(bill.category) : (bill.category || 'Water')
-      );
+      setBillType(typeof bill.category === 'number' ? getCategoryDisplayName(bill.category) : (bill.category || 'Water'));
       setResponsibleUserId(bill.odeyenUserId || null);
-    } catch (err) {
-      console.error('Fatura verileri alınamadı:', err);
+    } catch {
       showToast('Fatura verileri alınamadı', 'error');
     } finally {
       setLoading(false);
@@ -200,23 +136,11 @@ const AddBillScreen = ({ route, navigation }) => {
 
   const validateForm = () => {
     const money = parseFloat(String(amount).replace(',', '.'));
-    if (Number.isNaN(money) || money <= 0) {
-      showToast('Geçerli bir tutar girin', 'warning');
-      return { ok: false };
-    }
-    if (!billDate || !/^\d{4}-\d{2}-\d{2}$/.test(billDate)) {
-      showToast('Tarih formatı YYYY-MM-DD olmalı', 'warning');
-      return { ok: false };
-    }
-    if (!responsibleUserId) {
-      showToast('Ödeyen kişi seçin', 'warning');
-      return { ok: false };
-    }
+    if (Number.isNaN(money) || money <= 0) { showToast('Geçerli bir tutar girin', 'warning'); return { ok: false }; }
+    if (!billDate || !/^\d{4}-\d{2}-\d{2}$/.test(billDate)) { showToast('Tarih formatı YYYY-MM-DD olmalı', 'warning'); return { ok: false }; }
+    if (!responsibleUserId) { showToast('Ödeyen kişi seçin', 'warning'); return { ok: false }; }
     const memberIds = new Set(members.map(m => m.userId));
-    if (!memberIds.has(Number(responsibleUserId))) {
-      showToast('Seçilen kişi ev üyesi değil', 'error');
-      return { ok: false };
-    }
+    if (!memberIds.has(Number(responsibleUserId))) { showToast('Seçilen kişi ev üyesi değil', 'error'); return { ok: false }; }
     return { ok: true, money };
   };
 
@@ -228,7 +152,6 @@ const AddBillScreen = ({ route, navigation }) => {
     setLoading(true);
     try {
       if (isEditing && billId) {
-        // Güncelleme (backend tarafında gerekli alanlar)
         const safeTur = `${getCategoryDisplayName(billType)} ${month}`.slice(0, 30);
         const updateData = {
           tur: safeTur,
@@ -236,7 +159,7 @@ const AddBillScreen = ({ route, navigation }) => {
           tutar: v.money,
           postDate: `${billDate}T00:00:00`,
           dueDate: `${billDate}T00:00:00`,
-          // NOTE: Şimdilik note göndermiyoruz (DB Note kolonu kısıtı nedeniyle).
+          // update’te Description zorunlu değilse göndermeye gerek yok
           splitPolicy: 0,
         };
         await expensesApi.update(billId, updateData);
@@ -246,7 +169,6 @@ const AddBillScreen = ({ route, navigation }) => {
         await handleCreateIrregularExpense(v.money);
       }
     } catch (e) {
-      console.error('Fatura işlemi hatası:', e);
       const serverText = String(e?.response?.data ?? e?.message ?? '');
       showToast(serverText || 'Beklenmeyen hata', 'error');
     } finally {
@@ -260,8 +182,8 @@ const AddBillScreen = ({ route, navigation }) => {
       const creatorId = Number(user?.id);
       const house = Number(houseId);
 
-      // Swagger’da çalışan minimal payload
       const safeTur = `${getCategoryDisplayName(billType)} ${month}`.slice(0, 30);
+      const desc = `${getCategoryDisplayName(billType)} • ${billDate}`; // 🔸 Description NOT NULL
 
       const payload = {
         tur: safeTur,
@@ -273,29 +195,22 @@ const AddBillScreen = ({ route, navigation }) => {
         postDate: `${billDate}T00:00:00`,
         dueDate: `${billDate}T00:00:00`,
         splitPolicy: 0,
-        personalItems: []
-        // NOTE: Note göndermiyoruz (DB kısıt hatası verdiği için).
+        personalItems: [],
+        // 🔸 zorunlu alan:
+        description: desc,
+        Description: desc,
+        Aciklama: desc,
       };
 
-      console.log('🟢 CreateIrregular payload:', payload);
       await expensesApi.createIrregular(payload);
-      // Canlı yenile: faturalar/özet/harcama listeleri güncellensin
-      try {
-        const bus = (await import('../shared/events/bus')).default;
-        bus.emit('expenses:updated', { houseId: house });
-      } catch {}
+
+      try { (await import('../shared/events/bus')).default.emit('expenses:updated', { houseId: house }); } catch {}
 
       showToast('Kayıt oluşturuldu', 'success');
-      // Güvenli dönüş
-      if (navigation?.canGoBack?.()) {
-        navigation.goBack();
-      } else {
-        navigation.navigate('Expenses', { houseId });
-      }
+      if (navigation?.canGoBack?.()) navigation.goBack();
+      else navigation.navigate('Expenses', { houseId });
     } catch (e) {
-      console.error('CreateIrregular error:', e);
       const serverText = String(e?.response?.data ?? e?.message ?? '');
-      // Eğer Note/length ile ilgiliyse zaten note göndermiyoruz; diğer hatayı göster
       showToast(serverText || 'Oluşturma hatası', 'error');
       throw e;
     }
@@ -303,143 +218,82 @@ const AddBillScreen = ({ route, navigation }) => {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={80}>
-    <LinearGradient colors={['#667eea', '#764ba2']} style={{ flex: 1 }}>
-      <Animated.View
-        style={[
-          styles.content,
-          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-        ]}
-      >
-        <View style={styles.header}>
-          <Text style={styles.title}>{isEditing ? 'Düzenle' : 'Yeni'} Fatura Oluştur</Text>
-          <Text style={styles.subtitle}>{houseName} - {getCategoryDisplayName(billType)}</Text>
-        </View>
-
-        <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
-          {/* Tutar */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>💰 Tutar (₺)</Text>
-            <TextInput
-              style={styles.textInput}
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="decimal-pad"
-              placeholder="Örn: 100.00"
-            />
+      <LinearGradient colors={['#667eea', '#764ba2']} style={{ flex: 1 }}>
+        <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+          <View style={styles.header}>
+            <Text style={styles.title}>{isEditing ? 'Düzenle' : 'Yeni'} Fatura Oluştur</Text>
+            <Text style={styles.subtitle}>{houseName} - {getCategoryDisplayName(billType)}</Text>
           </View>
 
-          {/* Tarih */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>📅 Tarih (YYYY-MM-DD)</Text>
-            <TextInput
-              style={styles.textInput}
-              value={billDate}
-              onChangeText={setBillDate}
-              placeholder="YYYY-MM-DD"
-              maxLength={10}
-              autoCapitalize="none"
-            />
-            <Text style={styles.hint}>Dönem: {month || '-'}</Text>
-          </View>
-
-          {/* Fatura Türü */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>📄 Fatura Türü</Text>
-            <View style={styles.pickerContainer}>
-              {BILL_TYPES.map((type) => {
-                const selected = billType === type.key;
-                return (
-                  <TouchableOpacity
-                    key={type.key}
-                    style={[
-                      styles.billTypeButton,
-                      selected && styles.selectedBillTypeButton,
-                      type.isFixed === true && styles.fixedBillTypeButton,
-                      type.isFixed === false && styles.variableBillTypeButton
-                    ]}
-                    onPress={() => setBillType(type.key)}
-                    activeOpacity={0.8}
-                  >
-                    <Text
-                      style={[
-                        styles.billTypeButtonText,
-                        selected && styles.selectedBillTypeButtonText,
-                        type.isFixed === true && styles.fixedBillTypeButtonText,
-                        type.isFixed === false && styles.variableBillTypeButtonText
-                      ]}
-                    >
-                      {type.label}
-                    </Text>
-                    <Text style={styles.billTypeDescription}>{type.description}</Text>
-                  </TouchableOpacity>
-                );
-              })}
+          <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>💰 Tutar (₺)</Text>
+              <TextInput style={styles.textInput} value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="Örn: 100.00" />
             </View>
-          </View>
 
-          {/* Not (şimdilik DB yüzünden göndermiyoruz; ama UI olarak dursun) */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>📝 Not (opsiyonel)</Text>
-            <TextInput
-              style={[styles.textInput, styles.textArea]}
-              value={note}
-              onChangeText={setNote}
-              multiline
-              placeholder="İstersen not gir (şimdilik kaydedilmiyor)"
-            />
-            <Text style={styles.hint}>Not alanı DB kısıtı nedeniyle şu an kaydedilmiyor.</Text>
-          </View>
-
-          {/* Ödeyen Kişi */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>👤 Ödeyen Kişi</Text>
-            <View style={styles.pickerContainer}>
-              {members.map((member) => {
-                const selected = Number(member.userId) === Number(responsibleUserId);
-                return (
-                  <TouchableOpacity
-                    key={member.userId}
-                    style={[
-                      styles.memberButton,
-                      selected && styles.selectedMemberButton
-                    ]}
-                    onPress={() => setResponsibleUserId(member.userId)}
-                    activeOpacity={0.8}
-                  >
-                    <Text
-                      style={[
-                        styles.memberButtonText,
-                        selected && styles.selectedMemberButtonText
-                      ]}
-                    >
-                      {member.fullName}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>📅 Tarih (YYYY-MM-DD)</Text>
+              <TextInput style={styles.textInput} value={billDate} onChangeText={setBillDate} placeholder="YYYY-MM-DD" maxLength={10} autoCapitalize="none" />
+              <Text style={styles.hint}>Dönem: {month || '-'}</Text>
             </View>
-          </View>
 
-          {/* Oluştur/Güncelle */}
-          <TouchableOpacity
-            style={[styles.createButton, loading && styles.createButtonDisabled]}
-            onPress={handleCreateBill}
-            disabled={loading}
-            activeOpacity={0.8}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.createButtonText}>
-                {isEditing ? 'Faturayı Güncelle' : 'Fatura Oluştur'}
-              </Text>
-            )}
-          </TouchableOpacity>
-        </ScrollView>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>📄 Fatura Türü</Text>
+              <View style={styles.pickerContainer}>
+                {BILL_TYPES.map((type) => {
+                  const selected = billType === type.key;
+                  return (
+                    <TouchableOpacity
+                      key={type.key}
+                      style={[styles.billTypeButton, selected && styles.selectedBillTypeButton, type.isFixed === true && styles.fixedBillTypeButton, type.isFixed === false && styles.variableBillTypeButton]}
+                      onPress={() => setBillType(type.key)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.billTypeButtonText, selected && styles.selectedBillTypeButtonText, type.isFixed === true && styles.fixedBillTypeButtonText, type.isFixed === false && styles.variableBillTypeButtonText]}>
+                        {type.label}
+                      </Text>
+                      <Text style={styles.billTypeDescription}>{type.description}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
 
-        <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={hideToast} />
-      </Animated.View>
-    </LinearGradient>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>📝 Not (opsiyonel)</Text>
+              <TextInput style={[styles.textInput, styles.textArea]} value={note} onChangeText={setNote} multiline placeholder="İstersen not gir" />
+              <Text style={styles.hint}>Not versek bile Description ayrıca gönderiliyor.</Text>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>👤 Ödeyen Kişi</Text>
+              <View style={styles.pickerContainer}>
+                {members.map((member) => {
+                  const selected = Number(member.userId) === Number(responsibleUserId);
+                  return (
+                    <TouchableOpacity
+                      key={member.userId}
+                      style={[styles.memberButton, selected && styles.selectedMemberButton]}
+                      onPress={() => setResponsibleUserId(member.userId)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.memberButtonText, selected && styles.selectedMemberButtonText]}>
+                        {member.fullName}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            <TouchableOpacity style={[styles.createButton, loading && styles.createButtonDisabled]} onPress={handleCreateBill} disabled={loading} activeOpacity={0.8}>
+              {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.createButtonText}>{isEditing ? 'Faturayı Güncelle' : 'Fatura Oluştur'}</Text>}
+            </TouchableOpacity>
+          </ScrollView>
+
+          <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={hideToast} />
+        </Animated.View>
+      </LinearGradient>
     </KeyboardAvoidingView>
   );
 };
@@ -450,33 +304,14 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', marginBottom: 30 },
   title: { fontSize: 28, fontWeight: 'bold', color: '#fff', textAlign: 'center', marginBottom: 10 },
   subtitle: { fontSize: 16, color: '#fff', textAlign: 'center', opacity: 0.9 },
-
   formContainer: { flex: 1 },
   inputGroup: { marginBottom: 22 },
   label: { fontSize: 16, fontWeight: '600', color: '#fff', marginBottom: 10 },
-
-  textInput: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    color: '#333',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
-  },
+  textInput: { backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: 12, padding: 14, fontSize: 16, color: '#333', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.6)' },
   textArea: { height: 90, textAlignVertical: 'top' },
   hint: { marginTop: 6, color: 'rgba(255,255,255,0.85)', fontSize: 12 },
-
   pickerContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  billTypeButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 12,
-    padding: 14,
-    minWidth: 120,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-  },
+  billTypeButton: { backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: 12, padding: 14, minWidth: 120, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.35)' },
   selectedBillTypeButton: { backgroundColor: 'rgba(255, 255, 255, 0.95)', borderColor: '#4CAF50' },
   fixedBillTypeButton: { borderColor: '#FF9800' },
   variableBillTypeButton: { borderColor: '#2196F3' },
@@ -485,20 +320,10 @@ const styles = StyleSheet.create({
   fixedBillTypeButtonText: { color: '#FF9800' },
   variableBillTypeButtonText: { color: '#2196F3' },
   billTypeDescription: { fontSize: 12, color: 'rgba(255, 255, 255, 0.8)', textAlign: 'center', marginTop: 4 },
-
-  memberButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 12,
-    padding: 14,
-    minWidth: 110,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-  },
+  memberButton: { backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: 12, padding: 14, minWidth: 110, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.35)' },
   selectedMemberButton: { backgroundColor: 'rgba(255, 255, 255, 0.95)', borderColor: '#4CAF50' },
   memberButtonText: { fontSize: 16, fontWeight: '600', color: '#fff', textAlign: 'center' },
   selectedMemberButtonText: { color: '#333' },
-
   createButton: { backgroundColor: '#4CAF50', borderRadius: 12, padding: 18, alignItems: 'center', marginTop: 8, marginBottom: 30 },
   createButtonDisabled: { backgroundColor: '#a7d7a9' },
   createButtonText: { fontSize: 18, fontWeight: 'bold', color: '#fff' },

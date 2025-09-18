@@ -11,10 +11,16 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { expensesApi } from "../services/api";
 import { Colors } from "../constants/Colors";
+import { getCategoryDisplayName as getCatName, getCategoryIcon as getCatIcon } from "../constants/ExpenseEnums";
 import { CommonStyles } from "../shared/ui/CommonStyles";
 import Toast from "../components/Toast";
 import eventBus from "../shared/events/bus";
-import { normalizeExpense, NON_BILL_KEYS, CATEGORY_ID_TO_KEY } from "../utils/expenseClassifier";
+import {
+  normalizeExpense,
+  NON_BILL_KEYS,
+  CATEGORY_ID_TO_KEY,
+} from "../utils/expenseClassifier";
+import { getParentCategoryHint } from "../shared/state/categoryHints";
 import { useFocusEffect } from "@react-navigation/native";
 import useScrollRestore from "../hooks/useScrollRestore";
 
@@ -39,29 +45,24 @@ const UTILITY_META = {
 // Günlük harcama anahtarları utils/expenseClassifier içindeki NON_BILL_KEYS’te.
 // Fatura sayılanlar = NON_BILL_KEYS dışında kalanlar
 const isUtilityKey = (k) => !NON_BILL_KEYS.includes(k);
-
 const toUtilityKey = (k) => (UTILITY_META[k] ? k : "Other");
 
-// Türkçe karakter ve aksan temizleme: kategori tespiti için güvenli metin
+// Türkçe/aksan temizleme (fallback tahmin için)
 const normalizeText = (s = "") => {
   try {
     return String(s)
       .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // combining marks
-      .replace(/ı/g, 'i')
-      .replace(/İ/g, 'i')
-      .replace(/ş/g, 's')
-      .replace(/Ş/g, 's')
-      .replace(/ç/g, 'c')
-      .replace(/Ç/g, 'c')
-      .replace(/ğ/g, 'g')
-      .replace(/Ğ/g, 'g')
-      .replace(/ö/g, 'o')
-      .replace(/Ö/g, 'o')
-      .replace(/ü/g, 'u')
-      .replace(/Ü/g, 'u');
-  } catch { return String(s).toLowerCase(); }
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/ı/g, "i")
+      .replace(/ş/g, "s")
+      .replace(/ç/g, "c")
+      .replace(/ğ/g, "g")
+      .replace(/ö/g, "o")
+      .replace(/ü/g, "u");
+  } catch {
+    return String(s).toLowerCase();
+  }
 };
 
 // Kategoriyi güvenle seç: explicit field -> tahmin -> Other
@@ -79,7 +80,7 @@ const pickUtilityKey = (it) => {
     raw.UtilityType,
   ];
 
-  // 1) Sayısal kategoriler → enum map
+  // 1) Sayısal kategori → enum map
   for (const c of candidates) {
     if (c === null || c === undefined) continue;
     const n = Number(c);
@@ -88,9 +89,9 @@ const pickUtilityKey = (it) => {
     }
   }
 
-  // 2) Metin olarak gelen anahtarlar (case-insensitive)
+  // 2) Metin olarak gelen anahtarlar (case-insensitive eşleşme)
   for (const c of candidates) {
-    if (!c || typeof c !== 'string') continue;
+    if (!c || typeof c !== "string") continue;
     const lower = c.toLowerCase();
     const match = Object.keys(UTILITY_META).find(
       (k) => k.toLowerCase() === lower
@@ -98,15 +99,15 @@ const pickUtilityKey = (it) => {
     if (match) return match;
   }
 
-  // 3) explicit yoksa Tur metninden tahmin et
-  const t = normalizeText(raw.tur || raw.Tur || it?.title || '');
-  if (/elektrik|electric/.test(t)) return 'Electricity';
-  if (/(^|\s)(su|water)($|\s)/.test(t)) return 'Water';
-  if (/(dogalgaz|doğalgaz|gaz|gas)/.test(t)) return 'Gas';
-  if (/internet/.test(t)) return 'Internet';
-  if (/(kira|rent)/.test(t)) return 'Rent';
+  // 3) explicit yoksa Tur metninden tahmin et (kök + _raw + title)
+  const t = normalizeText(it?.tur || it?.Tur || raw.tur || raw.Tur || it?.title || "");
+  if (/elektrik|electric|electricity/.test(t)) return "Electricity";
+  if (/(^|\s)(su|water)($|\s)/.test(t)) return "Water";
+  if (/(dogalgaz|doğalgaz|gaz|gas|naturalgas)/.test(t)) return "Gas";
+  if (/internet/.test(t)) return "Internet";
+  if (/(kira|rent)/.test(t)) return "Rent";
 
-  return 'Other';
+  return "Other";
 };
 
 // UTC bazlı: bu ay [start, end)
@@ -145,17 +146,24 @@ export default function BillsOverviewScreen({ navigation, route }) {
   const { houseId, houseName } = route.params || {};
   const { user } = useAuth();
   const [loading, setLoading] = React.useState(false);
-  const [toast, setToast] = React.useState({ visible: false, message: "", type: "success" });
+  const [toast, setToast] = React.useState({
+    visible: false,
+    message: "",
+    type: "success",
+  });
   const [items, setItems] = React.useState([]);
   const lastFetchedAtRef = useRef(0);
   const debounceRef = useRef(null);
-  const { listRef, handleScroll } = useScrollRestore(`BillsOverviewScreen:${houseId ?? "all"}`);
+  const { listRef, handleScroll } = useScrollRestore(
+    `BillsOverviewScreen:${houseId ?? "all"}`
+  );
 
-  // (opsiyonel) ek filtre state’leri
+  // (opsiyonel) üst filtre state’leri
   const [category, setCategory] = React.useState(null);
   const [paidFilter, setPaidFilter] = React.useState("all"); // all | paid | unpaid
 
-  const showToast = (message, type = "success") => setToast({ visible: true, message, type });
+  const showToast = (message, type = "success") =>
+    setToast({ visible: true, message, type });
   const hideToast = () => setToast((p) => ({ ...p, visible: false }));
 
   const fetchData = async (opts = { silent: false }) => {
@@ -163,21 +171,92 @@ export default function BillsOverviewScreen({ navigation, route }) {
     if (!opts?.silent) setLoading(true);
     try {
       const resExp = await expensesApi.getByHouse(Number(houseId));
-      const rawExp = resExp?.data?.data ?? resExp?.data?.list ?? resExp?.data ?? [];
+      const rawExp =
+        resExp?.data?.data ?? resExp?.data?.list ?? resExp?.data ?? [];
       const arrExp = Array.isArray(rawExp) ? rawExp : [];
 
       const normalized = arrExp.map(normalizeExpense);
 
+      // BE alanlarından (categoryId/category/utilityType) kesin anahtar çıkar; yoksa parent'tan devral
+      const getKeyFromRaw = (r = {}) => {
+        // sayısal id → enum
+        const idCand = r.categoryId ?? r.CategoryId ?? (typeof r.category === 'number' ? r.category : undefined) ?? (typeof r.Category === 'number' ? r.Category : undefined);
+        if (idCand != null && CATEGORY_ID_TO_KEY[Number(idCand)]) return CATEGORY_ID_TO_KEY[Number(idCand)];
+        // metin anahtar
+        const nameCand = (typeof r.category === 'string' && r.category) || (typeof r.Category === 'string' && r.Category) || (typeof r.utilityType === 'string' && r.utilityType) || (typeof r.UtilityType === 'string' && r.UtilityType) || '';
+        if (nameCand) {
+          const lower = String(nameCand).toLowerCase();
+          const direct = Object.keys(UTILITY_META).find(k => k.toLowerCase() === lower);
+          if (direct) return direct;
+          if (lower.includes('kira')) return 'Rent';
+          if (lower.includes('elektrik') || lower.includes('electric') || lower.includes('electricity')) return 'Electricity';
+          if (lower === 'su' || lower.includes(' water') || lower.includes('su ') || lower.includes('water')) return 'Water';
+          if (lower.includes('doğalgaz') || lower.includes('dogalgaz') || lower.includes('naturalgas') || lower === 'gaz' || lower.includes(' gas')) return 'Gas';
+          if (lower.includes('internet')) return 'Internet';
+          if (lower.includes('diğer') || lower.includes('diger') || lower === 'other') return 'Other';
+        }
+        return undefined;
+      };
+
+      const idToKey = new Map();
+      for (const r of arrExp) {
+        const rid = Number(r?.id ?? r?.expenseId);
+        if (!Number.isFinite(rid)) continue;
+        const k = getKeyFromRaw(r);
+        if (k && UTILITY_META[k]) idToKey.set(rid, k);
+      }
+
+      // Eksik kalan parent kategorilerini BE'den tamamla
+      const missingParentIds = new Set();
+      for (const x of normalized) {
+        const raw = x._raw || {};
+        const pid = raw.parentExpenseId ?? raw.ParentExpenseId;
+        if (pid != null && !idToKey.has(Number(pid))) missingParentIds.add(Number(pid));
+      }
+      if (missingParentIds.size > 0) {
+        const parentIdArr = Array.from(missingParentIds);
+        await Promise.all(parentIdArr.map(async (pid) => {
+          try {
+            const res = await expensesApi.getById(pid);
+            const pr = res?.data?.data ?? res?.data ?? {};
+            const k = getKeyFromRaw(pr);
+            if (k && UTILITY_META[k]) idToKey.set(Number(pid), k);
+          } catch {}
+        }));
+      }
+
+      const normalizedWithKeys = normalized.map(x => {
+        let k = x.key;
+        const raw = x._raw || {};
+        if (!UTILITY_META[k]) {
+          const fromRaw = getKeyFromRaw(raw);
+          if (fromRaw) k = fromRaw;
+          else {
+            const pid = raw.parentExpenseId ?? raw.ParentExpenseId;
+            if (pid != null) {
+              if (idToKey.has(Number(pid))) k = idToKey.get(Number(pid));
+              else {
+                const hint = getParentCategoryHint(pid);
+                if (hint && UTILITY_META[hint]) k = hint;
+              }
+            }
+          }
+        }
+        return { ...x, key: k || 'Other' };
+      });
+
       const now = new Date();
       const { start: monthStart, end: monthEnd } = getMonthWindow(now);
 
-      const candidates = normalized.filter((x) => {
+      const candidates = normalizedWithKeys.filter((x) => {
         const raw = x._raw || {};
         const parentId = raw.parentExpenseId ?? raw.ParentExpenseId ?? null;
 
         // plan sinyal/çocuk
         const isChild = parentId != null;
-        const installmentCount = Number(raw.installmentCount ?? raw.InstallmentCount ?? 0);
+        const installmentCount = Number(
+          raw.installmentCount ?? raw.InstallmentCount ?? 0
+        );
         const hasPlanSignals =
           installmentCount > 1 ||
           (raw.dueDay ?? raw.DueDay ?? null) != null ||
@@ -187,17 +266,18 @@ export default function BillsOverviewScreen({ navigation, route }) {
             raw.StartMonth ??
             null) != null;
 
+        // Utility değişken faturaları (Elektrik/Su/Doğalgaz) plan sinyali olmasa da göster
+        const keyKForFilter = toUtilityKey(pickUtilityKey(x));
+        const isVariableUtility = keyKForFilter === 'Water' || keyKForFilter === 'Electricity' || keyKForFilter === 'Gas';
+
         // Yalnız planlı kayıtlar (child veya plan sinyali taşıyanlar)
-        if (!(isChild || hasPlanSignals)) return false;
+        if (!(isChild || hasPlanSignals || isVariableUtility)) return false;
 
         // Parent asla gösterilmez
         if (!isChild && hasPlanSignals) return false;
 
-        // Child ise kategori kontrolünü esnet (planlı kayıt ‘Other’ olsa da görünmeli)
-        if (!isChild) {
-          // (Güvenlik) Child değilse (single utility ise) utility olmalı
-          if (!isUtilityKey(x.key)) return false;
-        }
+        // Child değilse (single), utility olmayanları çıkar
+        if (!isChild && !isUtilityKey(keyKForFilter)) return false;
 
         // Bu ay ve bugün/öncesi
         const d = getItemDate(x);
@@ -213,7 +293,9 @@ export default function BillsOverviewScreen({ navigation, route }) {
         const raw = it._raw || {};
         const parentId = raw.parentExpenseId ?? raw.ParentExpenseId ?? null;
         const d = getItemDate(it);
-        const ym = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+        const ym = `${d.getUTCFullYear()}-${String(
+          d.getUTCMonth() + 1
+        ).padStart(2, "0")}`;
 
         const key =
           parentId != null ? `p-${parentId}-${ym}` : `s-${it.id || raw.id || `${it.title}-${ym}`}`;
@@ -221,13 +303,14 @@ export default function BillsOverviewScreen({ navigation, route }) {
         const prev = pickMap.get(key);
         if (!prev) pickMap.set(key, it);
         else {
-          // cmp < 0 => 'it' daha yeni (desc), dolayısıyla 'it' seçilmeli
           const better = cmpByDateThenIdDesc(it, prev) < 0 ? it : prev;
           pickMap.set(key, better);
         }
       }
 
-      const onlyThisMonth = Array.from(pickMap.values()).sort(cmpByDateThenIdDesc);
+      const onlyThisMonth = Array.from(pickMap.values()).sort(
+        cmpByDateThenIdDesc
+      );
 
       setItems(onlyThisMonth);
       lastFetchedAtRef.current = Date.now();
@@ -240,7 +323,9 @@ export default function BillsOverviewScreen({ navigation, route }) {
     }
   };
 
-  useEffect(() => { fetchData({ silent: false }); }, [houseId]);
+  useEffect(() => {
+    fetchData({ silent: false });
+  }, [houseId]);
 
   useEffect(() => {
     const onUpdated = ({ houseId: changedId }) => {
@@ -268,7 +353,7 @@ export default function BillsOverviewScreen({ navigation, route }) {
     }, [houseId])
   );
 
-  // (opsiyonel) üst filtreler (şimdilik UI yok ama kalsın)
+  // (opsiyonel) üst filtreler
   const filtered = useMemo(() => {
     return items.filter((b) => {
       if (category && toUtilityKey(b.key) !== category) return false;
@@ -285,17 +370,40 @@ export default function BillsOverviewScreen({ navigation, route }) {
   }, [items, category, paidFilter]);
 
   const totals = useMemo(() => {
-    const all = filtered.reduce((s, b) => s + (Number(b.amount ?? b.tutar) || 0), 0);
+    const all = filtered.reduce(
+      (s, b) => s + (Number(b.amount ?? b.tutar) || 0),
+      0
+    );
     return { all };
   }, [filtered]);
 
   const handleAddBill = () => {
-    navigation.navigate("NewRecurringChargeScreen", {
+    navigation.navigate("DuzenliGiderEkle", {
       houseId,
       houseName,
       defaultMode: "recurring",
     });
   };
+
+  // Sağ üst header butonu: Planlı Gider Ekle
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={handleAddBill}
+          style={{
+            backgroundColor: Colors.primary[500],
+            paddingHorizontal: 10,
+            paddingVertical: 6,
+            borderRadius: 8,
+          }}
+          activeOpacity={0.8}
+        >
+          <Text style={{ color: '#fff', fontWeight: '700' }}>+ Ekle</Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, houseId, houseName]);
 
   if (loading && items.length === 0) {
     return (
@@ -341,7 +449,9 @@ export default function BillsOverviewScreen({ navigation, route }) {
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>📄</Text>
             <Text style={styles.emptyText}>
-              {loading ? "Veriler yükleniyor..." : "Bu ay için görünür planlı gider bulunmuyor."}
+              {loading
+                ? "Veriler yükleniyor..."
+                : "Bu ay için görünür planlı gider bulunmuyor."}
             </Text>
             {!loading && (
               <TouchableOpacity onPress={handleAddBill} style={styles.resetBtn}>
@@ -358,15 +468,23 @@ export default function BillsOverviewScreen({ navigation, route }) {
               const raw = it._raw || {};
               const keyK = toUtilityKey(pickUtilityKey(it));
               const d = getItemDate(it);
-              const meta = UTILITY_META[keyK] || UTILITY_META.Other;
-              const titleSuffix = (() => {
-                const idxNo = raw.installmentIndex || raw.InstallmentIndex || null;
-                const cnt = raw.installmentCount || raw.InstallmentCount || null;
-                const parentId = raw.parentExpenseId ?? raw.ParentExpenseId ?? null;
-                const isChild = parentId != null;
-                const showInstallment = keyK === "Other" && isChild && idxNo != null && cnt != null;
-                return showInstallment ? ` • Taksit ${idxNo}/${cnt}` : "";
-              })();
+              // BE’deki id/string kategoriye göre label & ikon – FaturaOlustur.js ile aynı mantık
+              const catRaw = raw.category ?? raw.Category ?? raw.categoryId ?? raw.CategoryId ?? keyK;
+              const icon = getCatIcon(catRaw);
+              const label = getCatName(catRaw);
+
+              // Only "Other" + child ise taksit etiketi
+              const idxNo =
+                raw.installmentIndex || raw.InstallmentIndex || null;
+              const cnt =
+                raw.installmentCount || raw.InstallmentCount || null;
+              const parentId =
+                raw.parentExpenseId ?? raw.ParentExpenseId ?? null;
+              const isChild = parentId != null;
+              const titleSuffix =
+                keyK === "Other" && isChild && idxNo != null && cnt != null
+                  ? ` • Taksit ${idxNo}/${cnt}`
+                  : "";
 
               return (
                 <TouchableOpacity
@@ -375,18 +493,18 @@ export default function BillsOverviewScreen({ navigation, route }) {
                   activeOpacity={0.7}
                   onPress={() =>
                     navigation.navigate("BillDetail", {
-                      billId: it.id,            // DETAY ekranına id
+                      billId: it.id,
                       houseId,
                       houseName,
                     })
                   }
                 >
                   <View style={styles.iconCircle}>
-                    <Text style={{ fontSize: 22 }}>{meta.icon}</Text>
+                    <Text style={{ fontSize: 22 }}>{icon}</Text>
                   </View>
                   <View style={CommonStyles.listItemContent}>
                     <Text style={CommonStyles.listItemTitle}>
-                      {meta.label}
+                      {label}
                       {titleSuffix}
                     </Text>
                     <Text style={CommonStyles.listItemSubtitle}>
@@ -403,7 +521,12 @@ export default function BillsOverviewScreen({ navigation, route }) {
             })}
           </View>
         )}
-        <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={hideToast} />
+        <Toast
+          visible={toast.visible}
+          message={toast.message}
+          type={toast.type}
+          onHide={hideToast}
+        />
       </ScrollView>
     </View>
   );
@@ -441,7 +564,11 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   summaryLabel: { fontSize: 12, color: Colors.text?.secondary || "#666" },
-  summaryAmount: { fontSize: 16, fontWeight: "700", color: Colors.text?.primary || "#111" },
+  summaryAmount: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.text?.primary || "#111",
+  },
   iconCircle: {
     width: 40,
     height: 40,
@@ -457,7 +584,11 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   emptyIcon: { fontSize: 32, marginBottom: 8 },
-  emptyText: { fontSize: 14, color: Colors.text?.secondary || "#666", marginBottom: 8 },
+  emptyText: {
+    fontSize: 14,
+    color: Colors.text?.secondary || "#666",
+    marginBottom: 8,
+  },
   resetBtn: {
     paddingHorizontal: 12,
     paddingVertical: 8,

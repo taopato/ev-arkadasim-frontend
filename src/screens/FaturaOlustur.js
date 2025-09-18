@@ -146,70 +146,80 @@ const UtilityBillCreateScreen = ({ route, navigation }) => {
     if (!memberIds.has(Number(responsibleUserId))) { showToast('Seçilen kişi ev üyesi değil', 'error'); return { ok: false }; }
     return { ok: true, money };
   };
+////////////////
+// ... üst kısımlar aynı ...
 
-  const handleCreateBill = async () => {
-    Keyboard.dismiss();
-    const v = validateForm();
-    if (!v.ok) return;
+const handleCreateBill = async () => {
+  Keyboard.dismiss();
+  const v = validateForm();
+  if (!v.ok) return;
 
-    setLoading(true);
-    try {
-      if (isEditing && billId) {
-        const safeTur = `${getCategoryDisplayName(billType)} ${month}`.slice(0, 30);
-        const updateData = {
-          tur: safeTur,
-          category: toExpenseCategory(billType),
-          tutar: v.money,
-          postDate: `${billDate}T00:00:00`,
-          dueDate: `${billDate}T00:00:00`,
-          splitPolicy: 0, // eşit bölüş
-        };
-        await expensesApi.update(billId, updateData);
-        showToast('Fatura güncellendi', 'success');
-        navigation.goBack();
-      } else {
-        await handleCreateIrregularExpense(v.money);
-      }
-    } catch (e) {
-      const serverText = String(e?.response?.data ?? e?.message ?? '');
-      showToast(serverText || 'Beklenmeyen hata', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreateIrregularExpense = async (moneyValue) => {
-    try {
-      const payerId = Number(responsibleUserId);
-      const creatorId = Number(user?.id);
-      const house = Number(houseId);
-      const safeTur = `${getCategoryDisplayName(billType)} ${month}`.slice(0, 30);
-
-      const payload = {
+  setLoading(true);
+  try {
+    if (isEditing && billId) {
+      const safeTur = getCategoryDisplayName(billType); // 🔸 artık enum'a göre net isim
+      const updateData = {
         tur: safeTur,
-        category: toExpenseCategory(billType),
-        tutar: moneyValue,
-        houseId: house,
-        odeyenUserId: payerId,
-        kaydedenUserId: creatorId,
+        Tur: safeTur,
+        categoryId: toExpenseCategory(billType),
+        CategoryId: toExpenseCategory(billType),
+        tutar: v.money,
+        houseId,
+        odeyenUserId: responsibleUserId,
+        kaydedenUserId: user?.id,
         postDate: `${billDate}T00:00:00`,
         dueDate: `${billDate}T00:00:00`,
-        splitPolicy: 0,
-        personalItems: []
+        splitPolicy: 0, // eşit bölüş
       };
-
-      await expensesApi.createIrregular(payload);
-
-      showToast('Kayıt oluşturuldu', 'success');
-      if (navigation?.canGoBack?.()) navigation.goBack();
-      else navigation.navigate('Expenses', { houseId });
-    } catch (e) {
-      const serverText = String(e?.response?.data ?? e?.message ?? '');
-      showToast(serverText || 'Oluşturma hatası', 'error');
-      throw e;
+      await expensesApi.update(billId, updateData);
+      showToast('Fatura güncellendi', 'success');
+      navigation.goBack();
+    } else {
+      await handleCreateIrregularExpense(v.money);
     }
-  };
+  } catch (e) {
+    const serverText = String(e?.response?.data ?? e?.message ?? '');
+    showToast(serverText || 'Beklenmeyen hata', 'error');
+  } finally {
+    setLoading(false);
+  }
+};
 
+const handleCreateIrregularExpense = async (moneyValue) => {
+  try {
+    const payerId = Number(responsibleUserId);
+    const creatorId = Number(user?.id);
+    const house = Number(houseId);
+    const safeTur = getCategoryDisplayName(billType); // 🔸 burada da düzeltildi
+
+    const payload = {
+      tur: safeTur,
+      Tur: safeTur,
+      categoryId: toExpenseCategory(billType),
+      CategoryId: toExpenseCategory(billType),
+      tutar: moneyValue,
+      houseId: house,
+      odeyenUserId: payerId,
+      kaydedenUserId: creatorId,
+      postDate: `${billDate}T00:00:00`,
+      dueDate: `${billDate}T00:00:00`,
+      splitPolicy: 0,
+      personalItems: []
+    };
+
+    await expensesApi.createIrregular(payload);
+
+    showToast('Kayıt oluşturuldu', 'success');
+    if (navigation?.canGoBack?.()) navigation.goBack();
+    else navigation.navigate('Expenses', { houseId });
+  } catch (e) {
+    const serverText = String(e?.response?.data ?? e?.message ?? '');
+    showToast(serverText || 'Oluşturma hatası', 'error');
+    throw e;
+  }
+};
+
+//////////////////////
   return (
     <KeyboardAvoidingView 
       style={{ flex: 1 }} 
@@ -221,6 +231,8 @@ const UtilityBillCreateScreen = ({ route, navigation }) => {
           <View style={styles.header}>
             <Text style={styles.title}>{isEditing ? 'Düzenle' : 'Yeni'} Fatura Oluştur</Text>
             <Text style={styles.subtitle}>{houseName} - {getCategoryDisplayName(billType)}</Text>
+            <Text style={[styles.subtitle, { fontWeight: '800' }]}>Fatura Ekle</Text>
+            <Text style={[styles.subtitle, { fontWeight: '800', color: '#fffb' }]}>Tarık 1</Text>
           </View>
 
           <ScrollView 

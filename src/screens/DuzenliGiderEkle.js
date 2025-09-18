@@ -10,8 +10,6 @@ import eventBus from '../shared/events/bus';
 import { getCategoryDisplayName, toExpenseCategory } from '../constants/ExpenseEnums';
 
 // ==== TR Para Girişi Yardımcıları (Kuruş YOK) ====
-// "20000"  -> "20.000"
-// "2000000" -> "2.000.000"
 const formatThousandsTRInput = (text) => {
   if (text == null) return '';
   const digits = String(text).replace(/\D/g, '');
@@ -19,8 +17,6 @@ const formatThousandsTRInput = (text) => {
   const intStr = digits.replace(/^0+(?=\d)/, '');
   return intStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 };
-
-// "20.000" -> 20000
 const parseIntFromTR = (s) => {
   if (!s) return 0;
   const digits = String(s).replace(/\D/g, '');
@@ -36,9 +32,8 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
   const [type, setType] = useState('Rent');                                     // Rent | Internet | Electricity | Water | Gas | Other
   const [payerUserId, setPayerUserId] = useState('');
 
-  // >>> Tutar alanları artık formatlı string tutuyor
-  const [fixedAmount, setFixedAmount] = useState('');      // "20.000,00"
-  const [totalAmount, setTotalAmount] = useState('');      // "120.000,00"
+  const [fixedAmount, setFixedAmount] = useState('');
+  const [totalAmount, setTotalAmount] = useState('');
 
   const [dueDay, setDueDay] = useState('5');
   const [installmentCount, setInstallmentCount] = useState('6');
@@ -49,8 +44,12 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
   const [participants, setParticipants] = useState([]); // ids (string)
 
   useEffect(() => {
-    if (type === 'Rent' || type === 'Internet') setMode('recurring');
-    else if (type === 'Water' || type === 'Electricity' || type === 'Gas') setMode('irregular');
+    // Tüm utility türleri planlı kabul: recurring
+    if (type === 'Rent' || type === 'Internet' || type === 'Water' || type === 'Electricity' || type === 'Gas') {
+      setMode('recurring');
+    } else {
+      setMode('irregular');
+    }
   }, [type]);
 
   useEffect(() => {
@@ -63,9 +62,14 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
           fullName: x.fullName ?? x.FullName ?? x.name ?? x.Name ?? 'Bilinmeyen'
         }));
         setMembers(arr);
-      } catch (e) { setMembers([]); }
+
+        const me = arr.find(a => String(a.userId) === String(user?.id));
+        if (me) setPayerUserId(String(me.userId));
+      } catch (e) {
+        setMembers([]);
+      }
     })();
-  }, [houseId]);
+  }, [houseId, user?.id]);
 
   const onSave = async () => {
     try {
@@ -79,6 +83,10 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
       const [year, month] = startMonth.split('-');
       const isoStart = `${year}-${month}-01T00:00:00Z`;
 
+      const safeTur = getCategoryDisplayName(type); // "Kira", "Elektrik", ...
+      const categoryEnum = toExpenseCategory(type); // enum numeric
+      const descriptionSafe = `${safeTur} • Başlangıç ${startMonth}`; // 🔸 Description NOT NULL çözümü
+
       if (mode === 'installment') {
         const total = parseIntFromTR(totalAmount);
         if (!(total > 0)) return Alert.alert('Hata', 'Toplam tutar > 0 olmalı');
@@ -86,8 +94,11 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
 
         const body = {
           mode: 'installment',
-          tur: getCategoryDisplayName(type),
-          tutar: total, // toplam tutar
+          tur: safeTur,
+          category: categoryEnum,
+          categoryId: categoryEnum,
+          CategoryId: categoryEnum,
+          tutar: total, // toplam
           installmentCount: Number(installmentCount),
           dueDay: dueDayNum,
           startMonth: isoStart,
@@ -96,9 +107,14 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
           kaydedenUserId: Number(user?.id),
           cardholderUserId: Number(payerUserId),
           participants: participants.length ? participants.map((id) => Number(id)) : [],
-          note: '' // Taksitli giderler için not alanı
+          // 🔸 Description zorunlu
+          description: descriptionSafe,
+          Description: descriptionSafe,
+          Aciklama: descriptionSafe,
         };
+
         await expensesApi.create(body);
+
         Alert.alert('Başarılı', 'Taksitli plan oluşturuldu');
         eventBus.emit('expenses:updated', { houseId });
         navigation.goBack();
@@ -111,20 +127,26 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
 
         const body = {
           mode: 'recurring',
-          tur: getCategoryDisplayName(type),
-          tutar: monthly,                 // AYLIK tutar (12 ile çarpma yok)
+          tur: safeTur,
+          category: categoryEnum,
+          categoryId: categoryEnum,
+          CategoryId: categoryEnum,
+          tutar: monthly,               // aylık
           houseId: Number(houseId),
           odeyenUserId: Number(payerUserId),
           kaydedenUserId: Number(user?.id),
-          dueDay: dueDayNum,              // 1–28
-          startMonth: isoStart,           // YYYY-MM-01T00:00:00Z
+          dueDay: dueDayNum,
+          startMonth: isoStart,
           ortakHarcamaTutari: monthly,
           sahsiHarcamalar: [],
-          note: '' // Düzenli giderler için not alanı
+          // 🔸 Description zorunlu
+          description: descriptionSafe,
+          Description: descriptionSafe,
+          Aciklama: descriptionSafe,
         };
-        console.log('🔍 Düzenli gider payload:', body);
-        const response = await expensesApi.create(body);
-        console.log('✅ Düzenli gider response:', response?.data);
+
+        await expensesApi.create(body);
+
         Alert.alert('Başarılı', 'Düzenli gider oluşturuldu');
         eventBus.emit('expenses:updated', { houseId });
         navigation.goBack();
@@ -136,7 +158,10 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
       if (!(once > 0)) return Alert.alert('Hata', 'Tutar > 0 olmalı');
 
       const payload = {
-        tur: getCategoryDisplayName(type),
+        tur: safeTur,
+        category: categoryEnum,
+        categoryId: categoryEnum,
+        CategoryId: categoryEnum,
         tutar: once,
         houseId: Number(houseId),
         odeyenUserId: Number(payerUserId),
@@ -144,7 +169,10 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
         date: new Date().toISOString(),
         ortakHarcamaTutari: once,
         sahsiHarcamalar: [],
-        note: ''
+        // 🔸 Description zorunlu
+        description: `${safeTur} • ${new Date().toISOString().slice(0,10)}`,
+        Description: `${safeTur} • ${new Date().toISOString().slice(0,10)}`,
+        Aciklama: `${safeTur} • ${new Date().toISOString().slice(0,10)}`,
       };
 
       await expensesApi.create(payload);
@@ -173,6 +201,7 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
         <View style={CommonStyles.header}>
           <Text style={CommonStyles.title}>Yeni Gider</Text>
           <Text style={CommonStyles.subtitle}>{houseName}</Text>
+          <Text style={[CommonStyles.subtitle, { marginTop: 4, fontWeight: '800', color: Colors.primary[600] }]}>Düzenli Gider Ekle</Text>
         </View>
 
         <View style={CommonStyles.card}>
@@ -216,19 +245,23 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
             ))}
           </View>
 
+          {/* Ödeyecek kişi seçimi */}
           <Text style={CommonStyles.label}>Ödeyecek kişi</Text>
           <View style={styles.rowWrap}>
-            {members.map((m) => (
-              <TouchableOpacity
-                key={String(m.userId)}
-                style={[styles.chip, String(payerUserId) === String(m.userId) && styles.chipActive]}
-                onPress={() => setPayerUserId(String(m.userId))}
-              >
-                <Text style={[styles.chipText, String(payerUserId) === String(m.userId) && styles.chipTextActive]}>
-                  {m.fullName}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {members.map((m) => {
+              const selected = String(payerUserId) === String(m.userId);
+              return (
+                <TouchableOpacity
+                  key={String(m.userId)}
+                  style={[styles.chip, selected && styles.chipActive]}
+                  onPress={() => setPayerUserId(String(m.userId))}
+                >
+                  <Text style={[styles.chipText, selected && styles.chipTextActive]}>
+                    {m.fullName}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           {(mode === 'recurring' || mode === 'irregular') && (
