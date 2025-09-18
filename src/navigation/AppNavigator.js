@@ -27,7 +27,7 @@ import LedgerDetailScreen from '../screens/DefterDetayi';
 import GrupListesi from '../screens/GrupListesi';
 import EvUyeleri from '../screens/EvUyeleri';
 import AlacakBorcIcmi from '../screens/AlacakBorcIcmi';
-
+import BillDetailScreen from '../screens/FaturaDetayi';
 // Yeni Harcama Ekranları
 import TumHarcamalarTestScreen from '../screens/TumHarcamalarTest';
 import HarcamaEkle from '../screens/HarcamaEkle';
@@ -67,12 +67,12 @@ const AppNavigator = () => {
             <Stack.Screen name="PendingPaymentsScreen" component={BekleyenOdemeler} options={{ title: 'Bekleyen Ödemeler' }} />
             <Stack.Screen name="DebtSummaryScreen" component={BorcAlacakOzeti} options={{ title: 'Borç/Alacak Özeti' }} />
             <Stack.Screen name="LedgerDetail" component={LedgerDetailScreen} options={{ title: 'Borç/Alacak Detayları' }} />
-            
             {/* Ev Yönetimi */}
             <Stack.Screen name="GrupListesi" component={GrupListesi} options={{ title: 'Ev Gruplarım' }} />
             <Stack.Screen name="EvUyeleri" component={EvUyeleri} options={{ title: 'Ev Üyeleri' }} />
             <Stack.Screen name="AlacakBorcIcmi" component={AlacakBorcIcmi} options={{ title: 'Borç/Alacak Detayı' }} />
-            
+            <Stack.Screen name="BillDetail" component={BillDetailScreen} options={{ title: 'Fatura Detayı' }} />
+          
             {/* Yeni Harcama Ekranları */}
             <Stack.Screen name="TumHarcamalar" component={TumHarcamalarTestScreen} options={{ title: 'Tüm Harcamalar' }} />
             <Stack.Screen name="HarcamaEkle" component={HarcamaEkle} options={{ title: 'Harcama Ekle' }} />

@@ -252,6 +252,7 @@ export default function App() {
             <Stack.Screen name="FaturaEkle" component={FaturaEkle} options={{ title: 'Yeni Fatura' }} />
             <Stack.Screen name="FaturaListesi" component={FaturaListesi} options={{ title: 'Faturalar' }} />
             <Stack.Screen name="FaturaDetayi" component={FaturaDetayi} options={{ title: 'Fatura Detayı' }} />
+            <Stack.Screen name="BillDetail" component={FaturaDetayi} options={{ title: 'Fatura Detayı' }} />
             <Stack.Screen name="FaturaOlustur" component={FaturaOlustur} options={{ title: 'Fatura Oluştur' }} />
             <Stack.Screen
               name="BekleyenKatkilar"

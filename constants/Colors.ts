@@ -50,6 +50,13 @@ export const Colors = {
     600: '#dc2626',
   },
   
+  // Bilgi (info) renkleri – bazı ekranlarda kullanılıyor
+  info: {
+    50: '#eff6ff',
+    500: '#3b82f6',
+    600: '#2563eb',
+  },
+  
   // Özel renkler
   background: '#ffffff',
   surface: '#f8fafc',
