@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,12 +10,16 @@ import {
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { houseApi } from '../services/api';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../../constants/Colors';
+import { useCommonStyles, makeColorThemes } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
 
 const EvGrubuArkadaslarimScreen = ({ route, navigation }) => {
   const { houseId, houseName } = route.params || {};
   const { user } = useAuth();
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const ColorThemes = makeColorThemes(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [friends, setFriends] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
@@ -92,9 +96,9 @@ const EvGrubuArkadaslarimScreen = ({ route, navigation }) => {
   };
 
   const getStatusColor = (balance) => {
-    if (balance > 0) return Colors.success[600];
-    if (balance < 0) return Colors.error[600];
-    return Colors.neutral[600];
+    if (balance > 0) return theme.colors.success[600];
+    if (balance < 0) return theme.colors.error[600];
+    return theme.colors.neutral[600];
   };
 
   const handleMemberPress = (member) => {
@@ -114,7 +118,7 @@ const EvGrubuArkadaslarimScreen = ({ route, navigation }) => {
     return (
       <View style={CommonStyles.container}>
         <View style={CommonStyles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary[500]} />
+          <ActivityIndicator size="large" color={theme.colors.primary[500]} />
           <Text style={CommonStyles.loadingText}>Ev arkadaşları yükleniyor...</Text>
         </View>
       </View>
@@ -173,35 +177,20 @@ const EvGrubuArkadaslarimScreen = ({ route, navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    color: Colors.text.primary,
-  },
-  avatarContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: Colors.primary[500],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  avatarText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: Colors.background,
-  },
-  balanceInfo: {
-    alignItems: 'flex-end',
-  },
-  balanceText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-});
+function makeStyles(theme) {
+  return StyleSheet.create({
+    sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, color: theme.colors.text.primary },
+    avatarContainer: { width: 50, height: 50, borderRadius: 25, backgroundColor: theme.colors.primary[500], justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+    avatarText: { fontSize: 20, fontWeight: 'bold', color: theme.colors.background },
+    balanceInfo: {
+      alignItems: 'flex-end',
+    },
+    balanceText: {
+      fontSize: 16,
+      fontWeight: 'bold',
+    },
+  });
+}
 
 export default EvGrubuArkadaslarimScreen;
 

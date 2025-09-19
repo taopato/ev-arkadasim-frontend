@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,8 @@ import {
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { houseApi, expensesApi } from '../services/api';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../constants/Colors';
+import { useCommonStyles, makeColorThemes } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
 import { getCategoryDisplayName, getCategoryIcon, formatAmount, formatDate } from '../constants/ExpenseEnums';
 import { getCategoryColorUI } from '../constants/ExpenseUI';
 
@@ -32,6 +32,10 @@ const getMonthEnd = () => {
 const HouseSpendingOverviewScreen = ({ navigation, route }) => {
   const { houseId, houseName } = route.params || {};
   const { user } = useAuth();
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const ColorThemes = makeColorThemes(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState(null);
   const [members, setMembers] = useState([]);
@@ -134,7 +138,7 @@ const HouseSpendingOverviewScreen = ({ navigation, route }) => {
     return (
       <View style={CommonStyles.container}>
         <View style={CommonStyles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary[500]} />
+          <ActivityIndicator size="large" color={theme.colors.primary[500]} />
           <Text style={CommonStyles.loadingText}>Harcama özeti yükleniyor...</Text>
         </View>
       </View>
@@ -194,7 +198,7 @@ const HouseSpendingOverviewScreen = ({ navigation, route }) => {
 
                 return (
                   <View key={String(expense.id ?? idx)} style={CommonStyles.listItem}>
-                    <View style={[styles.expenseIcon, { backgroundColor: (getCategoryColorUI(category) || Colors.primary[500]) + '20' }]}>
+                    <View style={[styles.expenseIcon, { backgroundColor: (getCategoryColorUI(category) || theme.colors.primary[500]) + '20' }]}>
                       <Text style={styles.expenseIconText}>{getCategoryIcon(category)}</Text>
                     </View>
                     <View style={CommonStyles.listItemContent}>
@@ -204,7 +208,7 @@ const HouseSpendingOverviewScreen = ({ navigation, route }) => {
                       </Text>
                     </View>
                     <View style={styles.expenseAmount}>
-                      <Text style={[styles.amountText, { color: getCategoryColorUI(category) || Colors.primary[500] }]}>
+                      <Text style={[styles.amountText, { color: getCategoryColorUI(category) || theme.colors.primary[500] }]}>
                         {formatAmount(expense.tutar)}
                       </Text>
                     </View>
@@ -258,62 +262,19 @@ const HouseSpendingOverviewScreen = ({ navigation, route }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    color: Colors.text.primary,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  statItem: {
-    flex: 1,
-    minWidth: '45%',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: Colors.primary[50],
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.primary[200],
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: Colors.primary[700],
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: Colors.text.secondary,
-    textAlign: 'center',
-  },
-  expenseIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  expenseIconText: {
-    fontSize: 20,
-  },
-  expenseAmount: {
-    alignItems: 'flex-end',
-  },
-  amountText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  actionButtons: {
-    gap: 12,
-    marginBottom: 20,
-  },
-});
-
 export default HouseSpendingOverviewScreen;
+
+function makeStyles(theme) {
+  return StyleSheet.create({
+    sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, color: theme.colors.text.primary },
+    statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
+    statItem: { flex: 1, minWidth: '45%', alignItems: 'center', padding: 16, backgroundColor: theme.colors.primary[50], borderRadius: 12, borderWidth: 1, borderColor: theme.colors.primary[200] },
+    statValue: { fontSize: 24, fontWeight: 'bold', color: theme.colors.primary[700], marginBottom: 4 },
+    statLabel: { fontSize: 14, color: theme.colors.text.secondary, textAlign: 'center' },
+    expenseIcon: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+    expenseIconText: { fontSize: 20 },
+    expenseAmount: { alignItems: 'flex-end' },
+    amountText: { fontSize: 16, fontWeight: 'bold' },
+    actionButtons: { gap: 12, marginBottom: 20 },
+  });
+}

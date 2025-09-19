@@ -1,10 +1,10 @@
 // src/screens/DebtSummaryScreen.js
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
-import { CommonStyles } from '../shared/ui/CommonStyles';
-import { Colors } from '../constants/Colors';
+import { useCommonStyles } from '../shared/ui/CommonStyles';
 import { houseApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../shared/theme/ThemeProvider';
 
 // Para formatlaması - Türk Lirası standardı
 const fmt = (n) => {
@@ -18,6 +18,8 @@ const fmt = (n) => {
 
 const DebtSummaryScreen = ({ route }) => {
   const { user } = useAuth();
+  const { theme } = useTheme();
+  const CommonStyles = useCommonStyles();
   const { houseId: routeHouseId } = route.params || {};
   const houseId = Number(routeHouseId || user?.defaultHouseId);
   const me = Number(user?.id);
@@ -139,40 +141,40 @@ const DebtSummaryScreen = ({ route }) => {
 
   if (loading) {
     return (
-      <View style={CommonStyles.container}>
+      <View style={[CommonStyles.container, { backgroundColor: theme.colors.background }]}>
         <View style={CommonStyles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary[500]} />
-          <Text style={CommonStyles.loadingText}>Borç/Alacak özeti yükleniyor…</Text>
+          <ActivityIndicator size="large" color={theme.colors.primary?.[500]} />
+          <Text style={[CommonStyles.loadingText, { color: theme.colors.text.secondary }]}>Borç/Alacak özeti yükleniyor…</Text>
         </View>
       </View>
     );
   }
 
   return (
-    <View style={CommonStyles.container}>
-      <ScrollView style={CommonStyles.content}>
+    <View style={[CommonStyles.container, { backgroundColor: theme.colors.background }]}>
+      <ScrollView style={[CommonStyles.content, { backgroundColor: theme.colors.background }]}>
         <View style={CommonStyles.header}>
-          <Text style={CommonStyles.title}>Borç/Alacak Özeti</Text>
-          <Text style={CommonStyles.subtitle}>Ev: {String(houseId)}</Text>
+          <Text style={[CommonStyles.title, { color: theme.colors.text.primary }]}>Borç/Alacak Özeti</Text>
+          <Text style={[CommonStyles.subtitle, { color: theme.colors.text.secondary }]}>Ev: {String(houseId)}</Text>
         </View>
 
         {/* Toplamlar */}
-        <View style={CommonStyles.card}>
+        <View style={[CommonStyles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.neutral?.[200] }]}> 
           <View style={styles.row3}>
-            <View style={[styles.kpi, { backgroundColor: Colors.success[50] }]}>
+            <View style={[styles.kpi, { backgroundColor: theme.colors.background }]}>
               <Text style={styles.kpiLabel}>Toplam Alacak</Text>
-              <Text style={[styles.kpiValue, { color: Colors.success[600] }]}>{fmt(totals.receivable)}</Text>
+              <Text style={[styles.kpiValue, { color: theme.colors.success?.[600] }]}>{fmt(totals.receivable)}</Text>
             </View>
-            <View style={[styles.kpi, { backgroundColor: Colors.error[50] }]}>
+            <View style={[styles.kpi, { backgroundColor: theme.colors.background }]}>
               <Text style={styles.kpiLabel}>Toplam Borç</Text>
-              <Text style={[styles.kpiValue, { color: Colors.error[600] }]}>{fmt(totals.payable)}</Text>
+              <Text style={[styles.kpiValue, { color: theme.colors.error?.[600] }]}>{fmt(totals.payable)}</Text>
             </View>
-            <View style={[styles.kpi, { backgroundColor: Colors.primary[50] }]}>
+            <View style={[styles.kpi, { backgroundColor: theme.colors.background }]}>
               <Text style={styles.kpiLabel}>Net</Text>
               <Text
                 style={[
                   styles.kpiValue,
-                  { color: totals.net >= 0 ? Colors.success[600] : Colors.error[600] },
+                  { color: totals.net >= 0 ? (theme.colors.success?.[600]) : (theme.colors.error?.[600]) },
                 ]}
               >
                 {fmt(totals.net)}
@@ -182,44 +184,44 @@ const DebtSummaryScreen = ({ route }) => {
         </View>
 
         {/* Size borçlu olanlar */}
-        <View style={CommonStyles.card}>
-          <Text style={styles.sectionTitle}>📗 Size Borçlu Olanlar</Text>
+        <View style={[CommonStyles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.neutral?.[200] }]}> 
+          <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>📗 Size Borçlu Olanlar</Text>
           {receivables.length ? (
             receivables.map((r) => (
               <View key={String(r.userId)} style={CommonStyles.listItem}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarTxt}>{r.name?.charAt(0)?.toUpperCase() || '?'}</Text>
+                <View style={[styles.avatar, { backgroundColor: theme.colors.success?.[600] }]}>
+                  <Text style={[styles.avatarTxt, { color: theme.colors.text.onPrimary }]}>{r.name?.charAt(0)?.toUpperCase() || '?'}</Text>
                 </View>
                 <View style={CommonStyles.listItemContent}>
-                  <Text style={CommonStyles.listItemTitle}>{r.name}</Text>
-                  <Text style={CommonStyles.listItemSubtitle}>Size borçlu</Text>
+                  <Text style={[CommonStyles.listItemTitle, { color: theme.colors.text.primary }]}>{r.name}</Text>
+                  <Text style={[CommonStyles.listItemSubtitle, { color: theme.colors.text.secondary }]}>Size borçlu</Text>
                 </View>
-                <Text style={[styles.amount, { color: Colors.success[600] }]}>{fmt(r.amount)}</Text>
+                <Text style={[styles.amount, { color: theme.colors.success?.[600] }]}>{fmt(r.amount)}</Text>
               </View>
             ))
           ) : (
-            <Text style={styles.muted}>Kayıt yok</Text>
+            <Text style={[styles.muted, { color: theme.colors.text.secondary }]}>Kayıt yok</Text>
           )}
         </View>
 
         {/* Sizin borçlu olduklarınız */}
-        <View style={CommonStyles.card}>
-          <Text style={styles.sectionTitle}>📕 Borçlu Olduklarınız</Text>
+        <View style={[CommonStyles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.neutral?.[200] }]}> 
+          <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>📕 Borçlu Olduklarınız</Text>
           {debts.length ? (
             debts.map((d) => (
               <View key={String(d.userId)} style={CommonStyles.listItem}>
-                <View style={[styles.avatar, { backgroundColor: Colors.warning[500] }]}>
-                  <Text style={[styles.avatarTxt, { color: '#fff' }]}>{d.name?.charAt(0)?.toUpperCase() || '?'}</Text>
+                <View style={[styles.avatar, { backgroundColor: theme.colors.warning?.[600] }]}>
+                  <Text style={[styles.avatarTxt, { color: theme.colors.text.onPrimary }]}>{d.name?.charAt(0)?.toUpperCase() || '?'}</Text>
                 </View>
                 <View style={CommonStyles.listItemContent}>
-                  <Text style={CommonStyles.listItemTitle}>{d.name}</Text>
-                  <Text style={CommonStyles.listItemSubtitle}>Bu kişiye borçlusunuz</Text>
+                  <Text style={[CommonStyles.listItemTitle, { color: theme.colors.text.primary }]}>{d.name}</Text>
+                  <Text style={[CommonStyles.listItemSubtitle, { color: theme.colors.text.secondary }]}>Bu kişiye borçlusunuz</Text>
                 </View>
-                <Text style={[styles.amount, { color: Colors.error[600] }]}>{fmt(d.amount)}</Text>
+                <Text style={[styles.amount, { color: theme.colors.error?.[600] }]}>{fmt(d.amount)}</Text>
               </View>
             ))
           ) : (
-            <Text style={styles.muted}>Kayıt yok</Text>
+            <Text style={[styles.muted, { color: theme.colors.text.secondary }]}>Kayıt yok</Text>
           )}
         </View>
       </ScrollView>
@@ -230,14 +232,14 @@ const DebtSummaryScreen = ({ route }) => {
 const styles = StyleSheet.create({
   row3: { flexDirection: 'row', gap: 10 },
   kpi: { flex: 1, padding: 12, borderRadius: 10, alignItems: 'center' },
-  kpiLabel: { color: Colors.text.secondary, fontSize: 12, marginBottom: 6 },
+  kpiLabel: { fontSize: 12, marginBottom: 6 },
   kpiValue: { fontWeight: '900', fontSize: 16 },
 
-  sectionTitle: { fontSize: 16, fontWeight: '900', color: Colors.text.primary, marginBottom: 10 },
-  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primary[500], alignItems: 'center', justifyContent: 'center' },
+  sectionTitle: { fontSize: 16, fontWeight: '900', marginBottom: 10 },
+  avatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   avatarTxt: { color: '#fff', fontWeight: '800' },
   amount: { fontWeight: '900' },
-  muted: { color: Colors.text.secondary },
+  muted: {},
 });
 
 export default DebtSummaryScreen;

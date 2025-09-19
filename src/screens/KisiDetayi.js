@@ -1,7 +1,7 @@
 // src/screens/TwoPersonDebtDetailScreen.js
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Alert, ScrollView } from 'react-native';
-import { Colors } from '../constants/Colors';
+import { useTheme } from '../shared/theme/ThemeProvider';
 import { houseApi, paymentsApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -17,6 +17,7 @@ const fmt = (n) => {
 
 const TwoPersonDebtDetailScreen = ({ route, navigation }) => {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const { houseId, userAId, userBId } = route.params || {}; // userAId ↔ userBId arası borç durumu
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState(null);
@@ -39,7 +40,6 @@ const TwoPersonDebtDetailScreen = ({ route, navigation }) => {
 
   const handlePay = async () => {
     if (!summary) return;
-    // Varsayım: "from -> to" borç ilişkisi
     const borcluUserId = Number(summary?.borcluUserId ?? summary?.fromUserId);
     const alacakliUserId = Number(summary?.alacakliUserId ?? summary?.toUserId);
     const tutar = Number(summary?.tutar ?? summary?.amount ?? 0);
@@ -70,7 +70,7 @@ const TwoPersonDebtDetailScreen = ({ route, navigation }) => {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={Colors.primary[500]} />
+        <ActivityIndicator size="large" color={theme.colors.primary?.[500]} />
       </View>
     );
   }
@@ -78,7 +78,7 @@ const TwoPersonDebtDetailScreen = ({ route, navigation }) => {
   if (!summary) {
     return (
       <View style={styles.center}>
-        <Text style={styles.muted}>Veri bulunamadı.</Text>
+        <Text style={[styles.muted, { color: theme.colors.text.secondary }]}>Veri bulunamadı.</Text>
       </View>
     );
   }
@@ -93,57 +93,49 @@ const TwoPersonDebtDetailScreen = ({ route, navigation }) => {
   const iAmCreditor = Number(summary?.alacakliUserId ?? summary?.toUserId) === Number(user?.id);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 24 }}>
-      <Text style={styles.header}>İkili Borç Detayı</Text>
+    <ScrollView style={[styles.container, { backgroundColor: theme.colors.surface }]} contentContainerStyle={{ paddingBottom: 24 }}>
+      <Text style={[styles.header, { color: theme.colors.text.primary }]}>İkili Borç Detayı</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.rowText}><Text style={styles.badge}>A</Text> {aName}</Text>
-        <Text style={styles.rowText}><Text style={styles.badge}>B</Text> {bName}</Text>
-        <View style={styles.divider} />
+      <View style={[styles.card, { backgroundColor: theme.colors.background, borderColor: theme.colors.neutral?.[200] }]}>
+        <Text style={[styles.rowText, { color: theme.colors.text.primary }]}><Text style={[styles.badge, { backgroundColor: theme.colors.primary?.[500], color: theme.colors.text.onPrimary }]}>A</Text> {aName}</Text>
+        <Text style={[styles.rowText, { color: theme.colors.text.primary }]}><Text style={[styles.badge, { backgroundColor: theme.colors.primary?.[500], color: theme.colors.text.onPrimary }]}>B</Text> {bName}</Text>
+        <View style={[styles.divider, { backgroundColor: theme.colors.neutral?.[200] }]} />
 
-        <Text style={styles.line}><Text style={styles.bold}>{borclu}</Text> → <Text style={styles.bold}>{alacakli}</Text></Text>
-        <Text style={[styles.amount, { color: iAmCreditor ? '#22c55e' : (iAmDebtor ? '#dc2626' : Colors.text.primary) }]}>
+        <Text style={[styles.line, { color: theme.colors.text.primary }]}><Text style={styles.bold}>{borclu}</Text> → <Text style={styles.bold}>{alacakli}</Text></Text>
+        <Text style={[styles.amount, { color: iAmCreditor ? '#22c55e' : (iAmDebtor ? '#dc2626' : theme.colors.text.primary) }]}>
           {iAmCreditor ? '+' : iAmDebtor ? '-' : ''}{fmt(tutar)}
         </Text>
-        <Text style={styles.muted}>Toplam net bakiye</Text>
+        <Text style={[styles.muted, { color: theme.colors.text.secondary }]}>Toplam net bakiye</Text>
 
         {iAmDebtor && (
-          <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={handlePay} activeOpacity={0.85}>
-            <Text style={styles.btnText}>Bu Borcu Öde</Text>
+          <TouchableOpacity style={[styles.btn, { backgroundColor: theme.colors.primary?.[600] }]} onPress={handlePay} activeOpacity={0.85}>
+            <Text style={[styles.btnText, { color: theme.colors.text.onPrimary }]}>Bu Borcu Öde</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      <TouchableOpacity style={[styles.btn, styles.btnOutline]} onPress={load} activeOpacity={0.85}>
-        <Text style={[styles.btnText, { color: Colors.primary[600] }]}>Yenile</Text>
+      <TouchableOpacity style={[styles.btn, { borderWidth: 1, borderColor: theme.colors.primary?.[600], backgroundColor: 'transparent' }]} onPress={load} activeOpacity={0.85}>
+        <Text style={[styles.btnText, { color: theme.colors.primary?.[600] }]}>Yenile</Text>
       </TouchableOpacity>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surface, padding: 16 },
-  header: { fontSize: 20, fontWeight: '700', color: Colors.text.primary, marginBottom: 12 },
+  container: { flex: 1, padding: 16 },
+  header: { fontSize: 20, fontWeight: '700', marginBottom: 12 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  muted: { color: Colors.text.secondary },
+  muted: {},
 
-  card: {
-    backgroundColor: Colors.background, borderRadius: 12, padding: 14,
-    borderWidth: 1, borderColor: Colors.neutral[200], marginBottom: 12
-  },
-  rowText: { fontSize: 15, fontWeight: '700', color: Colors.text.primary, marginBottom: 6 },
-  badge: {
-    backgroundColor: Colors.primary[500], color: '#fff', paddingHorizontal: 8, paddingVertical: 2,
-    borderRadius: 6, overflow: 'hidden', marginRight: 6
-  },
-  divider: { height: 1, backgroundColor: Colors.neutral[200], marginVertical: 10 },
-  line: { color: Colors.text.primary, marginBottom: 6 },
+  card: { borderRadius: 12, padding: 14, borderWidth: 1, marginBottom: 12 },
+  rowText: { fontSize: 15, fontWeight: '700', marginBottom: 6 },
+  badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, overflow: 'hidden', marginRight: 6 },
+  divider: { height: 1, marginVertical: 10 },
+  line: { marginBottom: 6 },
   bold: { fontWeight: '800' },
   amount: { fontSize: 22, fontWeight: '800', marginTop: 4 },
   btn: { paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, alignItems: 'center', marginTop: 12 },
-  btnPrimary: { backgroundColor: Colors.primary[600] },
-  btnText: { color: '#fff', fontWeight: '700' },
-  btnOutline: { borderWidth: 1, borderColor: Colors.primary[600], backgroundColor: 'transparent' },
+  btnText: { fontWeight: '700' },
 });
 
 export default TwoPersonDebtDetailScreen;

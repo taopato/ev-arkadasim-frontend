@@ -5,6 +5,7 @@ import {
   ScrollView, Animated, Platform, TextInput, Keyboard, KeyboardAvoidingView
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../shared/theme/ThemeProvider';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { houseApi, expensesApi } from '../services/api';
@@ -32,6 +33,7 @@ const BILL_TYPES = [
 const UtilityBillCreateScreen = ({ route, navigation }) => {
   const { houseId, houseName, billId, isEditing } = route.params || {};
   const { user } = useAuth();
+  const { theme } = useTheme();
 
   const [loading, setLoading] = useState(false);
   const [members, setMembers] = useState([]);
@@ -226,7 +228,7 @@ const handleCreateIrregularExpense = async (moneyValue) => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      <LinearGradient colors={['#667eea', '#764ba2']} style={styles.container}>
+      <LinearGradient colors={[theme.colors.primary[600], theme.colors.primary[500]]} style={styles.container}>
         <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <View style={styles.header}>
             <Text style={styles.title}>{isEditing ? 'Düzenle' : 'Yeni'} Fatura Oluştur</Text>
@@ -337,7 +339,7 @@ const handleCreateIrregularExpense = async (moneyValue) => {
             disabled={loading}
             activeOpacity={0.8}
           >
-            {loading ? <ActivityIndicator color="#fff" size="small" /> :
+            {loading ? <ActivityIndicator color={theme.colors.text.onPrimary} size="small" /> :
               <Text style={styles.createButtonText}>{isEditing ? 'Faturayı Güncelle' : 'Fatura Oluştur'}</Text>}
           </TouchableOpacity>
           </ScrollView>
@@ -359,13 +361,14 @@ const styles = StyleSheet.create({
   inputGroup: { marginBottom: 22 },
   label: { fontSize: 16, fontWeight: '600', color: '#fff', marginBottom: 10 },
   textInput: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: '#fff',
+    opacity: 0.95,
     borderRadius: 12,
     padding: 14,
     fontSize: 16,
-    color: '#333',
+    color: '#000',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
+    borderColor: '#fff',
   },
   textArea: { height: 90, textAlignVertical: 'top' },
   hint: { marginTop: 6, color: 'rgba(255,255,255,0.85)', fontSize: 12 },
@@ -379,13 +382,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.35)',
   },
-  selectedBillTypeButton: { backgroundColor: 'rgba(255, 255, 255, 0.95)', borderColor: '#4CAF50' },
-  fixedBillTypeButton: { borderColor: '#FF9800' },
-  variableBillTypeButton: { borderColor: '#2196F3' },
+  selectedBillTypeButton: { backgroundColor: '#fff', opacity: 0.95, borderColor: '#22c55e' },
+  fixedBillTypeButton: { borderColor: '#f59e0b' },
+  variableBillTypeButton: { borderColor: '#3b82f6' },
   billTypeButtonText: { fontSize: 16, fontWeight: '600', color: '#fff', textAlign: 'center' },
-  selectedBillTypeButtonText: { color: '#333' },
-  fixedBillTypeButtonText: { color: '#FF9800' },
-  variableBillTypeButtonText: { color: '#2196F3' },
+  selectedBillTypeButtonText: { color: '#000' },
+  fixedBillTypeButtonText: { color: '#f59e0b' },
+  variableBillTypeButtonText: { color: '#3b82f6' },
   billTypeDescription: { fontSize: 12, color: 'rgba(255, 255, 255, 0.8)', textAlign: 'center', marginTop: 4 },
   memberButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -396,11 +399,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.35)',
   },
-  selectedMemberButton: { backgroundColor: 'rgba(255, 255, 255, 0.95)', borderColor: '#4CAF50' },
+  selectedMemberButton: { backgroundColor: '#fff', opacity: 0.95, borderColor: '#22c55e' },
   memberButtonText: { fontSize: 16, fontWeight: '600', color: '#fff', textAlign: 'center' },
-  selectedMemberButtonText: { color: '#333' },
-  createButton: { backgroundColor: '#4CAF50', borderRadius: 12, padding: 18, alignItems: 'center', marginTop: 8, marginBottom: 30 },
-  createButtonDisabled: { backgroundColor: '#a7d7a9' },
+  selectedMemberButtonText: { color: '#000' },
+  createButton: { backgroundColor: '#16a34a', borderRadius: 12, padding: 18, alignItems: 'center', marginTop: 8, marginBottom: 30 },
+  createButtonDisabled: { backgroundColor: '#22c55e' },
   createButtonText: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
 });
 

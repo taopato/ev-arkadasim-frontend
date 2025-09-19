@@ -1,38 +1,40 @@
 // src/screens/HomeScreen.js
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal } from 'react-native';
-import { Colors } from '../constants/Colors';
+import { useTheme } from '../shared/theme/ThemeProvider';
 import { useAuth } from '../context/AuthContext';
 
 const HomeScreen = ({ navigation }) => {
   const { user, logout } = useAuth();
+  const { theme } = useTheme();
   const [billModalVisible, setBillModalVisible] = useState(false);
 
-  const NavButton = ({ title, subtitle, onPress, emoji, color }) => (
-    <TouchableOpacity style={[styles.btn, { backgroundColor: color }]} onPress={onPress} activeOpacity={0.85}>
-      <View style={styles.btnInnerSmall}>
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+
+  const NavButton = ({ title, subtitle, onPress, emoji }) => (
+    <TouchableOpacity style={styles.btnCard} onPress={onPress} activeOpacity={0.85}>
+      <View style={styles.btnCardInner}>
         <Text style={styles.btnIcon}>{emoji}</Text>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.btnText, { color: '#fff' }]}>{title}</Text>
-          {!!subtitle && <Text style={[styles.btnSubSmall]}>{subtitle}</Text>}
+          <Text style={[styles.btnText, { color: theme.colors.text.primary }]} numberOfLines={1}>{title}</Text>
+          {!!subtitle && <Text style={[styles.btnSubSmall, { color: theme.colors.text.secondary }]} numberOfLines={1}>{subtitle}</Text>}
         </View>
       </View>
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView contentContainerStyle={{ padding: 16 }}>
-        <Text style={styles.hello}>Merhaba, {user?.fullName || 'Kullanıcı'} 👋</Text>
-        <Text style={styles.sub}>Hızlı işlemler</Text>
+        <Text style={[styles.hello, { color: theme.colors.text.primary }]}>Merhaba, {user?.fullName || 'Kullanıcı'} 👋</Text>
+        <Text style={[styles.sub, { color: theme.colors.text.secondary }]}>Hızlı işlemler</Text>
 
-        <View style={styles.grid}>
+          <View style={styles.grid}>
           <View style={[styles.gridItemFull]}>
             <NavButton
               title="Evlerim"
               subtitle="Üye olduğum evler"
               emoji="🏘️"
-              color={Colors.primary[600]}
               onPress={() => navigation.navigate('GrupListesi')}
             />
           </View>
@@ -41,7 +43,6 @@ const HomeScreen = ({ navigation }) => {
               title="Faturalar (Planlı)"
               subtitle="Bu ay ödenecekler"
               emoji="📅"
-              color={Colors.warning[600]}
               onPress={() => {
                 navigation.navigate('GrupListesi', { redirectTo: 'BillsOverviewScreen' });
               }}
@@ -52,7 +53,6 @@ const HomeScreen = ({ navigation }) => {
               title="Harcamalar (Serbest)"
               subtitle="Tam hareket dökümü"
               emoji="📋"
-              color={Colors.info[600]}
               onPress={() => {
                 navigation.navigate('GrupListesi', { redirectTo: 'TumHarcamalar' });
               }}
@@ -63,7 +63,6 @@ const HomeScreen = ({ navigation }) => {
               title="Analitik"
               subtitle="Grafikler & özetler"
               emoji="📊"
-              color={Colors.success[600]}
               onPress={() => {
                 navigation.navigate('GrupListesi', { redirectTo: 'HarcamaOzeti' });
               }}
@@ -74,7 +73,6 @@ const HomeScreen = ({ navigation }) => {
               title="Ödemeler"
               subtitle="Tüm ödemeleri incele"
               emoji="💳"
-              color={Colors.success[600]}
               onPress={() => {
                 navigation.navigate('Odemeler');
               }}
@@ -85,7 +83,6 @@ const HomeScreen = ({ navigation }) => {
               title="Borç–Alacak"
               subtitle="Net bakiyeler"
               emoji="💰"
-              color={Colors.info[600]}
               onPress={() => {
                 navigation.navigate('GrupListesi', { redirectTo: 'DebtSummaryScreen' });
               }}
@@ -96,7 +93,6 @@ const HomeScreen = ({ navigation }) => {
               title="Bekleyen İşlemler"
               subtitle="Onay bekleyenler"
               emoji="⏳"
-              color={Colors.neutral[600]}
               onPress={() => navigation.navigate('BekleyenOdemeler', { userId: user?.id })}
             />
           </View>
@@ -105,7 +101,6 @@ const HomeScreen = ({ navigation }) => {
               title="Ayarlar"
               subtitle="Uygulama ve hesap"
               emoji="⚙️"
-              color={Colors.neutral[600]}
               onPress={() => navigation.navigate('Ayarlar')}
             />
           </View>
@@ -114,14 +109,13 @@ const HomeScreen = ({ navigation }) => {
               title="Davet Et"
               subtitle="Arkadaş ekle"
               emoji="📨"
-              color={Colors.info[500]}
               onPress={() => navigation.navigate('DavetEt', { houseId: user?.defaultHouseId })}
             />
           </View>
         </View>
 
         <TouchableOpacity
-          style={[styles.btn, { backgroundColor: Colors.error[600] }]}
+          style={[styles.btn, { backgroundColor: theme.colors.error?.[600] }]}
           onPress={async () => {
             try {
               await logout();
@@ -133,7 +127,7 @@ const HomeScreen = ({ navigation }) => {
         >
           <View style={styles.btnInner}>
             <Text style={styles.btnIcon}>🚪</Text>
-            <Text style={[styles.btnText, { color: '#fff' }]}>Çıkış Yap</Text>
+            <Text style={[styles.btnText, { color: theme.colors.text.onPrimary }]}>Çıkış Yap</Text>
           </View>
         </TouchableOpacity>
 
@@ -143,14 +137,14 @@ const HomeScreen = ({ navigation }) => {
           animationType="slide"
           onRequestClose={() => setBillModalVisible(false)}
         >
-          <View style={styles.sheetBackdrop}>
-            <View style={styles.sheet}>
-              <View style={styles.sheetHandle} />
-              <Text style={styles.modalTitle}>Düzenli Gider Ekle</Text>
-              <Text style={styles.modalSub}>Kira, internet veya abonelik</Text>
+          <View style={[styles.sheetBackdrop]}>
+            <View style={[styles.sheet, { backgroundColor: theme.colors.surface }] }>
+              <View style={[styles.sheetHandle, { backgroundColor: theme.colors.neutral?.[300] }]} />
+              <Text style={[styles.modalTitle, { color: theme.colors.text.primary }]}>Düzenli Gider Ekle</Text>
+              <Text style={[styles.modalSub, { color: theme.colors.text.secondary }]}>Kira, internet veya abonelik</Text>
               <View style={{ gap: 12, marginTop: 12 }}>
                 <TouchableOpacity
-                  style={[styles.modalBtn, { backgroundColor: Colors.primary[600] }]}
+                  style={[styles.modalBtn, { backgroundColor: theme.colors.primary?.[600] }]}
                   activeOpacity={0.85}
                   onPress={() => {
                     setBillModalVisible(false);
@@ -159,15 +153,15 @@ const HomeScreen = ({ navigation }) => {
                     else navigation.navigate('GrupListesi', { redirectTo: 'DuzenliGiderEkle' });
                   }}
                 >
-                  <Text style={styles.modalBtnText}>Düzenli Gider</Text>
+                  <Text style={[styles.modalBtnText, { color: theme.colors.text.onPrimary }]}>Düzenli Gider</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity
-                  style={[styles.modalBtn, { backgroundColor: Colors.neutral[300] }]}
+                  style={[styles.modalBtn, { backgroundColor: theme.colors.neutral?.[300] }]}
                   activeOpacity={0.85}
                   onPress={() => setBillModalVisible(false)}
                 >
-                  <Text style={[styles.modalBtnText, { color: Colors.text.primary }]}>İptal</Text>
+                  <Text style={[styles.modalBtnText, { color: theme.colors.text.primary }]}>İptal</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -178,27 +172,29 @@ const HomeScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surface },
-  hello: { fontSize: 22, fontWeight: '900', color: Colors.text.primary },
-  sub: { color: Colors.text.secondary, marginBottom: 12 },
-  btn: { backgroundColor: Colors.background, borderRadius: 12, borderWidth: 1, borderColor: Colors.neutral[200], marginBottom: 12 },
+const makeStyles = (theme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  hello: { fontSize: 22, fontWeight: '900', color: theme.colors.text.primary },
+  sub: { color: theme.colors.text.secondary, marginBottom: 12 },
+  btn: { backgroundColor: theme.colors.surface, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.neutral?.[200], marginBottom: 12 },
   btnInner: { padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
   btnInnerSmall: { padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
   btnIcon: { fontSize: 22, marginRight: 8 },
-  btnText: { fontWeight: '900', color: Colors.text.primary },
-  btnSub: { color: Colors.text.secondary, marginTop: 2 },
-  btnSubSmall: { color: '#ffffffcc', marginTop: 2, fontSize: 12 },
+  btnText: { fontWeight: '900', color: theme.colors.text.primary },
+  btnSub: { color: theme.colors.text.secondary, marginTop: 2 },
+  btnSubSmall: { color: theme.colors.text.onPrimary, marginTop: 2, fontSize: 12 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   gridItem: { width: '48%' },
   gridItemFull: { width: '100%' },
+  btnCard: { borderRadius: 12, overflow: 'hidden', backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.neutral?.[200] },
+  btnCardInner: { height: 86, paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
   sheetBackdrop: { flex:1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: Colors.background, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16 },
-  sheetHandle: { alignSelf: 'center', width: 40, height: 5, backgroundColor: Colors.neutral[300], borderRadius: 3, marginBottom: 10 },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: Colors.text.primary },
-  modalSub: { color: Colors.text.secondary, marginTop: 4 },
+  sheet: { backgroundColor: theme.colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16 },
+  sheetHandle: { alignSelf: 'center', width: 40, height: 5, backgroundColor: theme.colors.neutral?.[300], borderRadius: 3, marginBottom: 10 },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: theme.colors.text.primary },
+  modalSub: { color: theme.colors.text.secondary, marginTop: 4 },
   modalBtn: { paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, alignItems: 'center' },
-  modalBtnText: { color: '#fff', fontWeight: '700' },
+  modalBtnText: { color: theme.colors.text?.onPrimary, fontWeight: '700' },
 });
 
 export default HomeScreen;

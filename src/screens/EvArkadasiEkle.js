@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,13 +10,17 @@ import {
   ScrollView
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../../constants/Colors';
+import { useCommonStyles, makeColorThemes } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
 import { houseApi } from '../services/api';
 
 const AddHousemateScreen = ({ navigation, route }) => {
   const { houseId, houseName } = route.params || {};
   const { user } = useAuth();
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const ColorThemes = makeColorThemes(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -71,17 +75,9 @@ const AddHousemateScreen = ({ navigation, route }) => {
           <View style={CommonStyles.inputContainer}>
             <Text style={CommonStyles.label}>Email Adresi</Text>
             <TextInput
-              style={{
-                borderWidth: 1,
-                borderColor: Colors.neutral[300],
-                borderRadius: 8,
-                padding: 12,
-                backgroundColor: Colors.background,
-                fontSize: 16,
-                color: Colors.text.primary,
-              }}
+              style={{ borderWidth: 1, borderColor: theme.colors.neutral[300], borderRadius: 8, padding: 12, backgroundColor: theme.colors.background, fontSize: 16, color: theme.colors.text.primary }}
               placeholder="arkadas@email.com"
-              placeholderTextColor={Colors.text.secondary}
+              placeholderTextColor={theme.colors.text.secondary}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -116,7 +112,7 @@ const AddHousemateScreen = ({ navigation, route }) => {
 
         {loading && (
           <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color={Colors.primary[500]} />
+            <ActivityIndicator size="large" color={theme.colors.primary[500]} />
           </View>
         )}
       </ScrollView>
@@ -124,28 +120,20 @@ const AddHousemateScreen = ({ navigation, route }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  infoText: {
-    fontSize: 14,
-    color: Colors.text.secondary,
-    lineHeight: 20,
-    marginTop: 16,
-    padding: 12,
-    backgroundColor: Colors.neutral[50],
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.primary[300],
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.7)'
-  },
-});
+function makeStyles(theme) {
+  return StyleSheet.create({
+    infoText: { fontSize: 14, color: theme.colors.text.secondary, lineHeight: 20, marginTop: 16, padding: 12, backgroundColor: theme.colors.neutral[50], borderRadius: 8, borderLeftWidth: 4, borderLeftColor: theme.colors.primary[300] },
+    loadingOverlay: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(255, 255, 255, 0.7)'
+    },
+  });
+}
 
 export default AddHousemateScreen;

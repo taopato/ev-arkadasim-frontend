@@ -17,8 +17,8 @@ import {
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { expensesApi, houseApi } from '../services/api';
-import { Colors } from '../constants/Colors';
-import { CommonStyles } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
+import { useCommonStyles } from '../shared/ui/CommonStyles';
 import { normalizeExpense } from '../utils/expenseClassifier';
 import { getCategoryDisplayName, getCategoryIcon, getCategoryColor } from '../constants/ExpenseEnums';
 import {
@@ -39,6 +39,9 @@ const HarcamaListesiScreen = ({ navigation, route }) => {
   const { user } = useAuth();
   const { houseId: routeHouseId } = route.params || {};
   const houseId = routeHouseId || user?.defaultHouseId;
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -364,7 +367,7 @@ const HarcamaListesiScreen = ({ navigation, route }) => {
   if (loading && items.length === 0) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary[500]} />
+        <ActivityIndicator size="large" color={theme.colors.primary?.[500]} />
         <Text style={styles.loadingText}>Harcamalar yükleniyor...</Text>
       </View>
     );
@@ -400,7 +403,7 @@ const HarcamaListesiScreen = ({ navigation, route }) => {
           placeholder="Harcama ara..."
           value={searchText}
           onChangeText={setSearchText}
-          placeholderTextColor={Colors.text.secondary}
+          placeholderTextColor={theme.colors.text.secondary}
         />
         <TouchableOpacity
           style={styles.filterButton}
@@ -422,7 +425,7 @@ const HarcamaListesiScreen = ({ navigation, route }) => {
               setRefreshing(true);
               loadData();
             }}
-            colors={[Colors.primary[500]]}
+            colors={[theme.colors.primary[500]]}
           />
         }
         contentContainerStyle={styles.listContainer}
@@ -444,22 +447,10 @@ const HarcamaListesiScreen = ({ navigation, route }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.surface
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.surface
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: Colors.text.secondary
-  },
+const makeStyles = (theme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.colors.surface },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.surface },
+  loadingText: { marginTop: 16, fontSize: 16, color: theme.colors.text.secondary },
   
   // Özet
   summaryContainer: {
@@ -467,30 +458,10 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12
   },
-  summaryCard: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.neutral[200]
-  },
-  summaryLabel: {
-    fontSize: 12,
-    color: Colors.text.secondary,
-    marginBottom: 4
-  },
-  summaryValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
-    marginBottom: 2
-  },
-  summaryCount: {
-    fontSize: 11,
-    color: Colors.text.secondary
-  },
+  summaryCard: { flex: 1, backgroundColor: theme.colors.background, borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: theme.colors.neutral[200] },
+  summaryLabel: { fontSize: 12, color: theme.colors.text.secondary, marginBottom: 4 },
+  summaryValue: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text.primary, marginBottom: 2 },
+  summaryCount: { fontSize: 11, color: theme.colors.text.secondary },
 
   // Arama
   searchContainer: {
@@ -499,41 +470,16 @@ const styles = StyleSheet.create({
     paddingTop: 0,
     gap: 12
   },
-  searchInput: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    borderRadius: 8,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: Colors.neutral[300],
-    color: Colors.text.primary
-  },
-  filterButton: {
-    backgroundColor: Colors.primary[500],
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    justifyContent: 'center'
-  },
-  filterButtonText: {
-    color: 'white',
-    fontWeight: '600'
-  },
+  searchInput: { flex: 1, borderRadius: 8, padding: 12, borderWidth: 1 },
+  filterButton: { backgroundColor: theme.colors.primary[500], paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, justifyContent: 'center' },
+  filterButtonText: { color: theme.colors.text.onPrimary, fontWeight: '600' },
 
   // Liste
   listContainer: {
     padding: 16,
     paddingTop: 0
   },
-  card: {
-    backgroundColor: Colors.background,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    borderWidth: 1,
-    borderColor: Colors.neutral[200]
-  },
+  card: { backgroundColor: theme.colors.background, borderRadius: 12, padding: 16, marginBottom: 12, borderLeftWidth: 4, borderWidth: 1, borderColor: theme.colors.neutral[200] },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -553,28 +499,10 @@ const styles = StyleSheet.create({
   cardTitleText: {
     flex: 1
   },
-  cardTitleMain: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
-    marginBottom: 2
-  },
-  cardSubtitle: {
-    fontSize: 13,
-    color: Colors.text.secondary
-  },
-  cardAmount: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.text.primary
-  },
-  cardNote: {
-    fontSize: 13,
-    color: Colors.text.secondary,
-    fontStyle: 'italic',
-    marginBottom: 8,
-    lineHeight: 18
-  },
+  cardTitleMain: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text.primary, marginBottom: 2 },
+  cardSubtitle: { fontSize: 13, color: theme.colors.text.secondary },
+  cardAmount: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text.primary },
+  cardNote: { fontSize: 13, color: theme.colors.text.secondary, fontStyle: 'italic', marginBottom: 8, lineHeight: 18 },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'flex-end'
@@ -590,28 +518,10 @@ const styles = StyleSheet.create({
   },
 
   // Modal
-  modalContainer: {
-    flex: 1,
-    backgroundColor: Colors.surface
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral[200]
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.text.primary
-  },
-  modalClose: {
-    fontSize: 16,
-    color: Colors.primary[500],
-    fontWeight: '600'
-  },
+  modalContainer: { flex: 1, backgroundColor: theme.colors.surface },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.neutral[200] },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', color: theme.colors.text.primary },
+  modalClose: { fontSize: 16, color: theme.colors.primary[500], fontWeight: '600' },
   modalContent: {
     flex: 1,
     padding: 16
@@ -619,32 +529,11 @@ const styles = StyleSheet.create({
   filterSection: {
     marginBottom: 24
   },
-  filterSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text.primary,
-    marginBottom: 12
-  },
-  filterOption: {
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-    backgroundColor: Colors.background,
-    borderWidth: 1,
-    borderColor: Colors.neutral[200]
-  },
-  filterOptionActive: {
-    backgroundColor: Colors.primary[100],
-    borderColor: Colors.primary[500]
-  },
-  filterOptionText: {
-    fontSize: 14,
-    color: Colors.text.primary
-  },
-  filterOptionTextActive: {
-    color: Colors.primary[700],
-    fontWeight: '600'
-  },
+  filterSectionTitle: { fontSize: 16, fontWeight: '600', color: theme.colors.text.primary, marginBottom: 12 },
+  filterOption: { padding: 12, borderRadius: 8, marginBottom: 8, backgroundColor: theme.colors.background, borderWidth: 1, borderColor: theme.colors.neutral[200] },
+  filterOptionActive: { backgroundColor: theme.colors.primary[100], borderColor: theme.colors.primary[500] },
+  filterOptionText: { fontSize: 14, color: theme.colors.text.primary },
+  filterOptionTextActive: { color: theme.colors.primary[700], fontWeight: '600' },
 
   // Boş Durum
   emptyContainer: {
@@ -655,18 +544,8 @@ const styles = StyleSheet.create({
     fontSize: 48,
     marginBottom: 16
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
-    marginBottom: 8
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: Colors.text.secondary,
-    textAlign: 'center',
-    lineHeight: 20
-  }
+  emptyTitle: { fontSize: 18, fontWeight: 'bold', color: theme.colors.text.primary, marginBottom: 8 },
+  emptySubtitle: { fontSize: 14, color: theme.colors.text.secondary, textAlign: 'center', lineHeight: 20 },
 });
 
 export default HarcamaListesiScreen;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,14 @@ import {
   TouchableOpacity,
   ScrollView
 } from 'react-native';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../../constants/Colors';
+import { useCommonStyles, makeColorThemes } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
 
 const AcceptInvitationScreen = ({ navigation, route }) => {
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const ColorThemes = makeColorThemes(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
     <View style={CommonStyles.container}>
       <ScrollView style={CommonStyles.content}>
@@ -42,13 +46,15 @@ const AcceptInvitationScreen = ({ navigation, route }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  infoText: {
-    fontSize: 16,
-    color: Colors.text.secondary,
-    lineHeight: 24,
-    textAlign: 'center',
-  },
-});
+function makeStyles(theme) {
+  return StyleSheet.create({
+    infoText: {
+      fontSize: 16,
+      color: theme.colors.text.secondary,
+      lineHeight: 24,
+      textAlign: 'center',
+    },
+  });
+}
 
 export default AcceptInvitationScreen; 

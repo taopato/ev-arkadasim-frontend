@@ -10,9 +10,9 @@ import {
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { expensesApi } from "../services/api";
-import { Colors } from "../constants/Colors";
+import { useTheme } from "../shared/theme/ThemeProvider";
 import { getCategoryDisplayName as getCatName, getCategoryIcon as getCatIcon } from "../constants/ExpenseEnums";
-import { CommonStyles } from "../shared/ui/CommonStyles";
+import { useCommonStyles } from "../shared/ui/CommonStyles";
 import Toast from "../components/Toast";
 import eventBus from "../shared/events/bus";
 import {
@@ -144,8 +144,10 @@ const cmpByDateThenIdDesc = (a, b) => {
 
 export default function BillsOverviewScreen({ navigation, route }) {
   const { houseId, houseName } = route.params || {};
+  const { theme } = useTheme();
   const { user } = useAuth();
   const [loading, setLoading] = React.useState(false);
+  const CommonStyles = useCommonStyles();
   const [toast, setToast] = React.useState({
     visible: false,
     message: "",
@@ -392,14 +394,14 @@ export default function BillsOverviewScreen({ navigation, route }) {
         <TouchableOpacity
           onPress={handleAddBill}
           style={{
-            backgroundColor: Colors.primary[500],
+            backgroundColor: theme.colors.primary?.[500],
             paddingHorizontal: 10,
             paddingVertical: 6,
             borderRadius: 8,
           }}
           activeOpacity={0.8}
         >
-          <Text style={{ color: '#fff', fontWeight: '700' }}>+ Ekle</Text>
+          <Text style={{ color: theme.colors.text.onPrimary, fontWeight: '700' }}>+ Ekle</Text>
         </TouchableOpacity>
       ),
     });
@@ -407,17 +409,17 @@ export default function BillsOverviewScreen({ navigation, route }) {
 
   if (loading && items.length === 0) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={Colors.primary[500]} />
-        <Text style={{ marginTop: 8 }}>Fatura verileri yükleniyor…</Text>
+      <View style={[styles.center, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary?.[500]} />
+        <Text style={{ marginTop: 8, color: theme.colors.text.secondary }}>Fatura verileri yükleniyor…</Text>
       </View>
     );
   }
 
   return (
-    <View style={CommonStyles.container}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <ScrollView
-        style={CommonStyles.content}
+        style={{ flex: 1, backgroundColor: theme.colors.background, padding: 16 }}
         showsVerticalScrollIndicator={false}
         ref={listRef}
         onScroll={handleScroll}
@@ -425,22 +427,22 @@ export default function BillsOverviewScreen({ navigation, route }) {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={CommonStyles.title}>Planlı Giderler</Text>
-          <TouchableOpacity style={styles.addBtn} onPress={handleAddBill}>
-            <Text style={styles.addBtnText}>+ Düzenli Gider Ekle</Text>
+          <Text style={[CommonStyles.title, { color: theme.colors.text.primary }]}>Planlı Giderler</Text>
+          <TouchableOpacity style={[styles.addBtn, { backgroundColor: theme.colors.primary?.[500] }]} onPress={handleAddBill}>
+            <Text style={[styles.addBtnText, { color: theme.colors.text.onPrimary }]}>+ Düzenli Gider Ekle</Text>
           </TouchableOpacity>
         </View>
-        <Text style={CommonStyles.subtitle}>{houseName}</Text>
+        <Text style={[CommonStyles.subtitle, { color: theme.colors.text.secondary }]}>{houseName}</Text>
 
         {/* Totals */}
         <View style={styles.summaryRow}>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Toplam Fatura</Text>
-            <Text style={styles.summaryAmount}>{formatAmount(totals.all)}</Text>
+          <View style={[styles.summaryCard, { backgroundColor: theme.colors.background }]}>
+            <Text style={[styles.summaryLabel, { color: theme.colors.text.secondary }]}>Toplam Fatura</Text>
+            <Text style={[styles.summaryAmount, { color: theme.colors.text.primary }]}>{formatAmount(totals.all)}</Text>
           </View>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Fatura Sayısı</Text>
-            <Text style={styles.summaryAmount}>{filtered.length}</Text>
+          <View style={[styles.summaryCard, { backgroundColor: theme.colors.background }]}>
+            <Text style={[styles.summaryLabel, { color: theme.colors.text.secondary }]}>Fatura Sayısı</Text>
+            <Text style={[styles.summaryAmount, { color: theme.colors.text.primary }]}>{filtered.length}</Text>
           </View>
         </View>
 
@@ -448,14 +450,14 @@ export default function BillsOverviewScreen({ navigation, route }) {
         {filtered.length === 0 ? (
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>📄</Text>
-            <Text style={styles.emptyText}>
+            <Text style={[styles.emptyText, { color: theme.colors.text.secondary }]}>
               {loading
                 ? "Veriler yükleniyor..."
                 : "Bu ay için görünür planlı gider bulunmuyor."}
             </Text>
             {!loading && (
-              <TouchableOpacity onPress={handleAddBill} style={styles.resetBtn}>
-                <Text style={{ fontSize: 12, fontWeight: "600", color: "#fff" }}>
+              <TouchableOpacity onPress={handleAddBill} style={[styles.resetBtn, { backgroundColor: theme.colors.primary?.[500] }]}>
+                <Text style={{ fontSize: 12, fontWeight: "600", color: theme.colors.text.onPrimary }}>
                   + Düzenli Gider Ekle
                 </Text>
               </TouchableOpacity>
@@ -489,7 +491,7 @@ export default function BillsOverviewScreen({ navigation, route }) {
               return (
                 <TouchableOpacity
                   key={String(it.id ?? idx)}
-                  style={CommonStyles.listItem}
+                  style={{ flexDirection:'row', alignItems:'center', paddingVertical:10, borderBottomWidth:1, borderBottomColor: theme.colors.neutral?.[200] }}
                   activeOpacity={0.7}
                   onPress={() =>
                     navigation.navigate("BillDetail", {
@@ -502,17 +504,17 @@ export default function BillsOverviewScreen({ navigation, route }) {
                   <View style={styles.iconCircle}>
                     <Text style={{ fontSize: 22 }}>{icon}</Text>
                   </View>
-                  <View style={CommonStyles.listItemContent}>
-                    <Text style={CommonStyles.listItemTitle}>
+                  <View style={{ flex:1 }}>
+                    <Text style={{ fontSize:16, fontWeight:'700', color: theme.colors.text.primary }}>
                       {label}
                       {titleSuffix}
                     </Text>
-                    <Text style={CommonStyles.listItemSubtitle}>
+                    <Text style={{ fontSize:12, color: theme.colors.text.secondary, marginTop:2 }}>
                       Tarih: {d.toLocaleDateString("tr-TR")}
                     </Text>
                   </View>
                   <View style={{ alignItems: "flex-end" }}>
-                    <Text style={{ fontSize: 16, fontWeight: "700" }}>
+                    <Text style={{ fontSize: 16, fontWeight: "700", color: theme.colors.text.primary }}>
                       {formatAmount(it.amount ?? it.tutar)}
                     </Text>
                   </View>
@@ -533,7 +535,7 @@ export default function BillsOverviewScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1 },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   header: {
     flexDirection: "row",
@@ -543,12 +545,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   addBtn: {
-    backgroundColor: Colors.primary[500],
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
   },
-  addBtnText: { color: "#fff", fontWeight: "700" },
+  addBtnText: { fontWeight: "700" },
   summaryRow: {
     flexDirection: "row",
     justifyContent: "space-around",
@@ -557,23 +558,23 @@ const styles = StyleSheet.create({
   summaryCard: {
     flex: 1,
     marginHorizontal: 6,
-    backgroundColor: "#fafafa",
+    backgroundColor: 'transparent',
     padding: 12,
     borderRadius: 10,
     alignItems: "center",
     elevation: 2,
   },
-  summaryLabel: { fontSize: 12, color: Colors.text?.secondary || "#666" },
+  summaryLabel: { fontSize: 12 },
   summaryAmount: {
     fontSize: 16,
     fontWeight: "700",
-    color: Colors.text?.primary || "#111",
+    color: 'inherit',
   },
   iconCircle: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.primary[100],
+    backgroundColor: '#00000010',
     justifyContent: "center",
     alignItems: "center",
     marginRight: 10,
@@ -584,15 +585,11 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   emptyIcon: { fontSize: 32, marginBottom: 8 },
-  emptyText: {
-    fontSize: 14,
-    color: Colors.text?.secondary || "#666",
-    marginBottom: 8,
-  },
+  emptyText: { fontSize: 14, marginBottom: 8 },
   resetBtn: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 14,
-    backgroundColor: Colors.primary[500],
+    backgroundColor: 'transparent',
   },
 });

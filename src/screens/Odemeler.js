@@ -1,15 +1,17 @@
 // src/screens/PaymentsScreen.js
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
-import { Colors } from '../constants/Colors';
 import { houseApi, paymentsApi } from '../services/api';
 import { getAllUsers } from '../features/users/get-users/api';
 import { useAuth } from '../context/AuthContext';
 import eventBus from '../shared/events/bus';
 import useScrollRestore from '../hooks/useScrollRestore';
+import { useTheme } from '../shared/theme/ThemeProvider';
 
 const PaymentsScreen = ({ route, navigation }) => {
   const { user } = useAuth();
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { houseId: routeHouseId } = route.params || {};
   const houseId = routeHouseId || user?.defaultHouseId;
 
@@ -170,9 +172,9 @@ const PaymentsScreen = ({ route, navigation }) => {
     })();
 
     const color =
-      status === 'Approved' ? Colors.success[600] :
-      status === 'Rejected' ? Colors.error[600] :
-      Colors.warning[600];
+      status === 'Approved' ? (theme.colors.success?.[600]) :
+      status === 'Rejected' ? (theme.colors.error?.[600]) :
+      (theme.colors.warning?.[600]);
 
     const statusText = 
       status === 'Approved' ? 'Onaylandı' :
@@ -191,7 +193,7 @@ const PaymentsScreen = ({ route, navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <FlatList
         ref={listRef}
         data={items}
@@ -203,7 +205,7 @@ const PaymentsScreen = ({ route, navigation }) => {
         scrollEventThrottle={16}
         ListHeaderComponent={
           <View style={styles.headerRow}>
-            <Text style={styles.header}>Ödemeler</Text>
+            <Text style={[styles.header, { color: theme.colors.text.primary }]}>Ödemeler</Text>
             <TouchableOpacity
               activeOpacity={0.85}
               onPress={() => {
@@ -215,56 +217,56 @@ const PaymentsScreen = ({ route, navigation }) => {
                 }
               }}
             >
-              <Text style={styles.link}>+ Ödeme Ekle</Text>
+              <Text style={[styles.link, { color: theme.colors.primary?.[600] }]}>+ Ödeme Ekle</Text>
             </TouchableOpacity>
           </View>
         }
         ListFooterComponent={
           <View style={styles.filterBar}>
             <TouchableOpacity
-              style={[styles.filterBtn, filterMode === 'all' && styles.filterBtnActive]}
+              style={[styles.filterBtn, { backgroundColor: theme.colors.neutral?.[200] }, filterMode === 'all' && { backgroundColor: theme.colors.primary?.[600] }]}
               onPress={() => setFilterMode('all')}
               activeOpacity={0.85}
             >
-              <Text style={[styles.filterText, filterMode === 'all' && styles.filterTextActive]}>Tümü</Text>
+              <Text style={[styles.filterText, { color: theme.colors.text.primary }, filterMode === 'all' && { color: theme.colors.text?.onPrimary }]}>Tümü</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.filterBtn, filterMode === 'mine' && styles.filterBtnActive]}
+              style={[styles.filterBtn, { backgroundColor: theme.colors.neutral?.[200] }, filterMode === 'mine' && { backgroundColor: theme.colors.primary?.[600] }]}
               onPress={() => setFilterMode('mine')}
               activeOpacity={0.85}
             >
-              <Text style={[styles.filterText, filterMode === 'mine' && styles.filterTextActive]}>Benim</Text>
+              <Text style={[styles.filterText, { color: theme.colors.text.primary }, filterMode === 'mine' && { color: theme.colors.text?.onPrimary }]}>Benim</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.filterBtn, filterMode === 'incoming' && styles.filterBtnActive]}
+              style={[styles.filterBtn, { backgroundColor: theme.colors.neutral?.[200] }, filterMode === 'incoming' && { backgroundColor: theme.colors.primary?.[600] }]}
               onPress={() => setFilterMode('incoming')}
               activeOpacity={0.85}
             >
-              <Text style={[styles.filterText, filterMode === 'incoming' && styles.filterTextActive]}>Bana</Text>
+              <Text style={[styles.filterText, { color: theme.colors.text.primary }, filterMode === 'incoming' && { color: theme.colors.text?.onPrimary }]}>Bana</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.filterBtn, filterMode === 'member' && styles.filterBtnActive]}
+              style={[styles.filterBtn, { backgroundColor: theme.colors.neutral?.[200] }, filterMode === 'member' && { backgroundColor: theme.colors.primary?.[600] }]}
               onPress={() => setFilterMode('member')}
               activeOpacity={0.85}
             >
-              <Text style={[styles.filterText, filterMode === 'member' && styles.filterTextActive]}>Üye Seç</Text>
+              <Text style={[styles.filterText, { color: theme.colors.text.primary }, filterMode === 'member' && { color: theme.colors.text?.onPrimary }]}>Üye Seç</Text>
             </TouchableOpacity>
           </View>
         }
-        ListEmptyComponent={!loading ? <Text style={styles.empty}>Kayıt yok</Text> : null}
+        ListEmptyComponent={!loading ? <Text style={[styles.empty, { color: theme.colors.text.secondary }]}>Kayıt yok</Text> : null}
       />
       {filterMode === 'member' && (
         <View style={styles.memberPicker}>
-          <Text style={styles.memberPickerLabel}>Üye:</Text>
+          <Text style={[styles.memberPickerLabel, { color: theme.colors.text.secondary }]}>Üye:</Text>
           <View style={styles.memberChips}>
             {members.map(m => (
               <TouchableOpacity
                 key={String(m.id)}
-                style={[styles.chip, Number(selectedMemberId) === Number(m.id) && styles.chipActive]}
+                style={[styles.chip, { backgroundColor: theme.colors.neutral?.[200] }, Number(selectedMemberId) === Number(m.id) && { backgroundColor: theme.colors.primary?.[600] }]}
                 onPress={() => setSelectedMemberId(m.id)}
                 activeOpacity={0.85}
               >
-                <Text style={[styles.chipText, Number(selectedMemberId) === Number(m.id) && styles.chipTextActive]}>
+                <Text style={[styles.chipText, { color: theme.colors.text.primary, fontWeight: '700' }, Number(selectedMemberId) === Number(m.id) && { color: theme.colors.text?.onPrimary }]}> 
                   {m.name}
                 </Text>
               </TouchableOpacity>
@@ -276,29 +278,29 @@ const PaymentsScreen = ({ route, navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surface },
+const makeStyles = (theme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.colors.background },
   headerRow: { paddingHorizontal: 12, paddingBottom: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  header: { fontSize: 20, fontWeight: '900', color: Colors.text.primary },
-  link: { color: Colors.primary[600], fontWeight: '800' },
-  card: { borderLeftWidth: 4, backgroundColor: Colors.background, borderRadius: 12, padding: 12, marginBottom: 10, borderColor: Colors.neutral[200], borderWidth: 1 },
-  title: { fontWeight: '900', color: Colors.text.primary },
-  sub: { color: Colors.text.secondary, marginTop: 2 },
-  note: { color: Colors.text.primary, marginTop: 6 },
+  header: { fontSize: 20, fontWeight: '900', color: theme.colors.text.primary },
+  link: { color: theme.colors.primary?.[600], fontWeight: '800' },
+  card: { borderLeftWidth: 4, backgroundColor: theme.colors.surface, borderRadius: 12, padding: 12, marginBottom: 10, borderColor: theme.colors.neutral?.[200], borderWidth: 1 },
+  title: { fontWeight: '900', color: theme.colors.text.primary },
+  sub: { color: theme.colors.text.secondary, marginTop: 2 },
+  note: { color: theme.colors.text.primary, marginTop: 6 },
   amount: { fontWeight: '900', marginTop: 6 },
-  empty: { textAlign: 'center', color: Colors.text.secondary, padding: 24 },
+  empty: { textAlign: 'center', color: theme.colors.text.secondary, padding: 24 },
   filterBar: { flexDirection: 'row', gap: 8, marginTop: 8, paddingHorizontal: 12, paddingBottom: 8 },
-  filterBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20, backgroundColor: Colors.neutral[200] },
-  filterBtnActive: { backgroundColor: Colors.primary[600] },
-  filterText: { color: Colors.text.primary, fontWeight: '700' },
-  filterTextActive: { color: '#fff' },
+  filterBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20, backgroundColor: theme.colors.neutral?.[200] },
+  filterBtnActive: { backgroundColor: theme.colors.primary?.[600] },
+  filterText: { color: theme.colors.text.primary, fontWeight: '700' },
+  filterTextActive: { color: theme.colors.text?.onPrimary },
   memberPicker: { paddingHorizontal: 12, paddingBottom: 12 },
-  memberPickerLabel: { color: Colors.text.secondary, marginBottom: 8 },
+  memberPickerLabel: { color: theme.colors.text.secondary, marginBottom: 8 },
   memberChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingVertical: 6, paddingHorizontal: 10, backgroundColor: Colors.neutral[200], borderRadius: 16 },
-  chipActive: { backgroundColor: Colors.primary[600] },
-  chipText: { color: Colors.text.primary, fontWeight: '700' },
-  chipTextActive: { color: '#fff' },
+  chip: { paddingVertical: 6, paddingHorizontal: 10, backgroundColor: theme.colors.neutral?.[200], borderRadius: 16 },
+  chipActive: { backgroundColor: theme.colors.primary?.[600] },
+  chipText: { color: theme.colors.text.primary, fontWeight: '700' },
+  chipTextActive: { color: theme.colors.text?.onPrimary },
 });
 
 export default PaymentsScreen;

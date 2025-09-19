@@ -1,5 +1,5 @@
 // src/screens/CreatePaymentScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity, Alert,
   ActivityIndicator, Platform, ScrollView, Image, KeyboardAvoidingView,
@@ -8,14 +8,18 @@ import * as ImagePicker from 'expo-image-picker';
 import RNPickerSelect from 'react-native-picker-select';
 import { useAuth } from '../context/AuthContext';
 import { paymentsApi, houseApi } from '../services/api';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../../constants/Colors';
+import { useCommonStyles, makeColorThemes } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 
 export default function CreatePaymentScreen({ navigation, route }) {
   const { houseId, houseName, alacakliUserId, suggestedAmount, chargeId } = route.params || {};
   const { user } = useAuth();
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const ColorThemes = makeColorThemes(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
@@ -128,12 +132,12 @@ export default function CreatePaymentScreen({ navigation, route }) {
 
   const pickerSelectStyles = {
     inputAndroid: {
-      borderWidth: 1, borderColor: Colors.neutral[300], borderRadius: 8, padding: 12,
-      backgroundColor: Colors.background, marginBottom: 16, color: Colors.text.primary
+      borderWidth: 1, borderColor: theme.colors.neutral[300], borderRadius: 8, padding: 12,
+      backgroundColor: theme.colors.background, marginBottom: 16, color: theme.colors.text.primary
     },
     inputIOS: {
-      borderWidth: 1, borderColor: Colors.neutral[300], borderRadius: 8, padding: 12,
-      backgroundColor: Colors.background, marginBottom: 16, color: Colors.text.primary
+      borderWidth: 1, borderColor: theme.colors.neutral[300], borderRadius: 8, padding: 12,
+      backgroundColor: theme.colors.background, marginBottom: 16, color: theme.colors.text.primary
     },
   };
 
@@ -199,23 +203,23 @@ export default function CreatePaymentScreen({ navigation, route }) {
               onPress={() => setMethod('Cash')}
               style={{
                 paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1,
-                borderColor: method === 'Cash' ? Colors.success[600] : Colors.neutral[300],
-                backgroundColor: method === 'Cash' ? Colors.success[100] : Colors.background,
+                borderColor: method === 'Cash' ? theme.colors.success[600] : theme.colors.neutral[300],
+                backgroundColor: method === 'Cash' ? theme.colors.success[100] : theme.colors.background,
               }}
               activeOpacity={0.8}
             >
-              <Text style={{ color: Colors.text.primary }}>Nakit</Text>
+              <Text style={{ color: theme.colors.text.primary }}>Nakit</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setMethod('BankTransfer')}
               style={{
                 paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1,
-                borderColor: method === 'BankTransfer' ? Colors.primary[600] : Colors.neutral[300],
-                backgroundColor: method === 'BankTransfer' ? Colors.primary[100] : Colors.background,
+                borderColor: method === 'BankTransfer' ? theme.colors.primary[600] : theme.colors.neutral[300],
+                backgroundColor: method === 'BankTransfer' ? theme.colors.primary[100] : theme.colors.background,
               }}
               activeOpacity={0.8}
             >
-              <Text style={{ color: Colors.text.primary }}>IBAN / Havale</Text>
+              <Text style={{ color: theme.colors.text.primary }}>IBAN / Havale</Text>
             </TouchableOpacity>
           </View>
 
@@ -224,11 +228,7 @@ export default function CreatePaymentScreen({ navigation, route }) {
             <Text style={CommonStyles.label}>Ödeme Yapılacak Kişi</Text>
             {Platform.OS === 'web' ? (
               <select
-                style={{
-                  width: '100%', height: 45, padding: '8px 12px', borderWidth: 1,
-                  borderColor: Colors.neutral[300], borderRadius: 8, backgroundColor: Colors.background,
-                  color: Colors.text.primary, fontSize: 16,
-                }}
+                style={{ width: '100%', height: 45, padding: '8px 12px', borderWidth: 1, borderColor: theme.colors.neutral[300], borderRadius: 8, backgroundColor: theme.colors.background, color: theme.colors.text.primary, fontSize: 16 }}
                 value={toUserId || ''}
                 onChange={(e) => handleToUserChange(e.target.value)}
               >
@@ -256,10 +256,7 @@ export default function CreatePaymentScreen({ navigation, route }) {
           <View style={CommonStyles.inputContainer}>
             <Text style={CommonStyles.label}>Tutar (₺)</Text>
             <TextInput
-              style={{
-                borderWidth: 1, borderColor: Colors.neutral[300], borderRadius: 8, padding: 12,
-                backgroundColor: Colors.background, fontSize: 16, color: Colors.text.primary,
-              }}
+              style={{ borderWidth: 1, borderColor: theme.colors.neutral[300], borderRadius: 8, padding: 12, backgroundColor: theme.colors.background, fontSize: 16, color: theme.colors.text.primary }}
               value={amount}
               onChangeText={setAmount}
               placeholder="0.00"
@@ -273,11 +270,7 @@ export default function CreatePaymentScreen({ navigation, route }) {
           <View style={CommonStyles.inputContainer}>
             <Text style={CommonStyles.label}>Açıklama</Text>
             <TextInput
-              style={{
-                borderWidth: 1, borderColor: Colors.neutral[300], borderRadius: 8, padding: 12,
-                backgroundColor: Colors.background, fontSize: 16, color: Colors.text.primary,
-                minHeight: 80, textAlignVertical: 'top',
-              }}
+              style={{ borderWidth: 1, borderColor: theme.colors.neutral[300], borderRadius: 8, padding: 12, backgroundColor: theme.colors.background, fontSize: 16, color: theme.colors.text.primary, minHeight: 80, textAlignVertical: 'top' }}
               value={description}
               onChangeText={setDescription}
               placeholder="Ödeme açıklaması (örn: Kira payı, market alışverişi)"
@@ -348,15 +341,15 @@ export default function CreatePaymentScreen({ navigation, route }) {
           </View>
         </TouchableOpacity>
 
-        {loading && (
+          {loading && (
           <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color={Colors.primary[500]} />
+            <ActivityIndicator size="large" color={theme.colors.primary[500]} />
           </View>
         )}
 
         {!!formError && (
           <View style={{ padding: 12 }}>
-            <Text style={{ color: Colors.error[600] }}>{formError}</Text>
+            <Text style={{ color: theme.colors.error[600] }}>{formError}</Text>
           </View>
         )}
       </ScrollView>
@@ -366,12 +359,12 @@ export default function CreatePaymentScreen({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({
-  loadingOverlay: {
-    position: 'absolute', left: 0, right: 0, top: 0, bottom: 0,
-    alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255, 255, 255, 0.7)'
-  },
-  payerInfo: {
-    textAlign: 'center', fontSize: 14, color: Colors.text.secondary, fontStyle: 'italic', marginVertical: 10
-  },
-});
+function makeStyles(theme) {
+  return StyleSheet.create({
+    loadingOverlay: {
+      position: 'absolute', left: 0, right: 0, top: 0, bottom: 0,
+      alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255, 255, 255, 0.7)'
+    },
+    payerInfo: { textAlign: 'center', fontSize: 14, color: theme.colors.text.secondary, fontStyle: 'italic', marginVertical: 10 },
+  });
+}

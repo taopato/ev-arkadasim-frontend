@@ -1,6 +1,6 @@
 import React from 'react';
 import { TextInput as RNTextInput, StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { Colors } from '../../../constants/Colors';
+import { useTheme } from '../theme/ThemeProvider';
 
 interface TextInputProps {
   value: string;
@@ -24,7 +24,7 @@ export const TextInput: React.FC<TextInputProps> = ({
   value,
   onChangeText,
   placeholder,
-  placeholderTextColor = Colors.text.disabled,
+  placeholderTextColor,
   secureTextEntry = false,
   keyboardType = 'default',
   autoCapitalize = 'none',
@@ -37,17 +37,20 @@ export const TextInput: React.FC<TextInputProps> = ({
   onFocus,
   onBlur,
 }) => {
+  const { theme } = useTheme();
+  const ph = placeholderTextColor ?? theme.colors.text.disabled;
   return (
     <RNTextInput
       style={[
         styles.input,
-        disabled && styles.disabled,
+        { borderColor: theme.colors.neutral[300], color: theme.colors.text.primary, backgroundColor: theme.colors.background },
+        disabled && { opacity: 0.5, backgroundColor: theme.colors.neutral[100] },
         style,
       ]}
       value={value}
       onChangeText={onChangeText}
       placeholder={placeholder}
-      placeholderTextColor={placeholderTextColor}
+      placeholderTextColor={ph}
       secureTextEntry={secureTextEntry}
       keyboardType={keyboardType}
       autoCapitalize={autoCapitalize}
@@ -64,17 +67,10 @@ export const TextInput: React.FC<TextInputProps> = ({
 const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
-    borderColor: Colors.neutral[300],
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: Colors.text.primary,
-    backgroundColor: Colors.background,
     minHeight: 48,
-  },
-  disabled: {
-    opacity: 0.5,
-    backgroundColor: Colors.neutral[100],
   },
 });

@@ -15,8 +15,8 @@ import {
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { expensesApi } from '../services/api';
-import { Colors } from '../constants/Colors';
-import { CommonStyles } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
+import { useCommonStyles } from '../shared/ui/CommonStyles';
 import { normalizeExpense } from '../utils/expenseClassifier';
 import {
   getUTCMonthWindow,
@@ -40,6 +40,9 @@ const PlanliOdemelerScreen = ({ navigation, route }) => {
   const { user } = useAuth();
   const { houseId: routeHouseId } = route.params || {};
   const houseId = routeHouseId || user?.defaultHouseId;
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -206,11 +209,11 @@ const PlanliOdemelerScreen = ({ navigation, route }) => {
   // Badge rengi
   const getBadgeColor = (type) => {
     switch (type) {
-      case 'error': return Colors.error[100];
-      case 'warning': return Colors.warning[100];
-      case 'success': return Colors.success[100];
-      case 'info': return Colors.info[100];
-      default: return Colors.neutral[100];
+      case 'error': return theme.colors.error[100];
+      case 'warning': return theme.colors.warning[100];
+      case 'success': return theme.colors.success[100];
+      case 'info': return theme.colors.primary?.[100] ?? theme.colors.neutral[100];
+      default: return theme.colors.neutral[100];
     }
   };
 
@@ -280,7 +283,7 @@ const PlanliOdemelerScreen = ({ navigation, route }) => {
       
       <View style={styles.summaryCard}>
         <Text style={styles.summaryLabel}>Ödenen</Text>
-        <Text style={[styles.summaryValue, { color: Colors.success[600] }]}>
+        <Text style={[styles.summaryValue, { color: theme.colors.success[600] }]}>
           {summary.paidCount}
         </Text>
         <Text style={styles.summaryCount}>kalem</Text>
@@ -288,7 +291,7 @@ const PlanliOdemelerScreen = ({ navigation, route }) => {
       
       <View style={styles.summaryCard}>
         <Text style={styles.summaryLabel}>Ödenmeyen</Text>
-        <Text style={[styles.summaryValue, { color: Colors.warning[600] }]}>
+        <Text style={[styles.summaryValue, { color: theme.colors.warning[600] }]}>
           {summary.unpaidCount}
         </Text>
         <Text style={styles.summaryCount}>kalem</Text>
@@ -299,7 +302,7 @@ const PlanliOdemelerScreen = ({ navigation, route }) => {
   if (loading && items.length === 0) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary[500]} />
+        <ActivityIndicator size="large" color={theme.colors.primary[500]} />
         <Text style={styles.loadingText}>Planlı ödemeler yükleniyor...</Text>
       </View>
     );
@@ -331,7 +334,7 @@ const PlanliOdemelerScreen = ({ navigation, route }) => {
               setRefreshing(true);
               loadData();
             }}
-            colors={[Colors.primary[500]]}
+            colors={[theme.colors.primary[500]]}
           />
         }
         contentContainerStyle={styles.listContainer}
@@ -350,22 +353,10 @@ const PlanliOdemelerScreen = ({ navigation, route }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.surface
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.surface
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: Colors.text.secondary
-  },
+const makeStyles = (theme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.colors.surface },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.surface },
+  loadingText: { marginTop: 16, fontSize: 16, color: theme.colors.text.secondary },
   
   // Özet Kutuları
   summaryContainer: {
@@ -373,90 +364,32 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12
   },
-  summaryCard: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.neutral[200]
-  },
-  summaryLabel: {
-    fontSize: 12,
-    color: Colors.text.secondary,
-    marginBottom: 4
-  },
-  summaryValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
-    marginBottom: 2
-  },
-  summaryCount: {
-    fontSize: 11,
-    color: Colors.text.secondary
-  },
+  summaryCard: { flex: 1, backgroundColor: theme.colors.background, borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: theme.colors.neutral[200] },
+  summaryLabel: { fontSize: 12, color: theme.colors.text.secondary, marginBottom: 4 },
+  summaryValue: { fontSize: 18, fontWeight: 'bold', color: theme.colors.text.primary, marginBottom: 2 },
+  summaryCount: { fontSize: 11, color: theme.colors.text.secondary },
 
   // Filtreler
-  filtersSection: {
-    backgroundColor: Colors.background,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral[200]
-  },
-  filterTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.text.primary,
-    marginBottom: 8,
-    marginHorizontal: 16
-  },
+  filtersSection: { backgroundColor: theme.colors.background, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.neutral[200] },
+  filterTitle: { fontSize: 14, fontWeight: '600', color: theme.colors.text.primary, marginBottom: 8, marginHorizontal: 16 },
   filterContainer: {
     paddingHorizontal: 16,
     marginBottom: 12
   },
-  filterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.neutral[300],
-    marginRight: 8,
-    backgroundColor: Colors.background
-  },
-  filterChipActive: {
-    backgroundColor: Colors.primary[100],
-    borderColor: Colors.primary[500]
-  },
+  filterChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: theme.colors.neutral[300], marginRight: 8, backgroundColor: theme.colors.background },
+  filterChipActive: { backgroundColor: theme.colors.primary[100], borderColor: theme.colors.primary[500] },
   filterChipIcon: {
     fontSize: 14,
     marginRight: 4
   },
-  filterChipText: {
-    fontSize: 12,
-    color: Colors.text.primary
-  },
-  filterChipTextActive: {
-    color: Colors.primary[700],
-    fontWeight: '600'
-  },
+  filterChipText: { fontSize: 12, color: theme.colors.text.primary },
+  filterChipTextActive: { color: theme.colors.primary[700], fontWeight: '600' },
 
   // Liste
   listContainer: {
     padding: 16
   },
-  card: {
-    backgroundColor: Colors.background,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    borderWidth: 1,
-    borderColor: Colors.neutral[200]
-  },
+  card: { backgroundColor: theme.colors.background, borderRadius: 12, padding: 16, marginBottom: 12, borderLeftWidth: 4, borderWidth: 1, borderColor: theme.colors.neutral[200] },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -471,29 +404,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
     marginRight: 8
   },
-  cardTitleText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.text.primary
-  },
-  cardAmount: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.text.primary
-  },
+  cardTitleText: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text.primary },
+  cardAmount: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text.primary },
   cardDetails: {
     marginBottom: 8
   },
-  cardDate: {
-    fontSize: 14,
-    color: Colors.text.secondary,
-    marginBottom: 4
-  },
-  cardNote: {
-    fontSize: 13,
-    color: Colors.text.secondary,
-    fontStyle: 'italic'
-  },
+  cardDate: { fontSize: 14, color: theme.colors.text.secondary, marginBottom: 4 },
+  cardNote: { fontSize: 13, color: theme.colors.text.secondary, fontStyle: 'italic' },
   badgesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -504,11 +421,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12
   },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.text.primary
-  },
+  badgeText: { fontSize: 11, fontWeight: '600', color: theme.colors.text.primary },
 
   // Boş Durum
   emptyContainer: {
@@ -519,18 +432,8 @@ const styles = StyleSheet.create({
     fontSize: 48,
     marginBottom: 16
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
-    marginBottom: 8
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: Colors.text.secondary,
-    textAlign: 'center',
-    lineHeight: 20
-  }
+  emptyTitle: { fontSize: 18, fontWeight: 'bold', color: theme.colors.text.primary, marginBottom: 8 },
+  emptySubtitle: { fontSize: 14, color: theme.colors.text.secondary, textAlign: 'center', lineHeight: 20 },
 });
 
 export default PlanliOdemelerScreen;

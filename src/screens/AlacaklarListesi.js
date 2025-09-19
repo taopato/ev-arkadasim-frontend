@@ -3,13 +3,15 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { houseApi } from '../services/api';
-import { CommonStyles } from '../shared/ui/CommonStyles';
-import { Colors } from '../constants/Colors';
+import { useCommonStyles } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
 import { formatAmount } from '../constants/ExpenseEnums';
 
 const ReceivablesScreen = ({ navigation, route }) => {
   const { houseId, houseName } = route.params || {};
   const { user } = useAuth();
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [receivables, setReceivables] = useState([]);
   const [netBalance, setNetBalance] = useState(0);
@@ -79,7 +81,7 @@ const ReceivablesScreen = ({ navigation, route }) => {
     return (
       <View style={CommonStyles.container}>
         <View style={CommonStyles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary[500]} />
+          <ActivityIndicator size="large" color={theme.colors.primary?.[500]} />
           <Text style={CommonStyles.loadingText}>Alacaklar yükleniyor…</Text>
         </View>
       </View>
@@ -95,10 +97,10 @@ const ReceivablesScreen = ({ navigation, route }) => {
         </View>
 
         <View style={CommonStyles.card}>
-          <Text style={styles.sectionTitle}>💰 Toplam Alacak</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>💰 Toplam Alacak</Text>
           <View style={styles.netStatusContainer}>
-            <Text style={[styles.netAmount, { color: Colors.success[600] }]}>{formatAmount(netBalance)}</Text>
-            <Text style={styles.netLabel}>Toplam Alacağınız</Text>
+            <Text style={[styles.netAmount, { color: theme.colors.success?.[600] }]}>{formatAmount(netBalance)}</Text>
+            <Text style={[styles.netLabel, { color: theme.colors.text.secondary }]}>Toplam Alacağınız</Text>
           </View>
         </View>
 
@@ -120,8 +122,8 @@ const ReceivablesScreen = ({ navigation, route }) => {
                     })
                   }
                 >
-                  <View style={styles.userAvatar}>
-                    <Text style={styles.avatarText}>
+                  <View style={[styles.userAvatar, { backgroundColor: theme.colors.primary?.[500] }]}>
+                    <Text style={[styles.avatarText, { color: theme.colors.background }]}>
                       {item.counterpartyName ? item.counterpartyName.charAt(0).toUpperCase() : '?'}
                     </Text>
                   </View>
@@ -130,8 +132,8 @@ const ReceivablesScreen = ({ navigation, route }) => {
                     <Text style={CommonStyles.listItemSubtitle}>Size borçlu</Text>
                   </View>
                   <View style={styles.amountContainer}>
-                    <Text style={[styles.amountText, { color: Colors.success[600] }]}>{formatAmount(item.amount)}</Text>
-                    <Text style={[styles.statusText, { color: Colors.success[600] }]}>Alacaklı</Text>
+                    <Text style={[styles.amountText, { color: theme.colors.success?.[600] }]}>{formatAmount(item.amount)}</Text>
+                    <Text style={[styles.statusText, { color: theme.colors.success?.[600] }]}>Alacaklı</Text>
                   </View>
                 </TouchableOpacity>
               ))}
@@ -150,15 +152,15 @@ const ReceivablesScreen = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-  sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, color: Colors.text.primary },
+  sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 16 },
   netStatusContainer: { alignItems: 'center', paddingVertical: 20 },
   netAmount: { fontSize: 32, fontWeight: 'bold', marginBottom: 8 },
-  netLabel: { fontSize: 16, color: Colors.text.secondary },
+  netLabel: { fontSize: 16 },
   userAvatar: {
-    width: 50, height: 50, borderRadius: 25, backgroundColor: Colors.primary[500],
+    width: 50, height: 50, borderRadius: 25,
     justifyContent: 'center', alignItems: 'center', marginRight: 12,
   },
-  avatarText: { fontSize: 20, fontWeight: 'bold', color: Colors.background },
+  avatarText: { fontSize: 20, fontWeight: 'bold' },
   amountContainer: { alignItems: 'flex-end' },
   amountText: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
   statusText: { fontSize: 12, fontWeight: '600' },

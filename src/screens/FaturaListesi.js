@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { expensesApi } from '../services/api';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../constants/Colors';
+import { useCommonStyles, makeColorThemes } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
 import Toast from '../components/Toast';
 
 const CATEGORY_ID_TO_KEY = {
@@ -82,6 +82,10 @@ const formatAmount = (amount) => {
 
 const BillListScreen = ({ route, navigation }) => {
   const { houseId, houseName, utilityType, categoryName } = route.params || {};
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const ColorThemes = makeColorThemes(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -185,7 +189,7 @@ const BillListScreen = ({ route, navigation }) => {
     return (
       <View style={CommonStyles.container}>
         <View style={CommonStyles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary[500]} />
+          <ActivityIndicator size="large" color={theme.colors.primary?.[500]} />
           <Text style={CommonStyles.loadingText}>Faturalar yükleniyor…</Text>
         </View>
       </View>
@@ -252,15 +256,18 @@ const BillListScreen = ({ route, navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  billIconContainer: {
-    width: 50, height: 50, borderRadius: 25, backgroundColor: Colors.primary[100],
-    justifyContent: 'center', alignItems: 'center', marginRight: 12,
-  },
-  billIcon: { fontSize: 24 },
-  billAmountBox: { alignItems: 'flex-end' },
-  billAmount: { fontSize: 16, fontWeight: 'bold' },
-  billCat: { fontSize: 12, color: Colors.text.secondary, marginTop: 2 },
-});
+function makeStyles(theme) {
+  return StyleSheet.create({
+    billIconContainer: {
+      width: 50, height: 50, borderRadius: 25,
+      justifyContent: 'center', alignItems: 'center', marginRight: 12,
+      backgroundColor: theme.colors.primary?.[100]
+    },
+    billIcon: { fontSize: 24 },
+    billAmountBox: { alignItems: 'flex-end' },
+    billAmount: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text.primary },
+    billCat: { fontSize: 12, marginTop: 2, color: theme.colors.text.secondary },
+  });
+}
 
 export default BillListScreen;

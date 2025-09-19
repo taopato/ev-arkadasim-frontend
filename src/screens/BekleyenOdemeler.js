@@ -1,11 +1,12 @@
 // src/screens/PendingPaymentsScreen.js
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
-import { Colors } from '../constants/Colors';
 import { paymentsApi } from '../services/api';
+import { useTheme } from '../shared/theme/ThemeProvider';
 
 const PendingPaymentsScreen = ({ route }) => {
   const { userId } = route.params || {};
+  const { theme } = useTheme();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [actionId, setActionId] = useState(null);
@@ -50,17 +51,17 @@ const PendingPaymentsScreen = ({ route }) => {
     const isBusy = actionId === id;
 
     return (
-      <View style={styles.card}>
-        <Text style={styles.title}>{fromName} ➜ {toName}</Text>
-        <Text style={styles.sub}>{date ? new Date(date).toLocaleString('tr-TR') : '-'}</Text>
-        <Text style={styles.amount}>{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)}</Text>
+      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.neutral?.[200] }]}>
+        <Text style={[styles.title, { color: theme.colors.text.primary }]}>{fromName} ➜ {toName}</Text>
+        <Text style={[styles.sub, { color: theme.colors.text.secondary }]}>{date ? new Date(date).toLocaleString('tr-TR') : '-'}</Text>
+        <Text style={[styles.amount, { color: theme.colors.text.primary }]}>{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)}</Text>
 
         <View style={styles.row}>
-          <TouchableOpacity style={[styles.btn, { backgroundColor: Colors.success[600] }]} onPress={() => doAction(id, 'approve')} activeOpacity={0.85} disabled={isBusy}>
-            {isBusy ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Onayla</Text>}
+          <TouchableOpacity style={[styles.btn, { backgroundColor: theme.colors.success?.[600] }]} onPress={() => doAction(id, 'approve')} activeOpacity={0.85} disabled={isBusy}>
+            {isBusy ? <ActivityIndicator color={theme.colors.text.onPrimary} /> : <Text style={[styles.btnText, { color: theme.colors.text.onPrimary }]}>Onayla</Text>}
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.btn, { backgroundColor: Colors.error[600] }]} onPress={() => doAction(id, 'reject')} activeOpacity={0.85} disabled={isBusy}>
-            {isBusy ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Reddet</Text>}
+          <TouchableOpacity style={[styles.btn, { backgroundColor: theme.colors.error?.[600] }]} onPress={() => doAction(id, 'reject')} activeOpacity={0.85} disabled={isBusy}>
+            {isBusy ? <ActivityIndicator color={theme.colors.text.onPrimary} /> : <Text style={[styles.btnText, { color: theme.colors.text.onPrimary }]}>Reddet</Text>}
           </TouchableOpacity>
         </View>
       </View>
@@ -68,31 +69,31 @@ const PendingPaymentsScreen = ({ route }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <FlatList
         data={items}
         keyExtractor={(x, i) => String(x.id ?? x.paymentId ?? i)}
         renderItem={renderItem}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={theme.colors.primary?.[600]} colors={[theme.colors.primary?.[600]]} progressBackgroundColor={theme.colors.surface} />}
         contentContainerStyle={{ padding: 12 }}
-        ListHeaderComponent={<Text style={styles.header}>Bekleyen Ödemeler</Text>}
-        ListEmptyComponent={!loading ? <Text style={styles.empty}>Bekleyen ödeme yok</Text> : null}
+        ListHeaderComponent={<Text style={[styles.header, { color: theme.colors.text.primary }]}>Bekleyen Ödemeler</Text>}
+        ListEmptyComponent={!loading ? <Text style={[styles.empty, { color: theme.colors.text.secondary }]}>Bekleyen ödeme yok</Text> : null}
       />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surface },
-  header: { fontSize: 20, fontWeight: '900', color: Colors.text.primary, paddingHorizontal: 12, paddingBottom: 6 },
-  card: { backgroundColor: Colors.background, borderRadius: 12, padding: 12, marginBottom: 10, borderColor: Colors.neutral[200], borderWidth: 1 },
-  title: { fontWeight: '900', color: Colors.text.primary },
-  sub: { color: Colors.text.secondary, marginTop: 2 },
-  amount: { fontWeight: '900', color: Colors.text.primary, marginTop: 6 },
+  container: { flex: 1 },
+  header: { fontSize: 20, fontWeight: '900', paddingHorizontal: 12, paddingBottom: 6 },
+  card: { borderRadius: 12, padding: 12, marginBottom: 10, borderWidth: 1 },
+  title: { fontWeight: '900' },
+  sub: { marginTop: 2 },
+  amount: { fontWeight: '900', marginTop: 6 },
   row: { flexDirection: 'row', gap: 10, marginTop: 10 },
   btn: { flex: 1, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
-  btnText: { color: '#fff', fontWeight: '900' },
-  empty: { textAlign: 'center', color: Colors.text.secondary, padding: 24 },
+  btnText: { fontWeight: '900' },
+  empty: { textAlign: 'center', padding: 24 },
 });
 
 export default PendingPaymentsScreen;

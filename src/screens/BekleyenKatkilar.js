@@ -3,8 +3,8 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { paymentsApi } from '../services/api';
-import { CommonStyles } from '../shared/ui/CommonStyles';
-import { Colors } from '../constants/Colors';
+import { useCommonStyles } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
 
 const safeNum = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 const fmt = (n) =>
@@ -13,6 +13,8 @@ const fmt = (n) =>
 export default function PendingContributionsScreen({ navigation, route }) {
   const { houseId, houseName } = route.params || {};
   const { user } = useAuth();
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
   const [list, setList] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
 
@@ -72,47 +74,47 @@ export default function PendingContributionsScreen({ navigation, route }) {
 
   if (loading) {
     return (
-      <View style={CommonStyles.container}>
+      <View style={[CommonStyles.container, { backgroundColor: theme.colors.background }]}>
         <View style={CommonStyles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary[500]} />
-          <Text style={CommonStyles.loadingText}>Bekleyen katkılar yükleniyor…</Text>
+          <ActivityIndicator size="large" color={theme.colors.primary?.[500]} />
+          <Text style={[CommonStyles.loadingText, { color: theme.colors.text.secondary }]}>Bekleyen katkılar yükleniyor…</Text>
         </View>
       </View>
     );
   }
 
   return (
-    <View style={CommonStyles.container}>
-      <ScrollView style={CommonStyles.content}>
+    <View style={[CommonStyles.container, { backgroundColor: theme.colors.background }]}>
+      <ScrollView style={[CommonStyles.content, { backgroundColor: theme.colors.background }]}>
         <View style={CommonStyles.header}>
-          <Text style={CommonStyles.title}>Bekleyen Katkılar</Text>
-          <Text style={CommonStyles.subtitle}>{houseName || ''}</Text>
+          <Text style={[CommonStyles.title, { color: theme.colors.text.primary }]}>Bekleyen Katkılar</Text>
+          <Text style={[CommonStyles.subtitle, { color: theme.colors.text.secondary }]}>{houseName || ''}</Text>
         </View>
 
         {list.length === 0 ? (
           <View style={CommonStyles.emptyContainer}>
             <Text style={CommonStyles.emptyIcon}>📭</Text>
-            <Text style={CommonStyles.emptyText}>Bekleyen katkı yok</Text>
+            <Text style={[CommonStyles.emptyText, { color: theme.colors.text.secondary }]}>Bekleyen katkı yok</Text>
           </View>
         ) : (
           <View style={CommonStyles.listContainer}>
             {list.map((p) => (
               <View key={String(p.id)} style={CommonStyles.listItem}>
                 <View style={{ flex: 1 }}>
-                  <Text style={CommonStyles.listItemTitle}>{p.debtorName} → {p.creditorName || 'Siz'}</Text>
-                  <Text style={CommonStyles.listItemSubtitle}>
+                  <Text style={[CommonStyles.listItemTitle, { color: theme.colors.text.primary }]}>{p.debtorName} → {p.creditorName || 'Siz'}</Text>
+                  <Text style={[CommonStyles.listItemSubtitle, { color: theme.colors.text.secondary }]}>
                     {p.type || 'Ödeme'} {p.period ? `• ${p.period}` : ''}
                   </Text>
-                  <Text style={CommonStyles.listItemSubtitle}>
+                  <Text style={[CommonStyles.listItemSubtitle, { color: theme.colors.text.secondary }]}>
                     Tutar: {fmt(p.amount)} • Yöntem: {p.method}
                   </Text>
                 </View>
                 <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                  <TouchableOpacity style={styles.smallBtn} onPress={() => approve(p)} activeOpacity={0.8}>
-                    <Text style={styles.smallBtnText}>Onayla</Text>
+                  <TouchableOpacity style={[styles.smallBtn, { backgroundColor: theme.colors.success?.[600] }]} onPress={() => approve(p)} activeOpacity={0.8}>
+                    <Text style={[styles.smallBtnText, { color: theme.colors.text.onPrimary }]}>Onayla</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[styles.smallBtn, { backgroundColor: Colors.error[500] }]} onPress={() => reject(p)} activeOpacity={0.8}>
-                    <Text style={styles.smallBtnText}>Reddet</Text>
+                  <TouchableOpacity style={[styles.smallBtn, { backgroundColor: theme.colors.error?.[600] }]} onPress={() => reject(p)} activeOpacity={0.8}>
+                    <Text style={[styles.smallBtnText, { color: theme.colors.text.onPrimary }]}>Reddet</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -125,6 +127,6 @@ export default function PendingContributionsScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  smallBtn: { backgroundColor: Colors.primary[500], paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8 },
-  smallBtnText: { color: '#fff', fontWeight: '600' },
+  smallBtn: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8 },
+  smallBtnText: { fontWeight: '600' },
 });

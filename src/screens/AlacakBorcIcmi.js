@@ -9,11 +9,14 @@ import {
   ScrollView,
 } from 'react-native';
 import { houseApi } from '../services/api';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../../constants/Colors';
+import { useCommonStyles, makeColorThemes } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
 
 export default function AlacakBorcIcmiScreen({ route, navigation }) {
   const { userId, houseId, userName } = route.params;
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const ColorThemes = makeColorThemes(theme);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -38,7 +41,7 @@ export default function AlacakBorcIcmiScreen({ route, navigation }) {
       <ScrollView style={CommonStyles.content}>
         {loading ? (
           <View style={CommonStyles.loadingContainer}>
-            <ActivityIndicator size="large" color={Colors.primary[500]} />
+            <ActivityIndicator size="large" color={theme.colors.primary?.[500]} />
             <Text style={CommonStyles.loadingText}>Borç/Alacak bilgileri yükleniyor...</Text>
           </View>
         ) : (
@@ -50,17 +53,17 @@ export default function AlacakBorcIcmiScreen({ route, navigation }) {
 
             <View style={CommonStyles.card}>
               <View style={styles.amountContainer}>
-                <View style={[styles.amountItem, { backgroundColor: Colors.success[50] }]}> 
-                  <Text style={styles.amountLabel}>Toplam Alacak</Text>
-                  <Text style={styles.alacak}>{data?.data?.toplamAlacak || 0} TL</Text>
+                <View style={[styles.amountItem, { backgroundColor: theme.colors.success?.[50] }]}> 
+                  <Text style={[styles.amountLabel, { color: theme.colors.text.secondary }]}>Toplam Alacak</Text>
+                  <Text style={[styles.alacak, { color: theme.colors.success?.[600] }]}>{data?.data?.toplamAlacak || 0} TL</Text>
                 </View>
-                <View style={[styles.amountItem, { backgroundColor: Colors.error[50] }]}>
-                  <Text style={styles.amountLabel}>Toplam Borç</Text>
-                  <Text style={styles.borc}>{data?.data?.toplamBorc || 0} TL</Text>
+                <View style={[styles.amountItem, { backgroundColor: theme.colors.error?.[50] }]}>
+                  <Text style={[styles.amountLabel, { color: theme.colors.text.secondary }]}>Toplam Borç</Text>
+                  <Text style={[styles.borc, { color: theme.colors.error?.[600] }]}>{data?.data?.toplamBorc || 0} TL</Text>
                 </View>
-                <View style={[styles.amountItem, { backgroundColor: Colors.primary[50] }]}>
-                  <Text style={styles.amountLabel}>Net Durum</Text>
-                  <Text style={styles.netDurum}>{data?.data?.netDurum || 0} TL</Text>
+                <View style={[styles.amountItem, { backgroundColor: theme.colors.primary?.[50] }]}>
+                  <Text style={[styles.amountLabel, { color: theme.colors.text.secondary }]}>Net Durum</Text>
+                  <Text style={[styles.netDurum, { color: theme.colors.primary?.[600] }]}>{data?.data?.netDurum || 0} TL</Text>
                 </View>
               </View>
             </View>
@@ -88,10 +91,10 @@ export default function AlacakBorcIcmiScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   amountContainer: { gap: 12 },
   amountItem: { padding: 16, borderRadius: 8, alignItems: 'center' },
-  amountLabel: { fontSize: 14, color: Colors.text.secondary, marginBottom: 4 },
-  alacak: { color: Colors.success[600], fontSize: 18, fontWeight: 'bold' },
-  borc: { color: Colors.error[600], fontSize: 18, fontWeight: 'bold' },
-  netDurum: { color: Colors.primary[600], fontSize: 18, fontWeight: 'bold' },
+  amountLabel: { fontSize: 14, marginBottom: 4 },
+  alacak: { fontSize: 18, fontWeight: 'bold' },
+  borc: { fontSize: 18, fontWeight: 'bold' },
+  netDurum: { fontSize: 18, fontWeight: 'bold' },
   amounts: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
 });
 

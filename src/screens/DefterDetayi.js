@@ -1,13 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../../constants/Colors';
+import { useCommonStyles, makeColorThemes } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
 import { ledgerApi, houseApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const LedgerDetailScreen = ({ navigation, route }) => {
   const { houseId, houseName } = route.params || {};
   const { user } = useAuth();
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const ColorThemes = makeColorThemes(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [ledgerLines, setLedgerLines] = useState([]);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -101,8 +105,8 @@ const LedgerDetailScreen = ({ navigation, route }) => {
           <Text style={CommonStyles.title}>Borç/Alacak Detayları</Text>
         </View>
         <View style={[CommonStyles.card, { alignItems: 'center', padding: 40 }]}>
-          <ActivityIndicator size="large" color={Colors.primary[600]} />
-          <Text style={{ color: Colors.text.secondary, marginTop: 16 }}>Yükleniyor...</Text>
+          <ActivityIndicator size="large" color={theme.colors.primary[600]} />
+          <Text style={{ color: theme.colors.text.secondary, marginTop: 16 }}>Yükleniyor...</Text>
         </View>
       </View>
     );
@@ -194,94 +198,46 @@ const LedgerDetailScreen = ({ navigation, route }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
-    marginBottom: 16,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  summaryItem: {
-    alignItems: 'center',
-  },
-  summaryLabel: {
-    fontSize: 12,
-    color: Colors.text.secondary,
-    marginBottom: 4,
-  },
-  summaryValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: Colors.primary[600],
-  },
-  ledgerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  ledgerInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  ledgerFrom: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
-  },
-  ledgerArrow: {
-    fontSize: 16,
-    color: Colors.text.secondary,
-    marginHorizontal: 8,
-  },
-  ledgerTo: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
-  },
-  ledgerTotalAmount: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.primary[600],
-  },
-  ledgerSubtext: {
-    fontSize: 12,
-    color: Colors.text.secondary,
-    marginBottom: 12,
-  },
-  ledgerDetail: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 4,
-    paddingLeft: 16,
-  },
-  ledgerDetailDate: {
-    fontSize: 12,
-    color: Colors.text.secondary,
-  },
-  ledgerDetailAmount: {
-    fontSize: 12,
-    color: Colors.text.primary,
-  },
-  ledgerMore: {
-    fontSize: 12,
-    color: Colors.text.secondary,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: Colors.text.secondary,
-    textAlign: 'center',
-    padding: 20,
-  },
-});
+function makeStyles(theme) {
+  return StyleSheet.create({
+    sectionTitle: { fontSize: 18, fontWeight: 'bold', color: theme.colors.text.primary, marginBottom: 16 },
+    summaryRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+    },
+    summaryItem: {
+      alignItems: 'center',
+    },
+    summaryLabel: { fontSize: 12, color: theme.colors.text.secondary, marginBottom: 4 },
+    summaryValue: { fontSize: 20, fontWeight: 'bold', color: theme.colors.primary[600] },
+    ledgerHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    ledgerInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    ledgerFrom: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text.primary },
+    ledgerArrow: { fontSize: 16, color: theme.colors.text.secondary, marginHorizontal: 8 },
+    ledgerTo: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text.primary },
+    ledgerTotalAmount: { fontSize: 18, fontWeight: 'bold', color: theme.colors.primary[600] },
+    ledgerSubtext: { fontSize: 12, color: theme.colors.text.secondary, marginBottom: 12 },
+    ledgerDetail: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 4,
+      paddingLeft: 16,
+    },
+    ledgerDetailDate: { fontSize: 12, color: theme.colors.text.secondary },
+    ledgerDetailAmount: { fontSize: 12, color: theme.colors.text.primary },
+    ledgerMore: { fontSize: 12, color: theme.colors.text.secondary, fontStyle: 'italic', textAlign: 'center', marginTop: 8 },
+    emptyText: { fontSize: 16, color: theme.colors.text.secondary, textAlign: 'center', padding: 20 },
+  });
+}
 
 export default LedgerDetailScreen;

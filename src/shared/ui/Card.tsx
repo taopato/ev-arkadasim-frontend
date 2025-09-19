@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle, Platform } from 'react-native';
-import { Colors } from '../../../constants/Colors';
+import { useTheme } from '../theme/ThemeProvider';
 import { shadow } from './shadow';
 
 interface CardProps {
@@ -16,6 +16,8 @@ export const Card: React.FC<CardProps> = ({
   padding = 'medium',
   elevation = 'small',
 }) => {
+  const { theme } = useTheme();
+
   const getPadding = () => {
     switch (padding) {
       case 'small':
@@ -47,6 +49,8 @@ export const Card: React.FC<CardProps> = ({
         {
           padding: getPadding(),
           ...getElevation(),
+          backgroundColor: theme.colors.background,
+          borderColor: theme.colors.neutral[200],
         },
         style,
       ]}
@@ -58,9 +62,7 @@ export const Card: React.FC<CardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.background,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.neutral[200],
   },
 });

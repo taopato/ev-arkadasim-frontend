@@ -1,5 +1,5 @@
 // src/screens/BillDetailScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,8 @@ import {
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { expensesApi } from '../services/api';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../../constants/Colors';
+import { useCommonStyles, makeColorThemes } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
 import Toast from '../components/Toast';
 
 // basit TR tarih
@@ -70,6 +70,10 @@ const getUtilityIcon = (key) => ({
 const BillDetailScreen = ({ route, navigation }) => {
   const { billId, houseId, houseName } = route.params || {};
   const { user } = useAuth();
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const ColorThemes = makeColorThemes(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [bill, setBill] = useState(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
@@ -145,7 +149,7 @@ const BillDetailScreen = ({ route, navigation }) => {
     return (
       <View style={CommonStyles.container}>
         <View style={CommonStyles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary[500]} />
+          <ActivityIndicator size="large" color={theme.colors.primary[500]} />
           <Text style={CommonStyles.loadingText}>Fatura detayları yükleniyor...</Text>
         </View>
       </View>
@@ -184,12 +188,12 @@ const BillDetailScreen = ({ route, navigation }) => {
                 {bill.tur || `${displayName} Faturası`}
               </Text>
               {!!idx && !!cnt && (
-                <Text style={[styles.statusText, { color: Colors.info[600] }]}>
+                <Text style={[styles.statusText, { color: (theme.colors.primary?.[600] ?? theme.colors.text.secondary) }]}>
                   {`Taksit ${idx}/${cnt}`}
                 </Text>
               )}
               {!idx && !!dueDay && (
-                <Text style={[styles.statusText, { color: Colors.info[600] }]}>
+                <Text style={[styles.statusText, { color: (theme.colors.primary?.[600] ?? theme.colors.text.secondary) }]}>
                   {`Vade günü: ${dueDay}`}
                 </Text>
               )}
@@ -276,61 +280,27 @@ const BillDetailScreen = ({ route, navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  billInfoContainer: {
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  billHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  billIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: Colors.primary[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  billIcon: { fontSize: 28 },
-  billTitleContainer: { flex: 1 },
-  billTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.text.primary,
-    marginBottom: 4,
-  },
-  statusText: { fontSize: 14, fontWeight: '600' },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral[100],
-  },
-  detailLabel: {
-    fontSize: 14,
-    color: Colors.text.secondary,
-    fontWeight: '500',
-  },
-  detailValue: {
-    fontSize: 14,
-    color: Colors.text.primary,
-    fontWeight: '600',
-    textAlign: 'right',
-    flex: 1,
-    marginLeft: 12,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-});
+function makeStyles(theme) {
+  return StyleSheet.create({
+    billInfoContainer: { backgroundColor: theme.colors.surface, borderRadius: 12, padding: 16, marginBottom: 16 },
+    billHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    billIconContainer: { width: 60, height: 60, borderRadius: 30, backgroundColor: theme.colors.primary[100], justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+    billIcon: { fontSize: 28 },
+    billTitleContainer: { flex: 1 },
+    billTitle: { fontSize: 18, fontWeight: '600', color: theme.colors.text.primary, marginBottom: 4 },
+    statusText: { fontSize: 14, fontWeight: '600' },
+    detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: theme.colors.neutral[100] },
+    detailLabel: { fontSize: 14, color: theme.colors.text.secondary, fontWeight: '500' },
+    detailValue: { fontSize: 14, color: theme.colors.text.primary, fontWeight: '600', textAlign: 'right', flex: 1, marginLeft: 12 },
+    actionButtons: {
+      flexDirection: 'row',
+      marginBottom: 16,
+    },
+  });
+}
 
 export default BillDetailScreen;

@@ -1,7 +1,7 @@
 // src/screens/PaymentApprovalScreen.js
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert, RefreshControl } from 'react-native';
-import { Colors } from '../constants/Colors';
+import { useTheme } from '../shared/theme/ThemeProvider';
 import { useAuth } from '../context/AuthContext';
 import { paymentsApi } from '../services/api';
 import { useFocusEffect } from '@react-navigation/native';
@@ -21,6 +21,7 @@ const fmt = (n) => {
 const PaymentApprovalScreen = ({ route }) => {
   const { houseId } = route.params || {};
   const { user } = useAuth();
+  const { theme } = useTheme();
   const queryClient = useQueryClient();
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -34,7 +35,6 @@ const PaymentApprovalScreen = ({ route }) => {
     try {
       const res = await paymentsApi.getPendingPayments(Number(user.id));
       const arr = Array.isArray(res?.data) ? res.data : (res?.data?.data || []);
-      // İlgili ev (varsa) ile filtrele
       const filtered = houseId ? arr.filter(x => Number(x?.houseId) === Number(houseId)) : arr;
       setList(filtered);
     } catch (e) {
@@ -46,7 +46,6 @@ const PaymentApprovalScreen = ({ route }) => {
 
   useFocusEffect(useCallback(() => {
     load();
-    // Odaklanınca önceki scroll pozisyonunu geri yükle
     const key = `PaymentApprovalScreen:${houseId ?? 'all'}`;
     const offset = getScrollPosition(key);
     if (offset && flatListRef.current) {
@@ -62,50 +61,36 @@ const PaymentApprovalScreen = ({ route }) => {
   };
 
   const approve = async (paymentId) => {
-    // Optimistic: öğeyi listeden çıkar
     const prevList = list;
     setPendingIdSet(new Set([...pendingIdSet, paymentId]));
     setList((curr) => curr.filter((x) => x?.id !== paymentId));
     try {
       await paymentsApi.approvePayment(paymentId);
-      // Diğer ekranları güncelle
       queryClient.invalidateQueries({ queryKey: ['payments'] });
       Alert.alert('Onaylandı', 'Ödeme onaylandı.');
     } catch (e) {
-      // Rollback
       setList(prevList);
       console.error('approve error', e);
       Alert.alert('Hata', e?.response?.data?.message || e.message);
     } finally {
-      setPendingIdSet((s) => {
-        const n = new Set(s);
-        n.delete(paymentId);
-        return n;
-      });
+      setPendingIdSet((s) => { const n = new Set(s); n.delete(paymentId); return n; });
     }
   };
 
   const reject = async (paymentId) => {
-    // Optimistic: öğeyi listeden çıkar
     const prevList = list;
     setPendingIdSet(new Set([...pendingIdSet, paymentId]));
     setList((curr) => curr.filter((x) => x?.id !== paymentId));
     try {
       await paymentsApi.rejectPayment(paymentId);
-      // Diğer ekranları güncelle
       queryClient.invalidateQueries({ queryKey: ['payments'] });
       Alert.alert('Reddedildi', 'Ödeme reddedildi.');
     } catch (e) {
-      // Rollback
       setList(prevList);
       console.error('reject error', e);
       Alert.alert('Hata', e?.response?.data?.message || e.message);
     } finally {
-      setPendingIdSet((s) => {
-        const n = new Set(s);
-        n.delete(paymentId);
-        return n;
-      });
+      setPendingIdSet((s) => { const n = new Set(s); n.delete(paymentId); return n; });
     }
   };
 
@@ -116,19 +101,19 @@ const PaymentApprovalScreen = ({ route }) => {
     const isPending = pendingIdSet.has(item?.id);
 
     return (
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: theme.colors.background, borderColor: theme.colors.neutral?.[200] }]}>
         <View style={styles.rowBetween}>
-          <Text style={styles.title}>{from} → {to}</Text>
-          <Text style={styles.amount}>{fmt(amount)}</Text>
+          <Text style={[styles.title, { color: theme.colors.text.primary }]}>{from} → {to}</Text>
+          <Text style={[styles.amount, { color: theme.colors.text.primary }]}>{fmt(amount)}</Text>
         </View>
-        <Text style={styles.sub}>Ödeme onay bekliyor</Text>
+        <Text style={[styles.sub, { color: theme.colors.text.secondary }]}>Ödeme onay bekliyor</Text>
 
         <View style={styles.actions}>
-          <TouchableOpacity style={[styles.btn, styles.btnSuccess, isPending && styles.btnDisabled]} onPress={() => !isPending && approve(item?.id)} activeOpacity={0.85} disabled={isPending}>
-            <Text style={styles.btnText}>Onayla</Text>
+          <TouchableOpacity style={[styles.btn, { backgroundColor: theme.colors.success?.[600] }, isPending && styles.btnDisabled]} onPress={() => !isPending && approve(item?.id)} activeOpacity={0.85} disabled={isPending}>
+            <Text style={[styles.btnText, { color: theme.colors.text.onPrimary }]}>Onayla</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.btn, styles.btnDanger, isPending && styles.btnDisabled]} onPress={() => !isPending && reject(item?.id)} activeOpacity={0.85} disabled={isPending}>
-            <Text style={styles.btnText}>Reddet</Text>
+          <TouchableOpacity style={[styles.btn, { backgroundColor: theme.colors.error?.[600] }, isPending && styles.btnDisabled]} onPress={() => !isPending && reject(item?.id)} activeOpacity={0.85} disabled={isPending}>
+            <Text style={[styles.btnText, { color: theme.colors.text.onPrimary }]}>Reddet</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -136,11 +121,11 @@ const PaymentApprovalScreen = ({ route }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Ödeme Onayları</Text>
+    <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
+      <Text style={[styles.header, { color: theme.colors.text.primary }]}>Ödeme Onayları</Text>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator size="large" color={Colors.primary[500]} /></View>
+        <View style={styles.center}><ActivityIndicator size="large" color={theme.colors.primary?.[500]} /></View>
       ) : (
         <FlatList
           ref={flatListRef}
@@ -154,7 +139,7 @@ const PaymentApprovalScreen = ({ route }) => {
             setScrollPosition(key, e.nativeEvent.contentOffset.y || 0);
           }}
           scrollEventThrottle={16}
-          ListEmptyComponent={<Text style={styles.empty}>Bekleyen ödeme bulunamadı.</Text>}
+          ListEmptyComponent={<Text style={[styles.empty, { color: theme.colors.text.secondary }]}>Bekleyen ödeme bulunamadı.</Text>}
         />
       )}
     </View>
@@ -162,26 +147,21 @@ const PaymentApprovalScreen = ({ route }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surface, padding: 16 },
-  header: { fontSize: 20, fontWeight: '700', color: Colors.text.primary, marginBottom: 12 },
+  container: { flex: 1, padding: 16 },
+  header: { fontSize: 20, fontWeight: '700', marginBottom: 12 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  empty: { textAlign: 'center', color: Colors.text.secondary, marginTop: 24 },
+  empty: { textAlign: 'center', marginTop: 24 },
 
-  card: {
-    backgroundColor: Colors.background, borderRadius: 12, padding: 12,
-    borderWidth: 1, borderColor: Colors.neutral[200]
-  },
+  card: { borderRadius: 12, padding: 12, borderWidth: 1 },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: 15, fontWeight: '700', color: Colors.text.primary },
-  sub: { marginTop: 4, color: Colors.text.secondary, fontSize: 12 },
-  amount: { fontWeight: '800', color: Colors.text.primary, marginLeft: 8 },
+  title: { fontSize: 15, fontWeight: '700' },
+  sub: { marginTop: 4, fontSize: 12 },
+  amount: { fontWeight: '800', marginLeft: 8 },
 
   actions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 10, gap: 8 },
   btn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10 },
-  btnSuccess: { backgroundColor: Colors.success[600] },
-  btnDanger: { backgroundColor: Colors.error[600] },
   btnDisabled: { opacity: 0.6 },
-  btnText: { color: '#fff', fontWeight: '700' },
+  btnText: { fontWeight: '700' },
 });
 
 export default PaymentApprovalScreen;

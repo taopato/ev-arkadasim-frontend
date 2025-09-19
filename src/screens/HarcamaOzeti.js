@@ -15,8 +15,8 @@ import {
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { expensesApi, houseApi } from '../services/api';
-import { Colors } from '../constants/Colors';
-import { CommonStyles } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
+import { useCommonStyles } from '../shared/ui/CommonStyles';
 import { normalizeExpense } from '../utils/expenseClassifier';
 import { getCategoryDisplayName, getCategoryIcon, getCategoryColor } from '../constants/ExpenseEnums';
 import {
@@ -39,6 +39,9 @@ const HarcamaOzetiScreen = ({ navigation, route }) => {
   const { user } = useAuth();
   const { houseId: routeHouseId } = route.params || {};
   const houseId = routeHouseId || user?.defaultHouseId;
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -437,10 +440,12 @@ const HarcamaOzetiScreen = ({ navigation, route }) => {
     </Modal>
   );
 
+  
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary[500]} />
+        <ActivityIndicator size="large" color={theme.colors.primary?.[500]} />
         <Text style={styles.loadingText}>Harcama özeti yükleniyor...</Text>
       </View>
     );
@@ -476,232 +481,56 @@ const HarcamaOzetiScreen = ({ navigation, route }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.surface
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.surface
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: Colors.text.secondary
-  },
-  
-  // Header
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: Colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral[200]
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: Colors.text.primary
-  },
-  filterButton: {
-    backgroundColor: Colors.primary[500],
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8
-  },
-  filterButtonText: {
-    color: 'white',
-    fontWeight: '600'
-  },
-
-  // Content
-  content: {
-    flex: 1
-  },
-
-  // KPI Kartları
-  kpiContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 16,
-    gap: 12
-  },
-  kpiCard: {
-    width: (width - 44) / 2,
-    backgroundColor: Colors.background,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.neutral[200]
-  },
-  kpiLabel: {
-    fontSize: 12,
-    color: Colors.text.secondary,
-    marginBottom: 4,
-    textAlign: 'center'
-  },
-  kpiValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
-    marginBottom: 2,
-    textAlign: 'center'
-  },
-  kpiSubtext: {
-    fontSize: 11,
-    color: Colors.text.secondary,
-    textAlign: 'center'
-  },
-
-  // Bölümler
-  section: {
-    backgroundColor: Colors.background,
-    margin: 16,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.neutral[200]
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
-    marginBottom: 16
-  },
-
-  // Kategori Dağılımı
-  categoryItem: {
-    marginBottom: 16
-  },
-  categoryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8
-  },
-  categoryInfo: {
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  categoryIcon: {
-    fontSize: 16,
-    marginRight: 8
-  },
-  categoryLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.text.primary
-  },
-  categoryAmount: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: Colors.text.primary
-  },
-  categoryBar: {
-    height: 6,
-    backgroundColor: Colors.neutral[200],
-    borderRadius: 3,
-    marginBottom: 4
-  },
-  categoryBarFill: {
-    height: '100%',
-    borderRadius: 3
-  },
-  categoryStats: {
-    fontSize: 12,
-    color: Colors.text.secondary
-  },
-
-  // Kişi Bazlı Özet
-  memberItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral[100]
-  },
-  memberInfo: {
-    flex: 1
-  },
-  memberName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.text.primary,
-    marginBottom: 2
-  },
-  memberStats: {
-    fontSize: 12,
-    color: Colors.text.secondary
-  },
-  memberAmount: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: Colors.text.primary
-  },
-
-  // Modal
-  modalContainer: {
-    flex: 1,
-    backgroundColor: Colors.surface
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral[200]
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.text.primary
-  },
-  modalClose: {
-    fontSize: 16,
-    color: Colors.primary[500],
-    fontWeight: '600'
-  },
-  modalContent: {
-    flex: 1,
-    padding: 16
-  },
-  filterSection: {
-    marginBottom: 24
-  },
-  filterSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text.primary,
-    marginBottom: 12
-  },
-  filterOption: {
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-    backgroundColor: Colors.background,
-    borderWidth: 1,
-    borderColor: Colors.neutral[200]
-  },
-  filterOptionActive: {
-    backgroundColor: Colors.primary[100],
-    borderColor: Colors.primary[500]
-  },
-  filterOptionText: {
-    fontSize: 14,
-    color: Colors.text.primary
-  },
-  filterOptionTextActive: {
-    color: Colors.primary[700],
-    fontWeight: '600'
-  }
-});
-
 export default HarcamaOzetiScreen;
+
+function makeStyles(theme) {
+  const { width } = Dimensions.get('window');
+  return StyleSheet.create({
+    container: { flex: 1 },
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    loadingText: { marginTop: 16, fontSize: 16 },
+    header: {
+      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16,
+      backgroundColor: theme.colors.background, borderBottomWidth: 1, borderBottomColor: theme.colors.neutral[200]
+    },
+    headerTitle: { fontSize: 20, fontWeight: 'bold', color: theme.colors.text.primary },
+    filterButton: { backgroundColor: theme.colors.primary[500], paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
+    filterButtonText: { color: 'white', fontWeight: '600' },
+    content: { flex: 1 },
+    kpiContainer: { flexDirection: 'row', flexWrap: 'wrap', padding: 16, gap: 12 },
+    kpiCard: {
+      width: (width - 44) / 2, backgroundColor: theme.colors.background, borderRadius: 12, padding: 16, alignItems: 'center',
+      borderWidth: 1, borderColor: theme.colors.neutral[200]
+    },
+    kpiLabel: { fontSize: 12, color: theme.colors.text.secondary, marginBottom: 4, textAlign: 'center' },
+    kpiValue: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text.primary, marginBottom: 2, textAlign: 'center' },
+    kpiSubtext: { fontSize: 11, color: theme.colors.text.secondary, textAlign: 'center' },
+    section: { backgroundColor: theme.colors.background, margin: 16, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: theme.colors.neutral[200] },
+    sectionTitle: { fontSize: 18, fontWeight: 'bold', color: theme.colors.text.primary, marginBottom: 16 },
+    categoryItem: { marginBottom: 16 },
+    categoryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+    categoryInfo: { flexDirection: 'row', alignItems: 'center' },
+    categoryIcon: { fontSize: 16, marginRight: 8 },
+    categoryLabel: { fontSize: 14, fontWeight: '600', color: theme.colors.text.primary },
+    categoryAmount: { fontSize: 14, fontWeight: 'bold', color: theme.colors.text.primary },
+    categoryBar: { height: 6, backgroundColor: theme.colors.neutral[200], borderRadius: 3, marginBottom: 4 },
+    categoryBarFill: { height: '100%', borderRadius: 3 },
+    categoryStats: { fontSize: 12, color: theme.colors.text.secondary },
+    memberItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.neutral[100] },
+    memberInfo: { flex: 1 },
+    memberName: { fontSize: 14, fontWeight: '600', color: theme.colors.text.primary, marginBottom: 2 },
+    memberStats: { fontSize: 12, color: theme.colors.text.secondary },
+    memberAmount: { fontSize: 14, fontWeight: 'bold', color: theme.colors.text.primary },
+    modalContainer: { flex: 1, backgroundColor: theme.colors.surface },
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.neutral[200] },
+    modalTitle: { fontSize: 18, fontWeight: 'bold', color: theme.colors.text.primary },
+    modalClose: { fontSize: 16, color: theme.colors.primary[500], fontWeight: '600' },
+    modalContent: { flex: 1, padding: 16 },
+    filterSection: { marginBottom: 24 },
+    filterSectionTitle: { fontSize: 16, fontWeight: '600', color: theme.colors.text.primary, marginBottom: 12 },
+    filterOption: { padding: 12, borderRadius: 8, marginBottom: 8, backgroundColor: theme.colors.background, borderWidth: 1, borderColor: theme.colors.neutral[200] },
+    filterOptionActive: { backgroundColor: theme.colors.primary[100], borderColor: theme.colors.primary[500] },
+    filterOptionText: { fontSize: 14, color: theme.colors.text.primary },
+    filterOptionTextActive: { color: theme.colors.primary[700], fontWeight: '600' },
+  });
+}

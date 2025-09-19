@@ -1,9 +1,9 @@
 // HarcamaDetayi.js
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, TextInput } from 'react-native';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../../constants/Colors';
+import { useCommonStyles, makeColorThemes } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
 import { expensesApi, ledgerApi } from '../services/api';
 import { houseApi } from '../services/api';
 import eventBus from '../shared/events/bus';
@@ -13,6 +13,10 @@ const HarcamaDetayi = ({ navigation, route }) => {
   const { expenseId: expenseIdParam, billId: billIdParam, houseId, houseName } = route.params || {};
   const expenseId = expenseIdParam ?? billIdParam;
   const { user } = useAuth();
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const ColorThemes = makeColorThemes(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const [expense, setExpense] = useState(null);
   const [ledgerLines, setLedgerLines] = useState([]);
@@ -296,8 +300,8 @@ const HarcamaDetayi = ({ navigation, route }) => {
           <Text style={CommonStyles.title}>Harcama Detayı</Text>
         </View>
         <View style={[CommonStyles.card, { alignItems: 'center', padding: 40 }]}>
-          <ActivityIndicator size="large" color={Colors.primary[600]} />
-          <Text style={{ color: Colors.text.secondary, marginTop: 16 }}>Yükleniyor...</Text>
+          <ActivityIndicator size="large" color={theme.colors.primary?.[600]} />
+          <Text style={{ color: theme.colors.text.secondary, marginTop: 16 }}>Yükleniyor...</Text>
         </View>
       </View>
     );
@@ -394,8 +398,8 @@ const HarcamaDetayi = ({ navigation, route }) => {
               </View>
               {!(expense?.note || expense?.Note || expense?.description || expense?.Description || expense?.aciklama || expense?.Aciklama) ? (
                 <View style={[styles.detailRow, { alignItems: 'flex-start' }]}>
-                  <Text style={[styles.detailLabel, { color: Colors.text.secondary }]}>Teşhis:</Text>
-                  <Text style={[styles.detailValue, { textAlign: 'left', color: Colors.text.secondary }]}>
+                  <Text style={[styles.detailLabel, { color: theme.colors.text.secondary }]}>Teşhis:</Text>
+                  <Text style={[styles.detailValue, { textAlign: 'left', color: theme.colors.text.secondary }]}>
                     Not alanı bulunamadı. Lütfen yeni bir notla kaydedip tekrar deneyin.
                   </Text>
                 </View>
@@ -587,120 +591,122 @@ const HarcamaDetayi = ({ navigation, route }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
-    marginBottom: 16,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral[200],
-  },
-  detailLabel: {
-    fontSize: 14,
-    color: Colors.text.secondary,
-    fontWeight: '500',
-  },
-  detailValue: {
-    fontSize: 14,
-    color: Colors.text.primary,
-    textAlign: 'right',
-    flex: 1,
-    marginLeft: 16,
-  },
-  amountText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.primary[600],
-  },
-  personalItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral[200],
-  },
-  personalName: {
-    fontSize: 14,
-    color: Colors.text.primary,
-  },
-  personalAmount: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: Colors.primary[600],
-  },
-  ledgerItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral[200],
-  },
-  ledgerInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  ledgerFrom: {
-    fontSize: 14,
-    color: Colors.text.primary,
-  },
-  ledgerArrow: {
-    fontSize: 14,
-    color: Colors.text.secondary,
-  },
-  ledgerTo: {
-    fontSize: 14,
-    color: Colors.text.primary,
-  },
-  ledgerAmount: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: Colors.primary[600],
-  },
-  actionButtons: { marginTop: 20 },
-  emptyState: { padding: 20, alignItems: 'center' },
-  emptyText: {
-    fontSize: 16,
-    color: Colors.text.secondary,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: Colors.text.disabled,
-    textAlign: 'center',
-  },
-  errorText: {
-    fontSize: 16,
-    color: Colors.text.secondary,
-    textAlign: 'center',
-    padding: 20,
-  },
-  editRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: Colors.neutral[300],
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: Colors.white,
-    color: Colors.text.primary,
-    flex: 1,
-  },
-});
+function makeStyles(theme) {
+  return StyleSheet.create({
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: theme.colors.text.primary,
+      marginBottom: 16,
+    },
+    detailRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.neutral[200],
+    },
+    detailLabel: {
+      fontSize: 14,
+      color: theme.colors.text.secondary,
+      fontWeight: '500',
+    },
+    detailValue: {
+      fontSize: 14,
+      color: theme.colors.text.primary,
+      textAlign: 'right',
+      flex: 1,
+      marginLeft: 16,
+    },
+    amountText: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      color: theme.colors.primary[600],
+    },
+    personalItem: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.neutral[200],
+    },
+    personalName: {
+      fontSize: 14,
+      color: theme.colors.text.primary,
+    },
+    personalAmount: {
+      fontSize: 14,
+      fontWeight: 'bold',
+      color: theme.colors.primary[600],
+    },
+    ledgerItem: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.neutral[200],
+    },
+    ledgerInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    ledgerFrom: {
+      fontSize: 14,
+      color: theme.colors.text.primary,
+    },
+    ledgerArrow: {
+      fontSize: 14,
+      color: theme.colors.text.secondary,
+    },
+    ledgerTo: {
+      fontSize: 14,
+      color: theme.colors.text.primary,
+    },
+    ledgerAmount: {
+      fontSize: 14,
+      fontWeight: 'bold',
+      color: theme.colors.primary[600],
+    },
+    actionButtons: { marginTop: 20 },
+    emptyState: { padding: 20, alignItems: 'center' },
+    emptyText: {
+      fontSize: 16,
+      color: theme.colors.text.secondary,
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    emptySubtext: {
+      fontSize: 14,
+      color: theme.colors.text.disabled,
+      textAlign: 'center',
+    },
+    errorText: {
+      fontSize: 16,
+      color: theme.colors.text.secondary,
+      textAlign: 'center',
+      padding: 20,
+    },
+    editRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 8,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: theme.colors.neutral[300],
+      borderRadius: 10,
+      padding: 12,
+      fontSize: 16,
+      backgroundColor: theme.colors.background,
+      color: theme.colors.text.primary,
+      flex: 1,
+    },
+  });
+}
 
 export default HarcamaDetayi;

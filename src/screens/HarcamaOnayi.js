@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,8 @@ import {
   ScrollView,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../../constants/Colors';
+import { useCommonStyles, makeColorThemes } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
 import { expensesApi } from '../services/api';
 
 const formatAmount = (n) =>
@@ -25,6 +25,10 @@ const formatDate = (iso) => {
 export default function ExpenseApprovalScreen({ navigation, route }) {
   const { houseId, houseName } = route.params || {};
   const { user } = useAuth();
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const ColorThemes = makeColorThemes(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -64,7 +68,7 @@ export default function ExpenseApprovalScreen({ navigation, route }) {
     return (
       <View style={CommonStyles.container}>
         <View style={CommonStyles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary[500]} />
+          <ActivityIndicator size="large" color={theme.colors.primary[500]} />
           <Text style={CommonStyles.loadingText}>Harcamalar yükleniyor...</Text>
         </View>
       </View>
@@ -116,11 +120,11 @@ export default function ExpenseApprovalScreen({ navigation, route }) {
                   <Text style={CommonStyles.listItemSubtitle}>Tarih: {formatDate(expense.createdAt)}</Text>
                 </View>
                 <View style={styles.expenseAmount}>
-                  <Text style={[styles.amountText, { color: Colors.primary[600] }]}>
+                  <Text style={[styles.amountText, { color: theme.colors.primary[600] }]}>
                     {formatAmount(expense.tutar)}
                   </Text>
                   <View style={styles.statusContainer}>
-                    <Text style={[styles.statusText, { color: Colors.success[600] }]}>✅ Onaylandı</Text>
+                    <Text style={[styles.statusText, { color: theme.colors.success[600] }]}>✅ Onaylandı</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -140,19 +144,21 @@ export default function ExpenseApprovalScreen({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({
-  expenseIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: Colors.primary[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  expenseIcon: { fontSize: 24 },
-  expenseAmount: { alignItems: 'flex-end' },
-  amountText: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
-  statusContainer: { alignItems: 'center' },
-  statusText: { fontSize: 12, fontWeight: '600' },
-});
+function makeStyles(theme) {
+  return StyleSheet.create({
+    expenseIconContainer: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      backgroundColor: theme.colors.primary[100],
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+    },
+    expenseIcon: { fontSize: 24 },
+    expenseAmount: { alignItems: 'flex-end' },
+    amountText: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
+    statusContainer: { alignItems: 'center' },
+    statusText: { fontSize: 12, fontWeight: '600' },
+  });
+}

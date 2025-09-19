@@ -1,11 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, RefreshControl } from 'react-native';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../../constants/Colors';
+import { useCommonStyles, makeColorThemes } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
 import { expensesApi } from '../services/api';
 
 const ChargesListScreen = ({ navigation, route }) => {
   const { houseId, houseName } = route.params || {};
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const ColorThemes = makeColorThemes(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [charges, setCharges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -79,7 +83,7 @@ const ChargesListScreen = ({ navigation, route }) => {
   };
 
   const getChargeStatusColor = (isMatured) => {
-    return isMatured ? Colors.text.primary : Colors.text.secondary;
+    return isMatured ? theme.colors.text.primary : theme.colors.text.secondary;
   };
 
   const getChargeStatusText = (isMatured) => {
@@ -94,7 +98,7 @@ const ChargesListScreen = ({ navigation, route }) => {
           <Text style={CommonStyles.subtitle}>{houseName || ''}</Text>
         </View>
         <View style={[CommonStyles.card, { alignItems: 'center', padding: 40 }]}>
-          <Text style={{ color: Colors.text.secondary }}>Yükleniyor...</Text>
+          <Text style={{ color: theme.colors.text.secondary }}>Yükleniyor...</Text>
         </View>
       </View>
     );
@@ -119,7 +123,7 @@ const ChargesListScreen = ({ navigation, route }) => {
         {charges.length === 0 ? (
           <View style={CommonStyles.card}>
             <Text style={styles.sectionTitle}>📄 Planlı Gider Bulunamadı</Text>
-            <Text style={{ color: Colors.text.secondary }}>
+            <Text style={{ color: theme.colors.text.secondary }}>
               Bu dönem için planlı gider bulunmuyor. Yeni planlı gider eklemek için 
               "Yeni Planlı Gider" butonunu kullanabilirsiniz.
             </Text>
@@ -192,62 +196,47 @@ const ChargesListScreen = ({ navigation, route }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    color: Colors.text.primary,
-  },
-  chargeHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  chargeTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  chargeIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  chargeTitleContainer: {
-    flex: 1,
-  },
-  chargeTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
-    marginBottom: 2,
-  },
-  chargePlanTitle: {
-    fontSize: 14,
-    color: Colors.text.secondary,
-  },
-  chargeAmount: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'right',
-  },
-  chargeDetails: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  chargeDetail: {
-    fontSize: 12,
-    color: Colors.text.secondary,
-    marginRight: 12,
-  },
-  chargeStatus: {
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-});
+function makeStyles(theme) {
+  return StyleSheet.create({
+    sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, color: theme.colors.text.primary },
+    chargeHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 12,
+    },
+    chargeTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    chargeIcon: {
+      fontSize: 24,
+      marginRight: 12,
+    },
+    chargeTitleContainer: {
+      flex: 1,
+    },
+    chargeTitle: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text.primary, marginBottom: 2 },
+    chargePlanTitle: { fontSize: 14, color: theme.colors.text.secondary },
+    chargeAmount: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      textAlign: 'right',
+    },
+    chargeDetails: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+    },
+    chargeDetail: { fontSize: 12, color: theme.colors.text.secondary, marginRight: 12 },
+    chargeStatus: {
+      fontSize: 12,
+      fontWeight: 'bold',
+    },
+  });
+}
 
 export default ChargesListScreen;
 

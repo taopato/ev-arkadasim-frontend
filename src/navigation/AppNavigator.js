@@ -61,7 +61,6 @@ const AppNavigator = () => {
             <Stack.Screen name="BillsOverviewScreen" component={Faturalar} options={{ title: 'Faturalar' }} />
             <Stack.Screen name="PaymentsScreen" component={Odemeler} options={{ title: 'Ödemeler' }} />
             <Stack.Screen name="SettingsScreen" component={Ayarlar} options={{ title: 'Ayarlar' }} />
-            <Stack.Screen name="LanguageSettingsScreen" component={DilAyarlari} options={{ title: 'Dil' }} />
             <Stack.Screen name="ThemeSettingsScreen" component={TemaAyarlari} options={{ title: 'Tema' }} />
             <Stack.Screen name="CreatePaymentScreen" component={OdemeEkle} options={{ title: 'Ödeme Ekle' }} />
             <Stack.Screen name="PendingPaymentsScreen" component={BekleyenOdemeler} options={{ title: 'Bekleyen Ödemeler' }} />

@@ -1,6 +1,7 @@
 // Ortak utility fonksiyonları - 3 ana ekran için
 import { NON_BILL_KEYS } from './expenseClassifier';
 import { getCategoryDisplayName, getCategoryIcon, getCategoryColor } from '../constants/ExpenseEnums';
+// Colors import removed - using theme-based colors instead
 
 // ==== UTC Ay Penceresi Hesaplama ====
 export const getUTCMonthWindow = (date = new Date()) => {
@@ -180,12 +181,12 @@ export const getStatusBadges = (item) => {
 
 // ==== Kategori Meta Bilgileri ====
 export const UTILITY_META = {
-  Electricity: { label: 'Elektrik', icon: '⚡', color: '#FFD700' },
-  Water: { label: 'Su', icon: '💧', color: '#00BFFF' },
-  Gas: { label: 'Doğalgaz', icon: '🔥', color: '#FF6347' },
-  Internet: { label: 'İnternet', icon: '🌐', color: '#9370DB' },
-  Rent: { label: 'Kira', icon: '🏠', color: '#32CD32' },
-  Other: { label: 'Diğer', icon: '📄', color: '#808080' },
+  Electricity: { label: 'Elektrik', icon: '⚡', color: '#3b82f6' },
+  Water: { label: 'Su', icon: '💧', color: '#0ea5e9' },
+  Gas: { label: 'Doğalgaz', icon: '🔥', color: '#ef4444' },
+  Internet: { label: 'İnternet', icon: '🌐', color: '#0284c7' },
+  Rent: { label: 'Kira', icon: '🏠', color: '#22c55e' },
+  Other: { label: 'Diğer', icon: '📄', color: '#737373' },
 };
 
 export const getUtilityMeta = (key) => {

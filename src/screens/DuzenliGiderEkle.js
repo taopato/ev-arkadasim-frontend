@@ -1,10 +1,10 @@
 // NewRecurringChargeScreen.js
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../constants/Colors';
+import { useCommonStyles, makeColorThemes } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
 import api, { houseApi, expensesApi } from '../services/api';
 import eventBus from '../shared/events/bus';
 import { getCategoryDisplayName, toExpenseCategory } from '../constants/ExpenseEnums';
@@ -26,6 +26,10 @@ const parseIntFromTR = (s) => {
 const NewRecurringChargeScreen = ({ navigation, route }) => {
   const { houseId, houseName } = route.params || {};
   const { user } = useAuth();
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const ColorThemes = makeColorThemes(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const [members, setMembers] = useState([]);
   const [mode, setMode] = useState(route?.params?.defaultMode || 'recurring'); // irregular | recurring | installment
@@ -201,7 +205,7 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
         <View style={CommonStyles.header}>
           <Text style={CommonStyles.title}>Yeni Gider</Text>
           <Text style={CommonStyles.subtitle}>{houseName}</Text>
-          <Text style={[CommonStyles.subtitle, { marginTop: 4, fontWeight: '800', color: Colors.primary[600] }]}>Düzenli Gider Ekle</Text>
+          <Text style={[CommonStyles.subtitle, { marginTop: 4, fontWeight: '800', color: theme.colors.primary[600] }]}>Düzenli Gider Ekle</Text>
         </View>
 
         <View style={CommonStyles.card}>
@@ -331,7 +335,7 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
           )}
 
           <TouchableOpacity style={CommonStyles.menuButton} onPress={onSave} activeOpacity={0.8}>
-            <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes?.success?.background || Colors.success[600] }]}>
+            <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.success.background }]}>
               <Text style={CommonStyles.buttonIcon}>💾</Text>
               <Text style={CommonStyles.buttonText}>Kaydet</Text>
             </View>
@@ -342,15 +346,17 @@ const NewRecurringChargeScreen = ({ navigation, route }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, color: Colors.text.primary },
-  row: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  rowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  chip: { borderWidth: 1, borderColor: Colors.neutral[300], paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16 },
-  chipActive: { backgroundColor: Colors.primary[100], borderColor: Colors.primary[500] },
-  chipText: { color: Colors.text.primary },
-  chipTextActive: { color: Colors.text.primary, fontWeight: '700' },
-  input: { borderWidth: 1, borderColor: Colors.neutral[300], borderRadius: 8, padding: 10, backgroundColor: Colors.background, color: Colors.text.primary, marginBottom: 12 },
-});
+function makeStyles(theme) {
+  return StyleSheet.create({
+    sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, color: theme.colors.text.primary },
+    row: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+    rowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+    chip: { borderWidth: 1, borderColor: theme.colors.neutral[300], paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16 },
+    chipActive: { backgroundColor: theme.colors.primary[100], borderColor: theme.colors.primary[500] },
+    chipText: { color: theme.colors.text.primary },
+    chipTextActive: { color: theme.colors.text.primary, fontWeight: '700' },
+    input: { borderWidth: 1, borderColor: theme.colors.neutral[300], borderRadius: 8, padding: 10, backgroundColor: theme.colors.background, color: theme.colors.text.primary, marginBottom: 12 },
+  });
+}
 
 export default NewRecurringChargeScreen;

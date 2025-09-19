@@ -1,14 +1,19 @@
 // src/screens/ResetPasswordScreen.js
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, TextInput, StyleSheet,
   TouchableOpacity, ActivityIndicator, Alert
 } from 'react-native';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
+import { useCommonStyles, makeColorThemes } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
 import { authApi } from '../services/api';
 
 const ResetPasswordScreen = ({ route, navigation }) => {
   const { email } = route.params || {};
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const ColorThemes = makeColorThemes(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -62,15 +67,12 @@ const ResetPasswordScreen = ({ route, navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 12 },
-  button: {
-    backgroundColor: ColorThemes.success.background,
-    padding: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  buttonText: { color: '#fff', fontWeight: 'bold' },
-});
+function makeStyles(theme) {
+  return StyleSheet.create({
+    input: { borderWidth: 1, borderColor: theme.colors.neutral[300], borderRadius: 8, padding: 12, marginBottom: 12, backgroundColor: theme.colors.background, color: theme.colors.text.primary },
+    button: { backgroundColor: theme.colors.success[600], padding: 14, borderRadius: 8, alignItems: 'center' },
+    buttonText: { color: theme.colors.text.onPrimary, fontWeight: 'bold' },
+  });
+}
 
 export default ResetPasswordScreen;

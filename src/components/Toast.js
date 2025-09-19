@@ -9,6 +9,7 @@ import {
   Dimensions,
   Platform
 } from 'react-native';
+import { useTheme } from '../shared/theme/ThemeProvider';
 
 const { width } = Dimensions.get('window');
 
@@ -19,12 +20,12 @@ const Toast = ({
   duration = 3000, 
   onHide 
 }) => {
+  const { theme } = useTheme();
   const translateY = useRef(new Animated.Value(-100)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
-      // Toast'u göster
       Animated.parallel([
         Animated.timing(translateY, {
           toValue: 0,
@@ -38,7 +39,6 @@ const Toast = ({
         }),
       ]).start();
 
-      // Otomatik gizleme
       const timer = setTimeout(() => {
         hideToast();
       }, duration);
@@ -67,19 +67,20 @@ const Toast = ({
   const getToastStyle = () => {
     switch (type) {
       case 'success':
-        return { backgroundColor: '#4caf50', icon: '✅' };
+        return { backgroundColor: theme.colors.success?.[600], icon: '✅' };
       case 'error':
-        return { backgroundColor: '#f44336', icon: '❌' };
+        return { backgroundColor: theme.colors.error?.[600], icon: '❌' };
       case 'warning':
-        return { backgroundColor: '#ff9800', icon: '⚠️' };
+        return { backgroundColor: theme.colors.warning?.[600], icon: '⚠️' };
       case 'info':
-        return { backgroundColor: '#2196f3', icon: 'ℹ️' };
+        return { backgroundColor: theme.colors.info?.[600], icon: 'ℹ️' };
       default:
-        return { backgroundColor: '#4caf50', icon: '✅' };
+        return { backgroundColor: theme.colors.success?.[600], icon: '✅' };
     }
   };
 
   const toastStyle = getToastStyle();
+  const textColor = theme.colors.text?.onPrimary;
 
   if (!visible) return null;
 
@@ -99,10 +100,10 @@ const Toast = ({
         onPress={hideToast}
         activeOpacity={0.8}
       >
-        <Text style={styles.icon}>{toastStyle.icon}</Text>
-        <Text style={styles.message}>{message}</Text>
+        <Text style={[styles.icon, { color: textColor }]}>{toastStyle.icon}</Text>
+        <Text style={[styles.message, { color: textColor }]}>{message}</Text>
         <TouchableOpacity onPress={hideToast} style={styles.closeButton}>
-          <Text style={styles.closeText}>✕</Text>
+          <Text style={[styles.closeText, { color: textColor }]}>✕</Text>
         </TouchableOpacity>
       </TouchableOpacity>
     </Animated.View>
@@ -131,7 +132,6 @@ const styles = StyleSheet.create({
   },
   message: {
     flex: 1,
-    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -139,7 +139,6 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   closeText: {
-    color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
   },

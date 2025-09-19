@@ -1,5 +1,5 @@
 // src/screens/ReceivablesDebtsSummaryScreen.js
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,8 @@ import {
   ScrollView,
 } from 'react-native';
 import { houseApi } from '../services/api';
-import { CommonStyles } from '../shared/ui/CommonStyles';
-import { Colors } from '../constants/Colors';
+import { useCommonStyles } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
 
 const formatAmount = (n) => `${Number(n || 0).toFixed(2)} TL`;
 const sum = (arr, sel) => arr.reduce((s, x) => s + Number(sel(x) || 0), 0);
@@ -20,6 +20,9 @@ const pick = (obj, keys) => { for (const k of keys) if (obj && obj[k]) return ob
 export default function ReceivablesDebtsSummaryScreen({ route, navigation }) {
   const { userId, houseId } = route.params || {};
   const me = Number(userId);
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const [loading, setLoading] = useState(false);
   const [state, setState] = useState({
@@ -115,7 +118,7 @@ export default function ReceivablesDebtsSummaryScreen({ route, navigation }) {
     return (
       <View style={CommonStyles.container}>
         <View style={CommonStyles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary[500]} />
+          <ActivityIndicator size="large" color={theme.colors.primary?.[500]} />
           <Text style={CommonStyles.loadingText}>Borç/Alacak bilgileri yükleniyor…</Text>
         </View>
       </View>
@@ -133,17 +136,17 @@ export default function ReceivablesDebtsSummaryScreen({ route, navigation }) {
         {/* Toplamlar */}
         <View style={CommonStyles.card}>
           <View style={styles.amountContainer}>
-            <View style={[styles.amountItem, { backgroundColor: Colors.success[50] }]}>
+            <View style={[styles.amountItem, { backgroundColor: theme.colors.success?.[50] }]}>
               <Text style={styles.amountLabel}>Total Receivables</Text>
               <Text style={styles.alacak}>{formatAmount(state.receivable)}</Text>
             </View>
-            <View style={[styles.amountItem, { backgroundColor: Colors.error[50] }]}>
+            <View style={[styles.amountItem, { backgroundColor: theme.colors.error?.[50] }]}>
               <Text style={styles.amountLabel}>Total Debts</Text>
               <Text style={styles.borc}>{formatAmount(state.payable)}</Text>
             </View>
-            <View style={[styles.amountItem, { backgroundColor: Colors.primary[50] }]}>
+            <View style={[styles.amountItem, { backgroundColor: theme.colors.primary?.[50] }]}>
               <Text style={styles.amountLabel}>Net Status</Text>
-              <Text style={[styles.netDurum, { color: state.net >= 0 ? Colors.success[600] : Colors.error[600] }]}>
+              <Text style={[styles.netDurum, { color: state.net >= 0 ? theme.colors.success?.[600] : theme.colors.error?.[600] }]}>
                 {formatAmount(state.net)}
               </Text>
             </View>
@@ -163,7 +166,7 @@ export default function ReceivablesDebtsSummaryScreen({ route, navigation }) {
                   <Text style={CommonStyles.listItemTitle}>{r.otherName}</Text>
                   <Text style={CommonStyles.listItemSubtitle}>Owes you</Text>
                 </View>
-                <Text style={[styles.amountText, { color: Colors.success[600] }]}>
+                <Text style={[styles.amountText, { color: theme.colors.success?.[600] }]}>
                   {formatAmount(r.amount)}
                 </Text>
               </View>
@@ -179,8 +182,8 @@ export default function ReceivablesDebtsSummaryScreen({ route, navigation }) {
           {state.debts.length > 0 ? (
             state.debts.map((d, i) => (
               <View key={String(d.otherUserId ?? i)} style={CommonStyles.listItem}>
-                <View style={[styles.avatar, { backgroundColor: Colors.warning[200] }]}>
-                  <Text style={[styles.avatarTxt, { color: Colors.text.primary }]}>
+                <View style={[styles.avatar, { backgroundColor: theme.colors.warning?.[200] }]}>
+                  <Text style={[styles.avatarTxt, { color: theme.colors.text.primary }]}>
                     {d.otherName?.charAt(0)?.toUpperCase() || '?'}
                   </Text>
                 </View>
@@ -188,7 +191,7 @@ export default function ReceivablesDebtsSummaryScreen({ route, navigation }) {
                   <Text style={CommonStyles.listItemTitle}>{d.otherName}</Text>
                   <Text style={CommonStyles.listItemSubtitle}>You owe this person</Text>
                 </View>
-                <Text style={[styles.amountText, { color: Colors.error[600] }]}>
+                <Text style={[styles.amountText, { color: theme.colors.error?.[600] }]}>
                   {formatAmount(d.amount)}
                 </Text>
               </View>
@@ -205,21 +208,20 @@ export default function ReceivablesDebtsSummaryScreen({ route, navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  amountContainer: { gap: 12 },
-  amountItem: { padding: 16, borderRadius: 8, alignItems: 'center' },
-  amountLabel: { fontSize: 14, color: Colors.text.secondary, marginBottom: 4 },
-  alacak:   { color: Colors.success[600], fontSize: 18, fontWeight: 'bold' },
-  borc:     { color: Colors.error[600],   fontSize: 18, fontWeight: 'bold' },
-  netDurum: { fontSize: 18, fontWeight: 'bold' },
+function makeStyles(theme) {
+  return StyleSheet.create({
+    amountContainer: { gap: 12 },
+    amountItem: { padding: 16, borderRadius: 8, alignItems: 'center' },
+    amountLabel: { fontSize: 14, marginBottom: 4, color: theme.colors.text.secondary },
+    alacak:   { fontSize: 18, fontWeight: 'bold', color: theme.colors.success?.[600] },
+    borc:     { fontSize: 18, fontWeight: 'bold', color: theme.colors.error?.[600] },
+    netDurum: { fontSize: 18, fontWeight: 'bold' },
 
-  sectionTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12, color: Colors.text.primary },
-  amountText: { fontSize: 16, fontWeight: '700' },
-  muted: { color: Colors.text.secondary, paddingVertical: 8 },
+    sectionTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12, color: theme.colors.text.primary },
+    amountText: { fontSize: 16, fontWeight: '700' },
+    muted: { paddingVertical: 8, color: theme.colors.text.secondary },
 
-  avatar: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primary[500],
-    alignItems: 'center', justifyContent: 'center', marginRight: 12
-  },
-  avatarTxt: { color: Colors.white, fontWeight: '800', fontSize: 16 }
-});
+    avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginRight: 12, backgroundColor: theme.colors.primary?.[500] },
+    avatarTxt: { fontWeight: '800', fontSize: 16, color: theme.colors.text.onPrimary }
+  });
+}

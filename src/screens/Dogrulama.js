@@ -1,14 +1,18 @@
 // src/screens/VerificationScreen.js
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../constants/Colors';
+import { useCommonStyles, makeColorThemes } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
 import { authApi } from '../services/api';
 
 const VerificationScreen = ({ navigation, route }) => {
   const { email, fullName, password } = route.params || {};
   const { login } = useAuth();
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const ColorThemes = makeColorThemes(theme);
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [verificationCode, setVerificationCode] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -70,7 +74,7 @@ const VerificationScreen = ({ navigation, route }) => {
             <TextInput
               style={styles.codeInput}
               placeholder="000000"
-              placeholderTextColor={Colors.text.secondary}
+              placeholderTextColor={theme.colors.text.secondary}
               value={verificationCode}
               onChangeText={setVerificationCode}
               keyboardType="numeric"
@@ -116,16 +120,18 @@ const VerificationScreen = ({ navigation, route }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  codeInput: {
-    borderWidth: 1, borderColor: Colors.neutral[300], borderRadius: 8, padding: 12,
-    backgroundColor: Colors.background, fontSize: 20, color: Colors.text.primary,
-    textAlign: 'center', letterSpacing: 8,
-  },
-  infoText: {
-    fontSize: 14, color: Colors.text.secondary, lineHeight: 20, marginTop: 16,
-    padding: 12, backgroundColor: Colors.neutral[50], borderRadius: 8, borderLeftWidth: 4, borderLeftColor: Colors.warning[600],
-  },
-});
+function makeStyles(theme) {
+  return StyleSheet.create({
+    codeInput: {
+      borderWidth: 1, borderColor: theme.colors.neutral?.[300], borderRadius: 8, padding: 12,
+      backgroundColor: theme.colors.background, fontSize: 20, color: theme.colors.text.primary,
+      textAlign: 'center', letterSpacing: 8,
+    },
+    infoText: {
+      fontSize: 14, color: theme.colors.text.secondary, lineHeight: 20, marginTop: 16,
+      padding: 12, backgroundColor: theme.colors.neutral[50], borderRadius: 8, borderLeftWidth: 4, borderLeftColor: theme.colors.warning[600],
+    },
+  });
+}
 
 export default VerificationScreen;

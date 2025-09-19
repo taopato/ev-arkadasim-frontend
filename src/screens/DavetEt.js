@@ -1,13 +1,16 @@
 // src/screens/InviteFriendScreen.js
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../constants/Colors';
+import { useCommonStyles, makeColorThemes } from '../shared/ui/CommonStyles';
 import { houseApi } from '../services/api';
+import { useTheme } from '../shared/theme/ThemeProvider';
 
 const InviteFriendScreen = ({ navigation, route }) => {
   const { houseId, houseName } = route.params || {};
   const [email, setEmail] = useState('');
+  const { theme } = useTheme();
+  const CommonStyles = useCommonStyles();
+  const ColorThemes = makeColorThemes(theme);
 
   const sendInvite = async () => {
     if (!houseId || !email.trim()) {
@@ -25,25 +28,27 @@ const InviteFriendScreen = ({ navigation, route }) => {
 
   return (
     <KeyboardAvoidingView 
-      style={CommonStyles.container} 
+      style={[CommonStyles.container, { backgroundColor: theme.colors.background }]} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
       <ScrollView 
-        style={CommonStyles.content}
+        style={[CommonStyles.content, { backgroundColor: theme.colors.background }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         <View style={CommonStyles.header}>
-          <Text style={CommonStyles.title}>Arkadaş Davet Et</Text>
-          <Text style={CommonStyles.subtitle}>{houseName ? `${houseName}` : 'Ev'} • E-posta ile davet</Text>
+          <Text style={[CommonStyles.title, { color: theme.colors.text.primary }]}>Arkadaş Davet Et</Text>
+          <Text style={[CommonStyles.subtitle, { color: theme.colors.text.secondary }]}>{houseName ? `${houseName}` : 'Ev'} • E-posta ile davet</Text>
         </View>
 
-        <View style={CommonStyles.card}>
-          <Text style={styles.label}>E-posta</Text>
+        <View style={[CommonStyles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.neutral?.[200] }]}>
+          <Text style={[styles.label, { color: theme.colors.text.primary }]}>E-posta</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { borderColor: theme.colors.neutral?.[300], backgroundColor: theme.colors.background, color: theme.colors.text.primary }]}
             placeholder="ornek@email.com"
+            placeholderTextColor={theme.colors.neutral?.[500]}
+            selectionColor={theme.colors.primary?.[500]}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -71,10 +76,10 @@ const InviteFriendScreen = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-  label: { fontSize: 14, fontWeight: '600', color: Colors.text.primary, marginBottom: 8 },
+  label: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
   input: {
-    borderWidth: 1, borderColor: Colors.neutral[300], borderRadius: 8,
-    padding: 12, backgroundColor: Colors.background, fontSize: 16, color: Colors.text.primary, marginBottom: 16,
+    borderWidth: 1, borderRadius: 8,
+    padding: 12, fontSize: 16, marginBottom: 16,
   },
 });
 

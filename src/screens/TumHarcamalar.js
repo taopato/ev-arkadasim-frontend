@@ -17,8 +17,8 @@ import {
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { expensesApi, houseApi } from '../services/api';
-import { Colors } from '../constants/Colors';
-import { CommonStyles } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
+import { useCommonStyles } from '../shared/ui/CommonStyles';
 import { normalizeExpense } from '../utils/expenseClassifier';
 import {
   getUTCMonthWindow,
@@ -42,6 +42,9 @@ const TumHarcamalarScreen = ({ navigation, route }) => {
   const { user } = useAuth();
   const { houseId: routeHouseId, houseName } = route.params || {};
   const houseId = routeHouseId || user?.defaultHouseId;
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -292,7 +295,10 @@ const TumHarcamalarScreen = ({ navigation, route }) => {
         <View style={styles.cardFooter}>
           <View style={styles.badgesContainer}>
             {planType !== 'irregular' && (
-              <View style={[styles.badge, { backgroundColor: Colors.info[100] }]}>
+              <View style={[
+                styles.badge,
+                { backgroundColor: (theme.colors.primary?.[100] ?? theme.colors.neutral?.[100]) }
+              ]}>
                 <Text style={styles.badgeText}>
                   {planType === 'recurring' ? 'Düzenli' : 'Taksitli'}
                 </Text>
@@ -318,11 +324,11 @@ const TumHarcamalarScreen = ({ navigation, route }) => {
   // Badge rengi
   const getBadgeColor = (type) => {
     switch (type) {
-      case 'error': return Colors.error[100];
-      case 'warning': return Colors.warning[100];
-      case 'success': return Colors.success[100];
-      case 'info': return Colors.info[100];
-      default: return Colors.neutral[100];
+      case 'error': return theme.colors.error[100];
+      case 'warning': return theme.colors.warning[100];
+      case 'success': return theme.colors.success[100];
+      case 'info': return theme.colors.primary?.[100] ?? theme.colors.neutral?.[100];
+      default: return theme.colors.neutral[100];
     }
   };
 
@@ -476,7 +482,7 @@ const TumHarcamalarScreen = ({ navigation, route }) => {
   if (loading && items.length === 0) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary[500]} />
+        <ActivityIndicator size="large" color={theme.colors.primary[500]} />
         <Text style={styles.loadingText}>Harcamalar yükleniyor...</Text>
       </View>
     );
@@ -512,7 +518,7 @@ const TumHarcamalarScreen = ({ navigation, route }) => {
               setRefreshing(true);
               loadData();
             }}
-            colors={[Colors.primary[500]]}
+            colors={[theme.colors.primary[500]]}
           />
         }
         contentContainerStyle={styles.listContainer}
@@ -534,210 +540,92 @@ const TumHarcamalarScreen = ({ navigation, route }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.surface
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.surface
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: Colors.text.secondary
-  },
-  
-  // Header
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: Colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral[200]
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: Colors.text.primary
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: Colors.text.secondary,
-    marginTop: 2
-  },
-  filterButton: {
-    backgroundColor: Colors.primary[500],
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8
-  },
-  filterButtonText: {
-    color: 'white',
-    fontWeight: '600'
-  },
+function makeStyles(theme) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.colors.surface },
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.surface },
+    loadingText: { marginTop: 16, fontSize: 16, color: theme.colors.text.secondary },
+    
+    // Header
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: theme.colors.background, borderBottomWidth: 1, borderBottomColor: theme.colors.neutral[200] },
+    headerTitle: { fontSize: 20, fontWeight: 'bold', color: theme.colors.text.primary },
+    headerSubtitle: { fontSize: 14, color: theme.colors.text.secondary, marginTop: 2 },
+    filterButton: { backgroundColor: theme.colors.primary[500], paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
+    filterButtonText: { color: theme.colors.text.onPrimary, fontWeight: '600' },
 
-  // Liste
-  listContainer: {
-    padding: 16
-  },
-  card: {
-    backgroundColor: Colors.background,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: Colors.neutral[200]
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8
-  },
-  cardTitle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1
-  },
-  cardIcon: {
-    fontSize: 20,
-    marginRight: 8
-  },
-  cardTitleText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
-    flex: 1
-  },
-  cardAmount: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.text.primary
-  },
-  cardDetails: {
-    marginBottom: 8
-  },
-  cardSubtitle: {
-    fontSize: 14,
-    color: Colors.text.secondary,
-    marginBottom: 4
-  },
-  cardNote: {
-    fontSize: 13,
-    color: Colors.text.secondary,
-    fontStyle: 'italic'
-  },
-  cardFooter: {
-    marginTop: 8
-  },
-  badgesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.text.primary
-  },
+    // Liste
+    listContainer: {
+      padding: 16
+    },
+    card: { backgroundColor: theme.colors.background, borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: theme.colors.neutral[200] },
+    cardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8
+    },
+    cardTitle: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1
+    },
+    cardIcon: {
+      fontSize: 20,
+      marginRight: 8
+    },
+    cardTitleText: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text.primary, flex: 1 },
+    cardAmount: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text.primary },
+    cardDetails: {
+      marginBottom: 8
+    },
+    cardSubtitle: { fontSize: 14, color: theme.colors.text.secondary, marginBottom: 4 },
+    cardNote: { fontSize: 13, color: theme.colors.text.secondary, fontStyle: 'italic' },
+    cardFooter: {
+      marginTop: 8
+    },
+    badgesContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 6
+    },
+    badge: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12
+    },
+    badgeText: { fontSize: 11, fontWeight: '600', color: theme.colors.text.primary },
 
-  // Boş Durum
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 48
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
-    marginBottom: 8
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: Colors.text.secondary,
-    textAlign: 'center',
-    lineHeight: 20
-  },
+    // Boş Durum
+    emptyContainer: {
+      alignItems: 'center',
+      paddingVertical: 48
+    },
+    emptyIcon: {
+      fontSize: 48,
+      marginBottom: 16
+    },
+    emptyTitle: { fontSize: 18, fontWeight: 'bold', color: theme.colors.text.primary, marginBottom: 8 },
+    emptySubtitle: { fontSize: 14, color: theme.colors.text.secondary, textAlign: 'center', lineHeight: 20 },
 
-  // Modal
-  modalContainer: {
-    flex: 1,
-    backgroundColor: Colors.surface
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral[200]
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.text.primary
-  },
-  modalClose: {
-    fontSize: 16,
-    color: Colors.primary[500],
-    fontWeight: '600'
-  },
-  modalContent: {
-    flex: 1,
-    padding: 16
-  },
-  filterSection: {
-    marginBottom: 24
-  },
-  filterSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text.primary,
-    marginBottom: 12
-  },
-  searchInput: {
-    borderWidth: 1,
-    borderColor: Colors.neutral[300],
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: Colors.background
-  },
-  filterOption: {
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-    backgroundColor: Colors.background,
-    borderWidth: 1,
-    borderColor: Colors.neutral[200]
-  },
-  filterOptionActive: {
-    backgroundColor: Colors.primary[100],
-    borderColor: Colors.primary[500]
-  },
-  filterOptionText: {
-    fontSize: 14,
-    color: Colors.text.primary
-  },
-  filterOptionTextActive: {
-    color: Colors.primary[700],
-    fontWeight: '600'
-  }
-});
+    // Modal
+    modalContainer: { flex: 1, backgroundColor: theme.colors.surface },
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.neutral[200] },
+    modalTitle: { fontSize: 18, fontWeight: 'bold', color: theme.colors.text.primary },
+    modalClose: { fontSize: 16, color: theme.colors.primary[500], fontWeight: '600' },
+    modalContent: {
+      flex: 1,
+      padding: 16
+    },
+    filterSection: {
+      marginBottom: 24
+    },
+    filterSectionTitle: { fontSize: 16, fontWeight: '600', color: theme.colors.text.primary, marginBottom: 12 },
+    searchInput: { borderWidth: 1, borderColor: theme.colors.neutral[300], borderRadius: 8, padding: 12, fontSize: 16, backgroundColor: theme.colors.background },
+    filterOption: { padding: 12, borderRadius: 8, marginBottom: 8, backgroundColor: theme.colors.background, borderWidth: 1, borderColor: theme.colors.neutral[200] },
+    filterOptionActive: { backgroundColor: theme.colors.primary[100], borderColor: theme.colors.primary[500] },
+    filterOptionText: { fontSize: 14, color: theme.colors.text.primary },
+    filterOptionTextActive: { color: theme.colors.primary[700], fontWeight: '600' }
+  });
+}
 
 export default TumHarcamalarScreen;

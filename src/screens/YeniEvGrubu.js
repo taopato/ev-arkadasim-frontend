@@ -1,8 +1,8 @@
 // src/screens/NewGroupScreen.js
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../constants/Colors';
+import { useCommonStyles, makeColorThemes } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
 import { useAuth } from '../context/AuthContext';
 import { houseApi } from '../services/api';
 
@@ -10,6 +10,9 @@ const NewGroupScreen = ({ navigation }) => {
   const [houseName, setHouseName] = useState('');
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const ColorThemes = makeColorThemes(theme);
 
   const handleCreateGroup = async () => {
     if (!houseName.trim()) {
@@ -38,12 +41,13 @@ const NewGroupScreen = ({ navigation }) => {
         </View>
 
         <View style={CommonStyles.card}>
-          <Text style={styles.label}>Ev Grubu Adı</Text>
+          <Text style={[styles.label, { color: theme.colors.text.primary }]}>Ev Grubu Adı</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { borderColor: theme.colors.neutral?.[300], backgroundColor: theme.colors.background, color: theme.colors.text.primary }]}
             placeholder="Örn: 3. Kat 5 No Daire"
             value={houseName}
             onChangeText={setHouseName}
+            placeholderTextColor={theme.colors.text.secondary}
           />
 
           <TouchableOpacity
@@ -54,7 +58,7 @@ const NewGroupScreen = ({ navigation }) => {
           >
             <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.success.background }]}>
               {loading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={theme.colors.text.onPrimary} />
               ) : (
                 <>
                   <Text style={CommonStyles.buttonIcon}>🏠</Text>
@@ -79,10 +83,10 @@ const NewGroupScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  label: { fontSize: 14, fontWeight: '600', color: Colors.text.primary, marginBottom: 8 },
+  label: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
   input: {
-    borderWidth: 1, borderColor: Colors.neutral[300], borderRadius: 8,
-    padding: 12, backgroundColor: Colors.background, fontSize: 16, color: Colors.text.primary, marginBottom: 16,
+    borderWidth: 1, borderRadius: 8,
+    padding: 12, fontSize: 16, marginBottom: 16,
   },
 });
 

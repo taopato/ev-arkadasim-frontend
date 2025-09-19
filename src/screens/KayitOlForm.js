@@ -1,10 +1,11 @@
 // src/screens/RegisterScreen.js
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { Colors } from '../constants/Colors';
+import { useTheme } from '../shared/theme/ThemeProvider';
 import { authApi } from '../services/api';
 
 const RegisterScreen = ({ navigation }) => {
+  const { theme } = useTheme();
   const [fullName, setFullName] = useState('');
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
@@ -49,7 +50,7 @@ const RegisterScreen = ({ navigation }) => {
 
   return (
     <KeyboardAvoidingView 
-      style={styles.container} 
+      style={[styles.container, { backgroundColor: theme.colors.surface }]} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
@@ -58,64 +59,68 @@ const RegisterScreen = ({ navigation }) => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>Hesap Oluştur</Text>
-        <Text style={styles.subtitle}>Ev arkadaşlarınla harcamaları yönet.</Text>
+        <Text style={[styles.title, { color: theme.colors.text.primary }]}>Hesap Oluştur</Text>
+        <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>Ev arkadaşlarınla harcamaları yönet.</Text>
 
-        <View style={styles.card}>
-          <Text style={styles.label}>Ad Soyad</Text>
+        <View style={[styles.card, { backgroundColor: theme.colors.background, borderColor: theme.colors.neutral?.[200] }]}> 
+          <Text style={[styles.label, { color: theme.colors.text.primary }]}>Ad Soyad</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { borderColor: theme.colors.neutral?.[300], color: theme.colors.text.primary, backgroundColor: theme.colors.background }]}
             placeholder="Adınız ve soyadınız"
             value={fullName}
             onChangeText={setFullName}
             autoCapitalize="words"
+            placeholderTextColor={theme.colors.text.disabled}
           />
 
-          <Text style={styles.label}>Email</Text>
+          <Text style={[styles.label, { color: theme.colors.text.primary }]}>Email</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { borderColor: theme.colors.neutral?.[300], color: theme.colors.text.primary, backgroundColor: theme.colors.background }]}
             placeholder="ornek@email.com"
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
             keyboardType="email-address"
+            placeholderTextColor={theme.colors.text.disabled}
           />
 
-          <Text style={styles.label}>Şifre</Text>
+          <Text style={[styles.label, { color: theme.colors.text.primary }]}>Şifre</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { borderColor: theme.colors.neutral?.[300], color: theme.colors.text.primary, backgroundColor: theme.colors.background }]}
             placeholder="En az 6 karakter"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            placeholderTextColor={theme.colors.text.disabled}
           />
 
-          <Text style={styles.label}>Şifre Tekrar</Text>
+          <Text style={[styles.label, { color: theme.colors.text.primary }]}>Şifre Tekrar</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { borderColor: theme.colors.neutral?.[300], color: theme.colors.text.primary, backgroundColor: theme.colors.background }]}
             placeholder="Şifrenizi tekrar girin"
             value={confirm}
             onChangeText={setConfirm}
             secureTextEntry
+            placeholderTextColor={theme.colors.text.disabled}
           />
 
-          <Text style={styles.info}>📧 Kayıt için e-posta adresinize doğrulama kodu gelecektir.</Text>
+          <Text style={[styles.info, { color: theme.colors.text.secondary }]}>📧 Kayıt için e-posta adresinize doğrulama kodu gelecektir.</Text>
 
           <TouchableOpacity
-            style={[styles.btn, styles.btnPrimary, loading && styles.btnDisabled]}
+            style={[styles.btn, { backgroundColor: theme.colors.primary?.[600] }, loading && styles.btnDisabled]}
             onPress={handleSignup}
             disabled={loading}
             activeOpacity={0.85}
           >
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Hesap Oluştur</Text>}
+            {loading ? <ActivityIndicator color={theme.colors.text.onPrimary} /> : <Text style={[styles.btnText, { color: theme.colors.text.onPrimary }]}>Hesap Oluştur</Text>}
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.btn, styles.btnNeutral]}
+            style={[styles.btn, { backgroundColor: theme.colors.neutral?.[200] }]}
             onPress={() => navigation.navigate('Login')}
             activeOpacity={0.85}
           >
-            <Text style={[styles.btnText, { color: Colors.text.primary }]}>Giriş Yap</Text>
+            <Text style={[styles.btnText, { color: theme.colors.text.primary }]}>Giriş Yap</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -124,23 +129,21 @@ const RegisterScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surface },
-  title: { fontSize: 24, fontWeight: '800', color: Colors.text.primary, marginBottom: 6 },
-  subtitle: { color: Colors.text.secondary, marginBottom: 16 },
-  card: { backgroundColor: Colors.background, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: Colors.neutral[200] },
+  container: { flex: 1 },
+  title: { fontSize: 24, fontWeight: '800', marginBottom: 6 },
+  subtitle: { marginBottom: 16 },
+  card: { borderRadius: 12, padding: 16, borderWidth: 1 },
 
-  label: { fontWeight: '700', color: Colors.text.primary, marginTop: 10, marginBottom: 6 },
+  label: { fontWeight: '700', marginTop: 10, marginBottom: 6 },
   input: {
-    borderWidth: 1, borderColor: Colors.neutral[300], borderRadius: 10,
-    padding: 12, fontSize: 16, color: Colors.text.primary, backgroundColor: '#fff'
+    borderWidth: 1, borderRadius: 10,
+    padding: 12, fontSize: 16,
   },
-  info: { marginTop: 12, color: Colors.text.secondary, fontSize: 12 },
+  info: { marginTop: 12, fontSize: 12 },
 
   btn: { paddingVertical: 12, borderRadius: 10, marginTop: 14, alignItems: 'center' },
-  btnPrimary: { backgroundColor: Colors.primary[600] },
-  btnNeutral: { backgroundColor: Colors.neutral[200] },
   btnDisabled: { opacity: 0.6 },
-  btnText: { color: '#fff', fontWeight: '800' },
+  btnText: { fontWeight: '800' },
 });
 
 export default RegisterScreen;

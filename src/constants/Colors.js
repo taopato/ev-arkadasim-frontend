@@ -1,4 +1,6 @@
 // src/constants/Colors.js
+// ⚠️ Legacy: Bileşenlerde KULLANMAYIN. Tüm renkler useTheme().theme.colors üzerinden alınacak.
+// Bu dosya sadece geçici geriye uyumluluk içindir. Yeni kodlarda import etmeyin.
 /**
  * Sade ve şık renk paleti - Ev Arkadaşım uygulaması için
  */

@@ -1,15 +1,20 @@
 // src/screens/LoginScreen.js
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity,
+  View, Text, TouchableOpacity,
   StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, ScrollView, Platform
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { authApi } from '../services/api';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
+import { useCommonStyles } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
+import { TextInput as ThemedTextInput } from '../shared/ui/TextInput';
+import { Button as ThemedButton } from '../shared/ui/Button';
 
 const GirisYap = ({ navigation }) => {
   const { login } = useAuth();
+  const { theme } = useTheme();
+  const CommonStyles = useCommonStyles();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -52,7 +57,6 @@ const GirisYap = ({ navigation }) => {
       const token = findValueByKeyList(data, ['token', 'accessToken', 'jwt', 'jwtToken']);
       let user = findValueByKeyList(data, ['user', 'userDto', 'account', 'profile', 'userInfo']);
 
-      // Eğer user alanı yok ama kimlik ipuçları varsa minimal bir user oluştur
       if (!user) {
         const userId = findValueByKeyList(data, ['userId', 'id']);
         const fullName = findValueByKeyList(data, ['fullName', 'name']);
@@ -89,7 +93,7 @@ const GirisYap = ({ navigation }) => {
 
   return (
     <KeyboardAvoidingView 
-      style={CommonStyles.container} 
+      style={[CommonStyles.container, { backgroundColor: theme.colors.background }]} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
@@ -98,34 +102,27 @@ const GirisYap = ({ navigation }) => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={CommonStyles.content}>
-          <Text style={CommonStyles.title}>Giriş Yap</Text>
-          <View style={CommonStyles.card}>
-            <TextInput
-              style={styles.input}
+        <View style={[CommonStyles.content, { backgroundColor: theme.colors.background }]}>
+          <Text style={[CommonStyles.title, { color: theme.colors.text.primary }]}>Giriş Yap</Text>
+          <View style={[CommonStyles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.neutral?.[200] }]}>
+            <ThemedTextInput
+              style={{ marginBottom: 12 }}
               placeholder="E-posta"
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
             />
-            <TextInput
-              style={styles.input}
+            <ThemedTextInput
+              style={{ marginBottom: 12 }}
               placeholder="Şifre"
               secureTextEntry
               value={password}
               onChangeText={setPassword}
             />
-            <TouchableOpacity
-              style={[styles.button, loading && { opacity: 0.5 }]}
-              onPress={handleLogin}
-              disabled={loading}
-            >
-              {loading ? <ActivityIndicator color="#fff" /> :
-                <Text style={styles.buttonText}>Giriş Yap</Text>}
-            </TouchableOpacity>
+            <ThemedButton title="Giriş Yap" onPress={handleLogin} loading={loading} />
             <TouchableOpacity onPress={() => navigation.navigate('SignupScreen')}>
-              <Text style={styles.link}>Hesabın yok mu? Kayıt ol</Text>
+              <Text style={[styles.link, { color: theme.colors.primary?.[600] }]}>Hesabın yok mu? Kayıt ol</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -135,15 +132,7 @@ const GirisYap = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 12 },
-  button: {
-    backgroundColor: ColorThemes.primary.background,
-    padding: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  buttonText: { color: '#fff', fontWeight: 'bold' },
-  link: { color: '#0ea5e9', marginTop: 12, textAlign: 'center' },
+  link: { marginTop: 12, textAlign: 'center' },
 });
 
 export default GirisYap;

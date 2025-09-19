@@ -3,14 +3,17 @@ import { View, FlatList, Text, TouchableOpacity, ActivityIndicator, Alert, Style
 import useScrollRestore from '../hooks/useScrollRestore';
 import { useAuth } from '../context/AuthContext';
 import { houseApi } from '../services/api';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../constants/Colors';
+import { useCommonStyles, makeColorThemes } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
 
 export default function GroupListScreen({ navigation, route }) {
   const [houses, setHouses] = useState([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { listRef, handleScroll } = useScrollRestore('GroupListScreen');
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const ColorThemes = makeColorThemes(theme);
 
   useEffect(() => {
     if (!user || !user.id) {
@@ -122,11 +125,11 @@ export default function GroupListScreen({ navigation, route }) {
   );
 
   return (
-    <View style={CommonStyles.container}>
-      <ScrollView style={CommonStyles.content} ref={listRef} onScroll={handleScroll} scrollEventThrottle={16}>
+    <View style={[CommonStyles.container, { backgroundColor: theme.colors.surface }]}>
+      <ScrollView style={[CommonStyles.content, { backgroundColor: theme.colors.surface }]} ref={listRef} onScroll={handleScroll} scrollEventThrottle={16}>
         <View style={CommonStyles.header}>
-          <Text style={CommonStyles.title}>Ev Gruplarım</Text>
-          <Text style={CommonStyles.subtitle}>Ev gruplarınızı görüntüleyin ve yönetin</Text>
+          <Text style={[CommonStyles.title, { color: theme.colors.text.primary }]}>Ev Gruplarım</Text>
+          <Text style={[CommonStyles.subtitle, { color: theme.colors.text.secondary }]}>Ev gruplarınızı görüntüleyin ve yönetin</Text>
         </View>
         
         <TouchableOpacity
@@ -143,7 +146,7 @@ export default function GroupListScreen({ navigation, route }) {
         
         {loading ? (
           <View style={CommonStyles.loadingContainer}>
-            <ActivityIndicator size="large" color={Colors.primary[500]} />
+            <ActivityIndicator size="large" color={theme.colors.primary[500]} />
             <Text style={CommonStyles.loadingText}>Ev grupları yükleniyor...</Text>
           </View>
         ) : houses.length > 0 ? (

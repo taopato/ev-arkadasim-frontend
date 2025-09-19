@@ -4,8 +4,8 @@ import React, { useEffect, useState } from "react";
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, ScrollView, Platform, KeyboardAvoidingView } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { houseApi, expensesApi } from "../services/api";
-import { CommonStyles } from "../shared/ui/CommonStyles";
-import { Colors } from "../constants/Colors";
+import { useCommonStyles } from "../shared/ui/CommonStyles";
+import { useTheme } from "../shared/theme/ThemeProvider";
 import Toast from "../components/Toast";
 import { toExpenseCategory } from "../constants/ExpenseEnums";
 
@@ -35,6 +35,9 @@ const QUICK_EXPENSES = [
 const AddExpenseScreen = ({ navigation, route }) => {
   const { houseId } = route.params || {};
   const { user } = useAuth();
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => makeStyles(theme), [theme]);
 
   const [amount, setAmount] = useState('');
   const [categoryKey, setCategoryKey] = useState(''); // Market / Food / Other
@@ -260,7 +263,7 @@ const AddExpenseScreen = ({ navigation, route }) => {
           disabled={!amountNum || !categoryKey || !payerId || loading}
           activeOpacity={0.9}
         >
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Kaydet</Text>}
+          {loading ? <ActivityIndicator color={theme.colors.text.onPrimary} /> : <Text style={styles.saveText}>Kaydet</Text>}
         </TouchableOpacity>
 
         <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={hideToast} />
@@ -269,36 +272,36 @@ const AddExpenseScreen = ({ navigation, route }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  card: { backgroundColor: Colors.background, padding: 16, borderRadius: 12, marginBottom: 14 },
-  label: { fontSize: 14, fontWeight: '600', color: Colors.text.primary, marginBottom: 8 },
+const makeStyles = (theme) => StyleSheet.create({
+  card: { backgroundColor: theme.colors.background, padding: 16, borderRadius: 12, marginBottom: 14 },
+  label: { fontSize: 14, fontWeight: '600', color: theme.colors.text.primary, marginBottom: 8 },
   input: {
-    borderWidth: 1, borderColor: Colors.neutral[300], borderRadius: 10,
-    padding: 12, fontSize: 16, backgroundColor: Colors.white, color: Colors.text.primary
+    borderWidth: 1, borderColor: theme.colors.neutral[300], borderRadius: 10,
+    padding: 12, fontSize: 16, backgroundColor: theme.colors.background, color: theme.colors.text.primary
   },
-  hint: { marginTop: 6, color: Colors.text.secondary, fontSize: 12 },
+  hint: { marginTop: 6, color: theme.colors.text.secondary, fontSize: 12 },
 
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: Colors.neutral[300], borderRadius: 20, backgroundColor: Colors.white },
-  chipActive: { borderColor: Colors.primary[600], backgroundColor: Colors.primary[50] },
-  chipText: { color: Colors.text.primary, fontWeight: '500' },
-  chipTextActive: { color: Colors.primary[700], fontWeight: '700' },
+  chip: { paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: theme.colors.neutral[300], borderRadius: 20, backgroundColor: theme.colors.background },
+  chipActive: { borderColor: theme.colors.primary[600], backgroundColor: theme.colors.primary[50] },
+  chipText: { color: theme.colors.text.primary, fontWeight: '500' },
+  chipTextActive: { color: theme.colors.primary[700], fontWeight: '700' },
 
-  toggle: { backgroundColor: Colors.primary[100], borderColor: Colors.primary[300], borderWidth: 1, padding: 12, borderRadius: 10, marginBottom: 12, alignItems: 'center' },
-  toggleText: { color: Colors.primary[800], fontWeight: '600' },
+  toggle: { backgroundColor: theme.colors.primary[100], borderColor: theme.colors.primary[300], borderWidth: 1, padding: 12, borderRadius: 10, marginBottom: 12, alignItems: 'center' },
+  toggleText: { color: theme.colors.primary[800], fontWeight: '600' },
 
   personalRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderWidth: 1, borderColor: Colors.neutral[200], backgroundColor: Colors.white,
+    borderWidth: 1, borderColor: theme.colors.neutral[200], backgroundColor: theme.colors.background,
     borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10,
   },
-  personalName: { fontSize: 15, color: Colors.text.primary, flex: 1, marginRight: 10 },
-  personalInput: { width: 100, borderWidth: 1, borderColor: Colors.neutral[300], borderRadius: 8, padding: 8, textAlign: 'right' },
+  personalName: { fontSize: 15, color: theme.colors.text.primary, flex: 1, marginRight: 10 },
+  personalInput: { width: 100, borderWidth: 1, borderColor: theme.colors.neutral[300], borderRadius: 8, padding: 8, textAlign: 'right' },
 
-  saveBtn: { backgroundColor: Colors.success[600], padding: 16, borderRadius: 12, alignItems: 'center', marginBottom: 28 },
-  saveText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  saveBtn: { backgroundColor: theme.colors.success[600], padding: 16, borderRadius: 12, alignItems: 'center', marginBottom: 28 },
+  saveText: { color: theme.colors.text.onPrimary, fontWeight: '700', fontSize: 16 },
 
-  info: { marginTop: 8, color: Colors.text.secondary, fontSize: 12 },
+  info: { marginTop: 8, color: theme.colors.text.secondary, fontSize: 12 },
 });
 
 export default AddExpenseScreen;

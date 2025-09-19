@@ -1,15 +1,18 @@
 // src/screens/MyReceivablesScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { houseApi } from '../services/api';
 import { formatAmount } from '../constants/ExpenseEnums';
-import { CommonStyles } from '../shared/ui/CommonStyles';
-import { Colors } from '../constants/Colors';
+import { useCommonStyles } from '../shared/ui/CommonStyles';
+import { useTheme } from '../shared/theme/ThemeProvider';
 
 const MyReceivablesScreen = ({ navigation, route }) => {
   const { houseId, houseName } = route.params || {};
   const { user } = useAuth();
+  const CommonStyles = useCommonStyles();
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const [loading, setLoading] = useState(false);
   const [receivables, setReceivables] = useState([]);
@@ -77,7 +80,7 @@ const MyReceivablesScreen = ({ navigation, route }) => {
     return (
       <View style={CommonStyles.container}>
         <View style={CommonStyles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary[500]} />
+          <ActivityIndicator size="large" color={theme.colors.primary?.[500]} />
           <Text style={CommonStyles.loadingText}>Alacak bilgileri yükleniyor…</Text>
         </View>
       </View>
@@ -95,7 +98,7 @@ const MyReceivablesScreen = ({ navigation, route }) => {
         <View style={CommonStyles.card}>
           <Text style={styles.sectionTitle}>💰 Toplam Alacak</Text>
           <View style={styles.netStatusContainer}>
-            <Text style={[styles.netAmount, { color: Colors.success[600] }]}>{formatAmount(netBalance)}</Text>
+            <Text style={[styles.netAmount, { color: theme.colors.success?.[600] }]}>{formatAmount(netBalance)}</Text>
             <Text style={styles.netLabel}>Toplam Alacağınız</Text>
           </View>
         </View>
@@ -128,8 +131,8 @@ const MyReceivablesScreen = ({ navigation, route }) => {
                     <Text style={CommonStyles.listItemSubtitle}>Size borçlu</Text>
                   </View>
                   <View style={styles.amountContainer}>
-                    <Text style={[styles.amountText, { color: Colors.success[600] }]}>{formatAmount(item.amount)}</Text>
-                    <Text style={[styles.statusText, { color: Colors.success[600] }]}>Alacaklı</Text>
+                    <Text style={[styles.amountText, { color: theme.colors.success?.[600] }]}>{formatAmount(item.amount)}</Text>
+                    <Text style={[styles.statusText, { color: theme.colors.success?.[600] }]}>Alacaklı</Text>
                   </View>
                 </TouchableOpacity>
               ))}
@@ -146,19 +149,21 @@ const MyReceivablesScreen = ({ navigation, route }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, color: Colors.text.primary },
-  netStatusContainer: { alignItems: 'center', paddingVertical: 20 },
-  netAmount: { fontSize: 32, fontWeight: 'bold', marginBottom: 8 },
-  netLabel: { fontSize: 16, color: Colors.text.secondary },
-  userAvatar: {
-    width: 50, height: 50, borderRadius: 25, backgroundColor: Colors.primary[500],
-    justifyContent: 'center', alignItems: 'center', marginRight: 12,
-  },
-  avatarText: { fontSize: 20, fontWeight: 'bold', color: Colors.background },
-  amountContainer: { alignItems: 'flex-end' },
-  amountText: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
-  statusText: { fontSize: 12, fontWeight: '600' },
-});
+function makeStyles(theme) {
+  return StyleSheet.create({
+    sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, color: theme.colors.text.primary },
+    netStatusContainer: { alignItems: 'center', paddingVertical: 20 },
+    netAmount: { fontSize: 32, fontWeight: 'bold', marginBottom: 8 },
+    netLabel: { fontSize: 16, color: theme.colors.text.secondary },
+    userAvatar: {
+      width: 50, height: 50, borderRadius: 25, backgroundColor: theme.colors.primary[500],
+      justifyContent: 'center', alignItems: 'center', marginRight: 12,
+    },
+    avatarText: { fontSize: 20, fontWeight: 'bold', color: theme.colors.background },
+    amountContainer: { alignItems: 'flex-end' },
+    amountText: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
+    statusText: { fontSize: 12, fontWeight: '600' },
+  });
+}
 
 export default MyReceivablesScreen;

@@ -1,20 +1,20 @@
 // src/shared/ui/CommonStyles.js
 import { StyleSheet } from 'react-native';
-import { Colors } from '../../constants/Colors';
+import { useTheme } from '../theme/ThemeProvider';
 
-export const ColorThemes = {
-  primary:   { background: Colors.primary[500], foreground: '#fff' },
-  success:   { background: Colors.success[600], foreground: '#fff' },
-  warning:   { background: Colors.warning[600], foreground: '#fff' },
-  neutral:   { background: Colors.neutral[200], foreground: Colors.text.primary },
-  error:     { background: Colors.error[600],   foreground: '#fff' },
-  info:      { background: Colors.info[600],    foreground: '#fff' },
-};
+export const makeColorThemes = (theme) => ({
+  primary:   { background: theme.colors.primary?.[500], foreground: theme.colors.text?.onPrimary },
+  success:   { background: theme.colors.success?.[600], foreground: theme.colors.text?.onPrimary },
+  warning:   { background: theme.colors.warning?.[600], foreground: theme.colors.text?.onPrimary },
+  neutral:   { background: theme.colors.neutral?.[200], foreground: theme.colors.text.primary },
+  error:     { background: theme.colors.error?.[600],   foreground: theme.colors.text?.onPrimary },
+  info:      { background: theme.colors.info?.[600],    foreground: theme.colors.text?.onPrimary },
+});
 
-export const CommonStyles = StyleSheet.create({
+export const makeCommonStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.surface,
+    backgroundColor: theme.colors.background,
   },
   content: {
     flex: 1,
@@ -26,17 +26,17 @@ export const CommonStyles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '800',
-    color: Colors.text.primary,
+    color: theme.colors.text.primary,
     marginBottom: 6,
   },
   subtitle: {
     fontSize: 14,
-    color: Colors.text.secondary,
+    color: theme.colors.text.secondary,
   },
 
   // Cards
   card: {
-    backgroundColor: Colors.background,
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -54,7 +54,7 @@ export const CommonStyles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '600',
-    color: Colors.text.primary,
+    color: theme.colors.text.primary,
     marginBottom: 6,
   },
 
@@ -72,17 +72,18 @@ export const CommonStyles = StyleSheet.create({
   buttonIcon: {
     fontSize: 20,
     marginBottom: 6,
-    color: '#fff',
+    color: theme.colors.text?.onPrimary,
   },
   buttonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#fff',
+    color: theme.colors.text?.onPrimary,
   },
   buttonSubtext: {
     fontSize: 12,
     marginTop: 2,
-    color: 'rgba(255,255,255,0.9)',
+    color: theme.colors.text?.onPrimary,
+    opacity: 0.9,
   },
 
   // Lists
@@ -94,7 +95,7 @@ export const CommonStyles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral[200],
+    borderBottomColor: theme.colors.neutral?.[200],
   },
   listItemContent: {
     flex: 1,
@@ -102,11 +103,11 @@ export const CommonStyles = StyleSheet.create({
   listItemTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: Colors.text.primary,
+    color: theme.colors.text.primary,
   },
   listItemSubtitle: {
     fontSize: 12,
-    color: Colors.text.secondary,
+    color: theme.colors.text.secondary,
     marginTop: 2,
   },
 
@@ -121,7 +122,7 @@ export const CommonStyles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: Colors.text.secondary,
+    color: theme.colors.text.secondary,
   },
 
   // Loading
@@ -132,6 +133,12 @@ export const CommonStyles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 10,
-    color: Colors.text.secondary,
+    color: theme.colors.text.secondary,
   },
 });
+
+// Yardımcı kanca: ekranlarda kolay kullanım
+export const useCommonStyles = () => {
+  const { theme } = useTheme();
+  return makeCommonStyles(theme);
+};

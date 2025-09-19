@@ -12,14 +12,16 @@ import {
 import useScrollRestore from '../hooks/useScrollRestore';
 import { useAuth } from '../context/AuthContext';
 import { houseApi, expensesApi } from '../services/api';
-import { CommonStyles, ColorThemes } from '../shared/ui/CommonStyles';
-import { Colors } from '../../constants/Colors';
+import { useCommonStyles } from '../shared/ui/CommonStyles';
 import Toast from '../components/Toast';
+import { useTheme } from '../shared/theme/ThemeProvider';
 
 const HouseMembersScreen = ({ route, navigation }) => {
   const { houseId, houseName } = route.params || {};
   const { user } = useAuth();
   const { listRef, handleScroll } = useScrollRestore(`HouseMembersScreen:${houseId ?? 'all'}`);
+  const { theme } = useTheme();
+  const CommonStyles = useCommonStyles();
   const [friends, setFriends] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
@@ -59,12 +61,10 @@ const HouseMembersScreen = ({ route, navigation }) => {
 
   const fetchKPIData = async () => {
     try {
-      // Üye sayısı
       const membersResponse = await houseApi.getMembers(houseId);
       const members = membersResponse.data || [];
       setMemberCount(members.length);
       
-      // Bu ayın planlı faturaları
       const expensesResponse = await expensesApi.getByHouse(houseId);
       const expenses = expensesResponse.data?.data || expensesResponse.data || [];
       
@@ -86,17 +86,13 @@ const HouseMembersScreen = ({ route, navigation }) => {
       const billsTotal = monthlyBills.reduce((sum, bill) => sum + (Number(bill.tutar) || Number(bill.amount) || 0), 0);
       setMonthlyBillsTotal(billsTotal);
       
-      // Net denge (kullanıcının)
       if (user?.id) {
         const debtResponse = await houseApi.getUserDebts(user.id, houseId);
         const debtData = debtResponse.data?.data || debtResponse.data || {};
-        
-        // Yeni şema kontrolü
         if (debtData.totals && Array.isArray(debtData.totals)) {
           const myTotal = debtData.totals.find(t => Number(t.userId) === Number(user.id));
           setNetBalance(Number(myTotal?.net) || 0);
         } else {
-          // Eski şema
           setNetBalance(Number(debtData.netDurum) || 0);
         }
       }
@@ -176,9 +172,9 @@ const HouseMembersScreen = ({ route, navigation }) => {
   };
 
   const getStatusColor = (balance) => {
-    if (balance > 0) return Colors.success[600];
-    if (balance < 0) return Colors.error[600];
-    return Colors.neutral[600];
+    if (balance > 0) return theme.colors.success?.[600];
+    if (balance < 0) return theme.colors.error?.[600];
+    return theme.colors.neutral?.[600];
   };
 
   const handleCategoryPress = (utilityType, categoryName) => {
@@ -198,13 +194,10 @@ const HouseMembersScreen = ({ route, navigation }) => {
   };
 
   const handleMemberPress = (member) => {
-    // Kendisine tıklamışsa işlem yapma
     if (user && user.id === member.id) {
       showToast('Kendi hesabınızı görüntüleyemezsiniz', 'info');
       return;
     }
-    
-    // İkili borç/alacak detayına git
     navigation.navigate('AlacakBorcIcmi', { 
       houseId, 
       userId: member.id,
@@ -214,36 +207,36 @@ const HouseMembersScreen = ({ route, navigation }) => {
 
   if (loading) {
     return (
-      <View style={CommonStyles.container}>
+      <View style={[CommonStyles.container, { backgroundColor: theme.colors.background }]}>
         <View style={CommonStyles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary[500]} />
-          <Text style={CommonStyles.loadingText}>Ev arkadaşları yükleniyor...</Text>
+          <ActivityIndicator size="large" color={theme.colors.primary?.[500]} />
+          <Text style={[CommonStyles.loadingText, { color: theme.colors.text.secondary }]}>Ev arkadaşları yükleniyor...</Text>
         </View>
       </View>
     );
   }
 
   return (
-    <View style={CommonStyles.container}>
-      <ScrollView style={CommonStyles.content} ref={listRef} onScroll={handleScroll} scrollEventThrottle={16}>
+    <View style={[CommonStyles.container, { backgroundColor: theme.colors.background }]}>
+      <ScrollView style={[CommonStyles.content, { backgroundColor: theme.colors.background }]} ref={listRef} onScroll={handleScroll} scrollEventThrottle={16}>
         <View style={CommonStyles.header}>
-          <Text style={CommonStyles.title}>{houseName || 'Ev'}</Text>
+          <Text style={[CommonStyles.title, { color: theme.colors.text.primary }]}>{houseName || 'Ev'}</Text>
         </View>
 
         {/* KPI Özet Bloğu */}
         <View style={styles.kpiContainer}>
           <View style={styles.kpiRow}>
-            <View style={styles.kpiCard}>
-              <Text style={styles.kpiLabel}>Üye Sayısı</Text>
-              <Text style={styles.kpiValue}>{memberCount}</Text>
+            <View style={[styles.kpiCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.neutral?.[200] }]}>
+              <Text style={[styles.kpiLabel, { color: theme.colors.text.secondary }]}>Üye Sayısı</Text>
+              <Text style={[styles.kpiValue, { color: theme.colors.text.primary }]}>{memberCount}</Text>
             </View>
-            <View style={styles.kpiCard}>
-              <Text style={styles.kpiLabel}>Bu Ay Faturalar</Text>
-              <Text style={styles.kpiValue}>{monthlyBillsTotal.toFixed(0)} ₺</Text>
+            <View style={[styles.kpiCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.neutral?.[200] }]}>
+              <Text style={[styles.kpiLabel, { color: theme.colors.text.secondary }]}>Bu Ay Faturalar</Text>
+              <Text style={[styles.kpiValue, { color: theme.colors.text.primary }]}>{monthlyBillsTotal.toFixed(0)} ₺</Text>
             </View>
-            <View style={styles.kpiCard}>
-              <Text style={styles.kpiLabel}>Net Denge</Text>
-              <Text style={[styles.kpiValue, { color: netBalance >= 0 ? Colors.success[600] : Colors.error[600] }]}>
+            <View style={[styles.kpiCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.neutral?.[200] }]}>
+              <Text style={[styles.kpiLabel, { color: theme.colors.text.secondary }]}>Net Denge</Text>
+              <Text style={[styles.kpiValue, { color: netBalance >= 0 ? theme.colors.success?.[600] : theme.colors.error?.[600] }]}>
                 {netBalance.toFixed(0)} ₺
               </Text>
             </View>
@@ -251,8 +244,8 @@ const HouseMembersScreen = ({ route, navigation }) => {
         </View>
 
         {/* Ev Arkadaşları Listesi */}
-        <View style={CommonStyles.card}>
-          <Text style={styles.sectionTitle}>👥 Ev Arkadaşları</Text>
+        <View style={[CommonStyles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.neutral?.[200] }]}>
+          <Text style={[styles.sectionTitle, { marginBottom: 10, color: theme.colors.text.primary }]}>👥 Ev Arkadaşları</Text>
           <View style={CommonStyles.listContainer}>
             {friends.map((item) => {
               const isCurrentUser = user && user.id === item.id;
@@ -264,25 +257,25 @@ const HouseMembersScreen = ({ route, navigation }) => {
                   key={item.id.toString()}
                   style={[
                     CommonStyles.listItem,
-                    isCurrentUser && styles.currentUserCard
+                    isCurrentUser && [styles.currentUserCard, { borderColor: theme.colors.primary?.[300] }]
                   ]}
                   onPress={() => handleMemberPress(item)}
                   activeOpacity={0.8}
                 >
-                  <View style={styles.avatarContainer}>
-                    <Text style={styles.avatarText}>
+                  <View style={[styles.avatarContainer, { width: 36, height: 36, borderRadius: 18, marginRight: 10, backgroundColor: theme.colors.primary?.[500] }]}>
+                    <Text style={[styles.avatarText, { color: theme.colors.text.onPrimary }]}>
                       {item.fullName ? item.fullName.charAt(0).toUpperCase() : '?'}
                     </Text>
                   </View>
                   <View style={CommonStyles.listItemContent}>
-                    <Text style={CommonStyles.listItemTitle}>
+                    <Text style={[CommonStyles.listItemTitle, { fontSize: 14, color: theme.colors.text.primary }]}>
                       {item.fullName} {isCurrentUser && '(Siz)'}
                     </Text>
-                    <Text style={CommonStyles.listItemSubtitle}>{item.email || 'E-posta yok'}</Text>
+                    <Text style={[CommonStyles.listItemSubtitle, { fontSize: 11, color: theme.colors.text.secondary }]} numberOfLines={1}>{item.email || 'E-posta yok'}</Text>
                   </View>
                   {statusText ? (
                     <View style={styles.balanceInfo}>
-                      <Text style={[styles.balanceText, { color: statusColor }]}>
+                      <Text style={[styles.balanceText, { color: statusColor, fontSize: 12 }]}>
                         {statusText}
                       </Text>
                     </View>
@@ -294,18 +287,18 @@ const HouseMembersScreen = ({ route, navigation }) => {
         </View>
 
         {/* Ev Detayı Grid */}
-        <View style={CommonStyles.card}>
-          <Text style={styles.sectionTitle}>🏠 Ev Detayı</Text>
-          <View style={styles.categoriesGrid}>
+        <View style={[CommonStyles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.neutral?.[200] }]}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>🏠 Ev Detayı</Text>
+          <View style={[styles.categoriesGrid, { gap: 10 }]}>
             <TouchableOpacity 
               style={[CommonStyles.menuButton, { flex: 1, minWidth: '48%' }]}
               onPress={() => navigation.navigate('BillsOverviewScreen', { houseId, houseName })}
               activeOpacity={0.8}
             >
-              <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes?.primary?.background || Colors.primary[500] }]}>
+              <View style={[CommonStyles.buttonContent, { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.neutral?.[200], padding: 12 }]}>
                 <Text style={CommonStyles.buttonIcon}>📄</Text>
-                <Text style={CommonStyles.buttonText}>Faturalar (Planlı)</Text>
-                <Text style={CommonStyles.buttonSubtext}>Bu ay ödenecekler</Text>
+                <Text style={[CommonStyles.buttonText, { fontSize: 14, color: theme.colors.text.primary }]}>Faturalar (Planlı)</Text>
+                <Text style={[CommonStyles.buttonSubtext, { fontSize: 11, color: theme.colors.text.secondary }]}>Bu ay ödenecekler</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity 
@@ -313,10 +306,10 @@ const HouseMembersScreen = ({ route, navigation }) => {
               onPress={() => navigation.navigate('TumHarcamalar', { houseId, houseName })}
               activeOpacity={0.8}
             >
-              <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes?.info?.background || Colors.info[600] }]}>
+              <View style={[CommonStyles.buttonContent, { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.neutral?.[200], padding: 12 }]}>
                 <Text style={CommonStyles.buttonIcon}>📋</Text>
-                <Text style={CommonStyles.buttonText}>Harcamalar (Serbest)</Text>
-                <Text style={CommonStyles.buttonSubtext}>Tam hareket dökümü</Text>
+                <Text style={[CommonStyles.buttonText, { fontSize: 14, color: theme.colors.text.primary }]}>Harcamalar (Serbest)</Text>
+                <Text style={[CommonStyles.buttonSubtext, { fontSize: 11, color: theme.colors.text.secondary }]}>Tam hareket dökümü</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity 
@@ -324,10 +317,10 @@ const HouseMembersScreen = ({ route, navigation }) => {
               onPress={() => navigation.navigate('BekleyenOdemeler', { houseId, houseName })}
               activeOpacity={0.8}
             >
-              <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes?.warning?.background || Colors.warning[600] }]}>
+              <View style={[CommonStyles.buttonContent, { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.neutral?.[200], padding: 12 }]}>
                 <Text style={CommonStyles.buttonIcon}>⏳</Text>
-                <Text style={CommonStyles.buttonText}>Bekleyen İşlemler</Text>
-                <Text style={CommonStyles.buttonSubtext}>Onay bekleyenler</Text>
+                <Text style={[CommonStyles.buttonText, { fontSize: 14, color: theme.colors.text.primary }]}>Bekleyen İşlemler</Text>
+                <Text style={[CommonStyles.buttonSubtext, { fontSize: 11, color: theme.colors.text.secondary }]}>Onay bekleyenler</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity 
@@ -335,10 +328,10 @@ const HouseMembersScreen = ({ route, navigation }) => {
               onPress={() => navigation.navigate('DebtSummaryScreen', { houseId, houseName })}
               activeOpacity={0.8}
             >
-              <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes?.success?.background || Colors.success[600] }]}>
+              <View style={[CommonStyles.buttonContent, { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.neutral?.[200], padding: 12 }]}>
                 <Text style={CommonStyles.buttonIcon}>💰</Text>
-                <Text style={CommonStyles.buttonText}>Borç–Alacak</Text>
-                <Text style={CommonStyles.buttonSubtext}>Net bakiyeler</Text>
+                <Text style={[CommonStyles.buttonText, { fontSize: 14, color: theme.colors.text.primary }]}>Borç–Alacak</Text>
+                <Text style={[CommonStyles.buttonSubtext, { fontSize: 11, color: theme.colors.text.secondary }]}>Net bakiyeler</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity 
@@ -346,10 +339,10 @@ const HouseMembersScreen = ({ route, navigation }) => {
               onPress={() => navigation.navigate('HarcamaOzeti', { houseId, houseName })}
               activeOpacity={0.8}
             >
-              <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes?.primary?.background || Colors.primary[500] }]}>
+              <View style={[CommonStyles.buttonContent, { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.neutral?.[200], padding: 12 }]}>
                 <Text style={CommonStyles.buttonIcon}>📊</Text>
-                <Text style={CommonStyles.buttonText}>Analitik</Text>
-                <Text style={CommonStyles.buttonSubtext}>Grafikler & özetler</Text>
+                <Text style={[CommonStyles.buttonText, { fontSize: 14, color: theme.colors.text.primary }]}>Analitik</Text>
+                <Text style={[CommonStyles.buttonSubtext, { fontSize: 11, color: theme.colors.text.secondary }]}>Grafikler & özetler</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -362,10 +355,10 @@ const HouseMembersScreen = ({ route, navigation }) => {
             onPress={() => navigation.navigate('UtilityBillCreate', { houseId, houseName })}
             activeOpacity={0.8}
           >
-            <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes?.success?.background || Colors.success[600] }]}>
-              <Text style={CommonStyles.buttonIcon}>➕</Text>
-              <Text style={CommonStyles.buttonText}>Düzenli Gider Ekle</Text>
-              <Text style={CommonStyles.buttonSubtext}>Kira/abonelik ekle</Text>
+            <View style={[CommonStyles.buttonContent, { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.neutral?.[200] }]}> 
+              <Text style={[CommonStyles.buttonIcon, { color: theme.colors.text.primary }]}>➕</Text>
+              <Text style={[CommonStyles.buttonText, { color: theme.colors.text.primary }]}>Düzenli Gider Ekle</Text>
+              <Text style={[CommonStyles.buttonSubtext, { color: theme.colors.text.secondary }]}>Kira/abonelik ekle</Text>
             </View>
           </TouchableOpacity>
           
@@ -374,10 +367,10 @@ const HouseMembersScreen = ({ route, navigation }) => {
             onPress={handleAddExpense}
             activeOpacity={0.8}
           >
-            <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes?.neutral?.background || Colors.neutral[200] }]}>
-              <Text style={CommonStyles.buttonIcon}>🧾</Text>
-              <Text style={CommonStyles.buttonText}>Harcama Ekle</Text>
-              <Text style={CommonStyles.buttonSubtext}>Market/Yemek vb.</Text>
+            <View style={[CommonStyles.buttonContent, { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.neutral?.[200] }]}> 
+              <Text style={[CommonStyles.buttonIcon, { color: theme.colors.text.primary }]}>🧾</Text>
+              <Text style={[CommonStyles.buttonText, { color: theme.colors.text.primary }]}>Harcama Ekle</Text>
+              <Text style={[CommonStyles.buttonSubtext, { color: theme.colors.text.secondary }]}>Market/Yemek vb.</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -398,7 +391,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 16,
-    color: Colors.text.primary,
   },
   kpiContainer: {
     marginBottom: 20,
@@ -409,34 +401,28 @@ const styles = StyleSheet.create({
   },
   kpiCard: {
     flex: 1,
-    backgroundColor: Colors.background,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.neutral[200],
   },
   kpiLabel: {
     fontSize: 12,
-    color: Colors.text.secondary,
     marginBottom: 8,
     textAlign: 'center',
   },
   kpiValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.text.primary,
     textAlign: 'center',
   },
   currentUserCard: {
     borderWidth: 3,
-    borderColor: Colors.primary[500],
   },
   avatarContainer: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: Colors.primary[500],
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -444,7 +430,6 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: Colors.background,
   },
   balanceInfo: {
     alignItems: 'flex-end',
