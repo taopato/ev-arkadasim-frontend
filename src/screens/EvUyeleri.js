@@ -50,14 +50,45 @@ const HouseMembersScreen = ({ route, navigation }) => {
     fetchMembers();
   }, [houseId]);
 
+  // Odaklanınca sessiz, hızlı yenileme (donma hissini azaltmak için loading spinner yok)
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       fetchKPIData();
-      fetchMembers();
+      // üyeleri sessiz yenile (loading bayrağını değiştirme)
+      (async () => {
+        try {
+          const prev = friends;
+          const membersResponse = await houseApi.getMembers(houseId);
+          if (membersResponse.data && Array.isArray(membersResponse.data)) {
+            const members = membersResponse.data;
+            const membersWithDebts = await Promise.all(
+              members.map(async (member) => {
+                try {
+                  const userId = member.userId || member.id;
+                  const debtResponse = await houseApi.getUserDebts(userId, houseId);
+                  const debtData = debtResponse.data;
+                  const netBalance = debtData.netBalance || 0;
+                  const pairwise = debtData.pairwise || [];
+                  let debtStatus = 'Nötr';
+                  if (netBalance > 0) debtStatus = 'Alacaklı';
+                  else if (netBalance < 0) debtStatus = 'Borçlu';
+                  return { id: userId, fullName: member.name || member.fullName || 'İsimsiz Kullanıcı', email: member.email, debtStatus, balance: netBalance, pairwise };
+                } catch {
+                  return { id: member.userId || member.id, fullName: member.name || member.fullName || 'İsimsiz Kullanıcı', email: member.email, debtStatus: 'Nötr', balance: 0, pairwise: [] };
+                }
+              })
+            );
+            // yalnız içerik farklıysa setState yap (gereksiz yeniden çizim/yüklenme hissini azaltır)
+            const prevKey = JSON.stringify(prev);
+            const nextKey = JSON.stringify(membersWithDebts);
+            if (prevKey !== nextKey) setFriends(membersWithDebts);
+          }
+        } catch {}
+      })();
     });
 
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, houseId, friends]);
 
   const fetchKPIData = async () => {
     try {
@@ -232,7 +263,7 @@ const HouseMembersScreen = ({ route, navigation }) => {
             </View>
             <View style={[styles.kpiCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.neutral?.[200] }]}>
               <Text style={[styles.kpiLabel, { color: theme.colors.text.secondary }]}>Bu Ay Faturalar</Text>
-              <Text style={[styles.kpiValue, { color: theme.colors.text.primary }]}>{monthlyBillsTotal.toFixed(0)} ₺</Text>
+              <Text style={[styles.kpiValue, { color: theme.colors.info?.[600] || theme.colors.text.primary }]}>{monthlyBillsTotal.toFixed(0)} ₺</Text>
             </View>
             <View style={[styles.kpiCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.neutral?.[200] }]}>
               <Text style={[styles.kpiLabel, { color: theme.colors.text.secondary }]}>Net Denge</Text>
@@ -295,10 +326,10 @@ const HouseMembersScreen = ({ route, navigation }) => {
               onPress={() => navigation.navigate('BillsOverviewScreen', { houseId, houseName })}
               activeOpacity={0.8}
             >
-              <View style={[CommonStyles.buttonContent, { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.neutral?.[200], padding: 12 }]}>
+              <View style={[CommonStyles.buttonContent, { backgroundColor: theme.colors.pastel?.blue?.bg || theme.colors.surface, borderWidth: 1, borderColor: 'transparent', padding: 12 }]}>
                 <Text style={CommonStyles.buttonIcon}>📄</Text>
-                <Text style={[CommonStyles.buttonText, { fontSize: 14, color: theme.colors.text.primary }]}>Faturalar (Planlı)</Text>
-                <Text style={[CommonStyles.buttonSubtext, { fontSize: 11, color: theme.colors.text.secondary }]}>Bu ay ödenecekler</Text>
+                <Text style={[CommonStyles.buttonText, { fontSize: 14, color: theme.colors.pastel?.blue?.fg || theme.colors.text.primary }]}>Faturalar (Planlı)</Text>
+                <Text style={[CommonStyles.buttonSubtext, { fontSize: 11, color: theme.colors.pastel?.blue?.fg || theme.colors.text.secondary, opacity: 0.85 }]}>Bu ay ödenecekler</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity 
@@ -306,10 +337,10 @@ const HouseMembersScreen = ({ route, navigation }) => {
               onPress={() => navigation.navigate('TumHarcamalar', { houseId, houseName })}
               activeOpacity={0.8}
             >
-              <View style={[CommonStyles.buttonContent, { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.neutral?.[200], padding: 12 }]}>
+              <View style={[CommonStyles.buttonContent, { backgroundColor: theme.colors.pastel?.green?.bg || theme.colors.surface, borderWidth: 1, borderColor: 'transparent', padding: 12 }]}>
                 <Text style={CommonStyles.buttonIcon}>📋</Text>
-                <Text style={[CommonStyles.buttonText, { fontSize: 14, color: theme.colors.text.primary }]}>Harcamalar (Serbest)</Text>
-                <Text style={[CommonStyles.buttonSubtext, { fontSize: 11, color: theme.colors.text.secondary }]}>Tam hareket dökümü</Text>
+                <Text style={[CommonStyles.buttonText, { fontSize: 14, color: theme.colors.pastel?.green?.fg || theme.colors.text.primary }]}>Harcamalar (Serbest)</Text>
+                <Text style={[CommonStyles.buttonSubtext, { fontSize: 11, color: theme.colors.pastel?.green?.fg || theme.colors.text.secondary, opacity: 0.85 }]}>Tam hareket dökümü</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity 
@@ -317,10 +348,10 @@ const HouseMembersScreen = ({ route, navigation }) => {
               onPress={() => navigation.navigate('BekleyenOdemeler', { houseId, houseName })}
               activeOpacity={0.8}
             >
-              <View style={[CommonStyles.buttonContent, { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.neutral?.[200], padding: 12 }]}>
+              <View style={[CommonStyles.buttonContent, { backgroundColor: theme.colors.pastel?.orange?.bg || theme.colors.surface, borderWidth: 1, borderColor: 'transparent', padding: 12 }]}>
                 <Text style={CommonStyles.buttonIcon}>⏳</Text>
-                <Text style={[CommonStyles.buttonText, { fontSize: 14, color: theme.colors.text.primary }]}>Bekleyen İşlemler</Text>
-                <Text style={[CommonStyles.buttonSubtext, { fontSize: 11, color: theme.colors.text.secondary }]}>Onay bekleyenler</Text>
+                <Text style={[CommonStyles.buttonText, { fontSize: 14, color: theme.colors.pastel?.orange?.fg || theme.colors.text.primary }]}>Bekleyen İşlemler</Text>
+                <Text style={[CommonStyles.buttonSubtext, { fontSize: 11, color: theme.colors.pastel?.orange?.fg || theme.colors.text.secondary, opacity: 0.85 }]}>Onay bekleyenler</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity 
@@ -328,10 +359,10 @@ const HouseMembersScreen = ({ route, navigation }) => {
               onPress={() => navigation.navigate('DebtSummaryScreen', { houseId, houseName })}
               activeOpacity={0.8}
             >
-              <View style={[CommonStyles.buttonContent, { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.neutral?.[200], padding: 12 }]}>
+              <View style={[CommonStyles.buttonContent, { backgroundColor: theme.colors.pastel?.pink?.bg || theme.colors.surface, borderWidth: 1, borderColor: 'transparent', padding: 12 }]}>
                 <Text style={CommonStyles.buttonIcon}>💰</Text>
-                <Text style={[CommonStyles.buttonText, { fontSize: 14, color: theme.colors.text.primary }]}>Borç–Alacak</Text>
-                <Text style={[CommonStyles.buttonSubtext, { fontSize: 11, color: theme.colors.text.secondary }]}>Net bakiyeler</Text>
+                <Text style={[CommonStyles.buttonText, { fontSize: 14, color: theme.colors.pastel?.pink?.fg || theme.colors.text.primary }]}>Borç–Alacak</Text>
+                <Text style={[CommonStyles.buttonSubtext, { fontSize: 11, color: theme.colors.pastel?.pink?.fg || theme.colors.text.secondary, opacity: 0.85 }]}>Net bakiyeler</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity 
@@ -339,10 +370,10 @@ const HouseMembersScreen = ({ route, navigation }) => {
               onPress={() => navigation.navigate('HarcamaOzeti', { houseId, houseName })}
               activeOpacity={0.8}
             >
-              <View style={[CommonStyles.buttonContent, { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.neutral?.[200], padding: 12 }]}>
+              <View style={[CommonStyles.buttonContent, { backgroundColor: theme.colors.pastel?.purple?.bg || theme.colors.surface, borderWidth: 1, borderColor: 'transparent', padding: 12 }]}>
                 <Text style={CommonStyles.buttonIcon}>📊</Text>
-                <Text style={[CommonStyles.buttonText, { fontSize: 14, color: theme.colors.text.primary }]}>Analitik</Text>
-                <Text style={[CommonStyles.buttonSubtext, { fontSize: 11, color: theme.colors.text.secondary }]}>Grafikler & özetler</Text>
+                <Text style={[CommonStyles.buttonText, { fontSize: 14, color: theme.colors.pastel?.purple?.fg || theme.colors.text.primary }]}>Analitik</Text>
+                <Text style={[CommonStyles.buttonSubtext, { fontSize: 11, color: theme.colors.pastel?.purple?.fg || theme.colors.text.secondary, opacity: 0.85 }]}>Grafikler & özetler</Text>
               </View>
             </TouchableOpacity>
           </View>

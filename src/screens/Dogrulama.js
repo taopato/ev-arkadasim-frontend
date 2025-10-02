@@ -1,5 +1,5 @@
 // src/screens/VerificationScreen.js
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useCommonStyles, makeColorThemes } from '../shared/ui/CommonStyles';
@@ -15,6 +15,16 @@ const VerificationScreen = ({ navigation, route }) => {
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [verificationCode, setVerificationCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(60);
+
+  // 60 sn geri sayım
+  useEffect(() => {
+    if (secondsLeft <= 0) return;
+    const id = setInterval(() => {
+      setSecondsLeft((s) => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [secondsLeft]);
 
   const handleVerification = async () => {
     if (!verificationCode.trim()) {
@@ -34,17 +44,31 @@ const VerificationScreen = ({ navigation, route }) => {
         Alert.alert('Hata', 'Beklenmeyen yanıt alındı.');
       }
     } catch (error) {
-      Alert.alert('Hata', error?.response?.data?.message || error?.message || 'Doğrulama başarısız');
+      const status = error?.response?.status;
+      const raw = error?.response?.data?.message || error?.response?.data || error?.message || '';
+      const text = typeof raw === 'string' ? raw : JSON.stringify(raw);
+      const lower = text.toLowerCase();
+      let message = 'Doğrulama başarısız';
+      if (lower.includes('zaten kayıtlı') || lower.includes('already') || status === 500) {
+        message = 'Bu e-posta zaten kayıtlı. Lütfen giriş yapmayı deneyin.';
+      } else if (lower.includes('expired') || lower.includes('süre') || lower.includes('geçersiz')) {
+        message = 'Kod geçersiz veya süresi dolmuş. Lütfen yeni kod isteyin.';
+      } else if (text) {
+        message = text;
+      }
+      Alert.alert('Hata', message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleResendCode = async () => {
+    if (secondsLeft > 0) return;
     setLoading(true);
     try {
       await authApi.sendVerificationCode(email);
       Alert.alert('Başarılı', 'Yeni doğrulama kodu gönderildi.');
+      setSecondsLeft(60);
     } catch (error) {
       Alert.alert('Hata', error?.response?.data?.message || error?.message || 'Kod gönderilemedi');
     } finally {
@@ -85,6 +109,9 @@ const VerificationScreen = ({ navigation, route }) => {
           <Text style={styles.infoText}>
             📧 {email} adresine 6 haneli doğrulama kodu gönderildi.
           </Text>
+          <Text style={[styles.countdownText, { color: theme.colors.text.secondary }]}>
+            {secondsLeft > 0 ? `Yeniden gönderim: ${secondsLeft} sn` : 'Yeniden gönderime hazır'}
+          </Text>
         </View>
 
         <TouchableOpacity
@@ -100,10 +127,12 @@ const VerificationScreen = ({ navigation, route }) => {
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity style={CommonStyles.menuButton} onPress={handleResendCode} disabled={loading} activeOpacity={0.8}>
+        <TouchableOpacity style={[CommonStyles.menuButton, (loading || secondsLeft > 0) && { opacity: 0.5 }]} onPress={handleResendCode} disabled={loading || secondsLeft > 0} activeOpacity={0.8}>
           <View style={[CommonStyles.buttonContent, { backgroundColor: ColorThemes.warning.background }]}>
             <Text style={CommonStyles.buttonIcon}>📧</Text>
-            <Text style={CommonStyles.buttonText}>{loading ? 'Gönderiliyor...' : 'Kodu Tekrar Gönder'}</Text>
+            <Text style={CommonStyles.buttonText}>
+              {loading ? 'Gönderiliyor...' : (secondsLeft > 0 ? `Kodu Tekrar Gönder (${secondsLeft})` : 'Kodu Tekrar Gönder')}
+            </Text>
             <Text style={CommonStyles.buttonSubtext}>Yeni kod talep edin</Text>
           </View>
         </TouchableOpacity>

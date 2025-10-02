@@ -11,13 +11,14 @@ const HomeScreen = ({ navigation }) => {
 
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
-  const NavButton = ({ title, subtitle, onPress, emoji }) => (
-    <TouchableOpacity style={styles.btnCard} onPress={onPress} activeOpacity={0.85}>
+  const pastelKeys = ['blue','green','purple','orange','pink'];
+  const NavButton = ({ title, subtitle, onPress, emoji, idx = 0 }) => (
+    <TouchableOpacity style={[styles.btnCard, { backgroundColor: theme.colors.pastel[pastelKeys[idx % pastelKeys.length]].bg }]} onPress={onPress} activeOpacity={0.85}>
       <View style={styles.btnCardInner}>
         <Text style={styles.btnIcon}>{emoji}</Text>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.btnText, { color: theme.colors.text.primary }]} numberOfLines={1}>{title}</Text>
-          {!!subtitle && <Text style={[styles.btnSubSmall, { color: theme.colors.text.secondary }]} numberOfLines={1}>{subtitle}</Text>}
+          <Text style={[styles.btnText, { color: theme.colors.pastel[pastelKeys[idx % pastelKeys.length]].fg }]} numberOfLines={1}>{title}</Text>
+          {!!subtitle && <Text style={[styles.btnSubSmall, { color: theme.colors.pastel[pastelKeys[idx % pastelKeys.length]].fg, opacity: 0.85 }]} numberOfLines={1}>{subtitle}</Text>}
         </View>
       </View>
     </TouchableOpacity>
@@ -46,6 +47,7 @@ const HomeScreen = ({ navigation }) => {
               onPress={() => {
                 navigation.navigate('GrupListesi', { redirectTo: 'BillsOverviewScreen' });
               }}
+              idx={0}
             />
           </View>
           <View style={styles.gridItem}>
@@ -56,6 +58,7 @@ const HomeScreen = ({ navigation }) => {
               onPress={() => {
                 navigation.navigate('GrupListesi', { redirectTo: 'TumHarcamalar' });
               }}
+              idx={1}
             />
           </View>
           <View style={styles.gridItem}>
@@ -66,6 +69,7 @@ const HomeScreen = ({ navigation }) => {
               onPress={() => {
                 navigation.navigate('GrupListesi', { redirectTo: 'HarcamaOzeti' });
               }}
+              idx={2}
             />
           </View>
           <View style={styles.gridItem}>
@@ -76,6 +80,7 @@ const HomeScreen = ({ navigation }) => {
               onPress={() => {
                 navigation.navigate('Odemeler');
               }}
+              idx={3}
             />
           </View>
           <View style={styles.gridItem}>
@@ -86,6 +91,7 @@ const HomeScreen = ({ navigation }) => {
               onPress={() => {
                 navigation.navigate('GrupListesi', { redirectTo: 'DebtSummaryScreen' });
               }}
+              idx={4}
             />
           </View>
           <View style={styles.gridItem}>
@@ -94,6 +100,7 @@ const HomeScreen = ({ navigation }) => {
               subtitle="Onay bekleyenler"
               emoji="⏳"
               onPress={() => navigation.navigate('BekleyenOdemeler', { userId: user?.id })}
+              idx={5}
             />
           </View>
           <View style={styles.gridItem}>
@@ -102,6 +109,7 @@ const HomeScreen = ({ navigation }) => {
               subtitle="Uygulama ve hesap"
               emoji="⚙️"
               onPress={() => navigation.navigate('Ayarlar')}
+              idx={6}
             />
           </View>
           <View style={styles.gridItem}>
@@ -110,6 +118,7 @@ const HomeScreen = ({ navigation }) => {
               subtitle="Arkadaş ekle"
               emoji="📨"
               onPress={() => navigation.navigate('DavetEt', { houseId: user?.defaultHouseId })}
+              idx={7}
             />
           </View>
         </View>

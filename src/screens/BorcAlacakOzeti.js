@@ -162,15 +162,15 @@ const DebtSummaryScreen = ({ route }) => {
         <View style={[CommonStyles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.neutral?.[200] }]}> 
           <View style={styles.row3}>
             <View style={[styles.kpi, { backgroundColor: theme.colors.background }]}>
-              <Text style={styles.kpiLabel}>Toplam Alacak</Text>
+              <Text style={[styles.kpiLabel, { color: theme.colors.text.secondary }]}>Toplam Alacak</Text>
               <Text style={[styles.kpiValue, { color: theme.colors.success?.[600] }]}>{fmt(totals.receivable)}</Text>
             </View>
             <View style={[styles.kpi, { backgroundColor: theme.colors.background }]}>
-              <Text style={styles.kpiLabel}>Toplam Borç</Text>
+              <Text style={[styles.kpiLabel, { color: theme.colors.text.secondary }]}>Toplam Borç</Text>
               <Text style={[styles.kpiValue, { color: theme.colors.error?.[600] }]}>{fmt(totals.payable)}</Text>
             </View>
             <View style={[styles.kpi, { backgroundColor: theme.colors.background }]}>
-              <Text style={styles.kpiLabel}>Net</Text>
+              <Text style={[styles.kpiLabel, { color: theme.colors.text.secondary }]}>Net</Text>
               <Text
                 style={[
                   styles.kpiValue,
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
 
   sectionTitle: { fontSize: 16, fontWeight: '900', marginBottom: 10 },
   avatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  avatarTxt: { color: '#fff', fontWeight: '800' },
+  avatarTxt: { fontWeight: '800' },
   amount: { fontWeight: '900' },
   muted: {},
 });

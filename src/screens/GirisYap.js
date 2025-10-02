@@ -84,8 +84,19 @@ const GirisYap = ({ navigation }) => {
       const title = (success || looksLikeSuccessText) ? 'Bilgi' : 'Giriş başarısız';
       Alert.alert(title, serverMessage);
     } catch (error) {
-      const msg = error?.response?.data?.message || error?.message || 'Bilinmeyen hata';
-      Alert.alert('Giriş başarısız', msg);
+      const status = error?.response?.status;
+      const raw = error?.response?.data?.message || error?.response?.data || error?.message || '';
+      const text = typeof raw === 'string' ? raw : JSON.stringify(raw);
+      const lower = text.toLowerCase();
+      let message = 'Giriş başarısız. Lütfen bilgilerinizi kontrol edin.';
+      if (status === 401 || lower.includes('şifre') || lower.includes('password') || lower.includes('invalid')) {
+        message = 'E-posta veya şifre hatalı.';
+      } else if (lower.includes('locked') || lower.includes('kilit')) {
+        message = 'Hesabınız geçici olarak kilitlendi. Bir süre sonra tekrar deneyin.';
+      } else if (text) {
+        message = text;
+      }
+      Alert.alert('Giriş başarısız', message);
     } finally {
       setLoading(false);
     }

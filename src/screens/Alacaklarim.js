@@ -96,10 +96,10 @@ const MyReceivablesScreen = ({ navigation, route }) => {
         </View>
 
         <View style={CommonStyles.card}>
-          <Text style={styles.sectionTitle}>💰 Toplam Alacak</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>💰 Toplam Alacak</Text>
           <View style={styles.netStatusContainer}>
             <Text style={[styles.netAmount, { color: theme.colors.success?.[600] }]}>{formatAmount(netBalance)}</Text>
-            <Text style={styles.netLabel}>Toplam Alacağınız</Text>
+            <Text style={[styles.netLabel, { color: theme.colors.text.secondary }]}>Toplam Alacağınız</Text>
           </View>
         </View>
 

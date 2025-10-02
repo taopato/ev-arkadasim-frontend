@@ -1,5 +1,5 @@
 // src/screens/UtilityBillCreateScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
   ScrollView, Animated, Platform, TextInput, Keyboard, KeyboardAvoidingView
@@ -222,6 +222,8 @@ const handleCreateIrregularExpense = async (moneyValue) => {
 };
 
 //////////////////////
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+
   return (
     <KeyboardAvoidingView 
       style={{ flex: 1 }} 
@@ -234,7 +236,7 @@ const handleCreateIrregularExpense = async (moneyValue) => {
             <Text style={styles.title}>{isEditing ? 'Düzenle' : 'Yeni'} Fatura Oluştur</Text>
             <Text style={styles.subtitle}>{houseName} - {getCategoryDisplayName(billType)}</Text>
             <Text style={[styles.subtitle, { fontWeight: '800' }]}>Fatura Ekle</Text>
-            <Text style={[styles.subtitle, { fontWeight: '800', color: '#fffb' }]}>Tarık 1</Text>
+            <Text style={[styles.subtitle, { fontWeight: '800', opacity: 0.9 }]}>Tarık 1</Text>
           </View>
 
           <ScrollView 
@@ -351,60 +353,62 @@ const handleCreateIrregularExpense = async (moneyValue) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { flex: 1, padding: 20 },
-  header: { alignItems: 'center', marginBottom: 30 },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#fff', textAlign: 'center', marginBottom: 10 },
-  subtitle: { fontSize: 16, color: '#fff', textAlign: 'center', opacity: 0.9 },
-  formContainer: { flex: 1 },
-  inputGroup: { marginBottom: 22 },
-  label: { fontSize: 16, fontWeight: '600', color: '#fff', marginBottom: 10 },
-  textInput: {
-    backgroundColor: '#fff',
-    opacity: 0.95,
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    color: '#000',
-    borderWidth: 1,
-    borderColor: '#fff',
-  },
-  textArea: { height: 90, textAlignVertical: 'top' },
-  hint: { marginTop: 6, color: 'rgba(255,255,255,0.85)', fontSize: 12 },
-  pickerContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  billTypeButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 12,
-    padding: 14,
-    minWidth: 120,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-  },
-  selectedBillTypeButton: { backgroundColor: '#fff', opacity: 0.95, borderColor: '#22c55e' },
-  fixedBillTypeButton: { borderColor: '#f59e0b' },
-  variableBillTypeButton: { borderColor: '#3b82f6' },
-  billTypeButtonText: { fontSize: 16, fontWeight: '600', color: '#fff', textAlign: 'center' },
-  selectedBillTypeButtonText: { color: '#000' },
-  fixedBillTypeButtonText: { color: '#f59e0b' },
-  variableBillTypeButtonText: { color: '#3b82f6' },
-  billTypeDescription: { fontSize: 12, color: 'rgba(255, 255, 255, 0.8)', textAlign: 'center', marginTop: 4 },
-  memberButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 12,
-    padding: 14,
-    minWidth: 110,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-  },
-  selectedMemberButton: { backgroundColor: '#fff', opacity: 0.95, borderColor: '#22c55e' },
-  memberButtonText: { fontSize: 16, fontWeight: '600', color: '#fff', textAlign: 'center' },
-  selectedMemberButtonText: { color: '#000' },
-  createButton: { backgroundColor: '#16a34a', borderRadius: 12, padding: 18, alignItems: 'center', marginTop: 8, marginBottom: 30 },
-  createButtonDisabled: { backgroundColor: '#22c55e' },
-  createButtonText: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
-});
+function makeStyles(theme) {
+  return StyleSheet.create({
+    container: { flex: 1 },
+    content: { flex: 1, padding: 20 },
+    header: { alignItems: 'center', marginBottom: 30 },
+    title: { fontSize: 28, fontWeight: 'bold', color: theme.colors.text.onPrimary, textAlign: 'center', marginBottom: 10 },
+    subtitle: { fontSize: 16, color: theme.colors.text.onPrimary, textAlign: 'center', opacity: 0.9 },
+    formContainer: { flex: 1 },
+    inputGroup: { marginBottom: 22 },
+    label: { fontSize: 16, fontWeight: '600', color: theme.colors.text.onPrimary, marginBottom: 10 },
+    textInput: {
+      backgroundColor: theme.colors.background,
+      opacity: 0.95,
+      borderRadius: 12,
+      padding: 14,
+      fontSize: 16,
+      color: theme.colors.text.primary,
+      borderWidth: 1,
+      borderColor: theme.colors.background,
+    },
+    textArea: { height: 90, textAlignVertical: 'top' },
+    hint: { marginTop: 6, color: theme.colors.text.onPrimary, opacity: 0.85, fontSize: 12 },
+    pickerContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    billTypeButton: {
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      borderRadius: 12,
+      padding: 14,
+      minWidth: 120,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.35)',
+    },
+    selectedBillTypeButton: { backgroundColor: theme.colors.background, opacity: 0.95, borderColor: theme.colors.success?.[500] },
+    fixedBillTypeButton: { borderColor: theme.colors.warning?.[500] },
+    variableBillTypeButton: { borderColor: theme.colors.primary?.[500] },
+    billTypeButtonText: { fontSize: 16, fontWeight: '600', color: theme.colors.text.onPrimary, textAlign: 'center' },
+    selectedBillTypeButtonText: { color: theme.colors.text.primary },
+    fixedBillTypeButtonText: { color: theme.colors.warning?.[500] },
+    variableBillTypeButtonText: { color: theme.colors.primary?.[500] },
+    billTypeDescription: { fontSize: 12, color: theme.colors.text.onPrimary, opacity: 0.8, textAlign: 'center', marginTop: 4 },
+    memberButton: {
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      borderRadius: 12,
+      padding: 14,
+      minWidth: 110,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.35)',
+    },
+    selectedMemberButton: { backgroundColor: theme.colors.background, opacity: 0.95, borderColor: theme.colors.success?.[500] },
+    memberButtonText: { fontSize: 16, fontWeight: '600', color: theme.colors.text.onPrimary, textAlign: 'center' },
+    selectedMemberButtonText: { color: theme.colors.text.primary },
+    createButton: { backgroundColor: theme.colors.success?.[600] || '#16a34a', borderRadius: 12, padding: 18, alignItems: 'center', marginTop: 8, marginBottom: 30 },
+    createButtonDisabled: { backgroundColor: theme.colors.success?.[500] || '#22c55e' },
+    createButtonText: { fontSize: 18, fontWeight: 'bold', color: theme.colors.text.onPrimary },
+  });
+}
 
 export default UtilityBillCreateScreen;

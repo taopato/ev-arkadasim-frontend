@@ -9,6 +9,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { houseApi } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { useCommonStyles, makeColorThemes } from '../shared/ui/CommonStyles';
 import { useTheme } from '../shared/theme/ThemeProvider';
 
@@ -17,6 +18,7 @@ export default function AlacakBorcIcmiScreen({ route, navigation }) {
   const CommonStyles = useCommonStyles();
   const { theme } = useTheme();
   const ColorThemes = makeColorThemes(theme);
+  const { user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -27,8 +29,68 @@ export default function AlacakBorcIcmiScreen({ route, navigation }) {
   const fetchUserDetails = async () => {
     setLoading(true);
     try {
-      const response = await houseApi.getUserDebts(userId, houseId);
-      setData(response.data);
+      const meId = Number(user?.id);
+      const otherId = Number(userId);
+      let view = { toplamAlacak: 0, toplamBorc: 0, netDurum: 0, detaylar: [] };
+
+      // Önce ikili borç endpoint'i
+      try {
+        const resBetween = await houseApi.getUserDebtBetween(Number(houseId), meId, otherId);
+        const body = resBetween?.data?.data ?? resBetween?.data ?? {};
+        // Olası alanlar: netForUserId, netAmount + from/to, receivable/payable
+        let netForMe = 0;
+        const nfuId = Number(body.netForUserId ?? body.userId ?? NaN);
+        if (Number.isFinite(nfuId) && nfuId === meId && body.net != null) {
+          netForMe = Number(body.net) || 0;
+        } else {
+          const fromId = Number(body.fromUserId ?? body.userAId ?? NaN);
+          const toId = Number(body.toUserId ?? body.userBId ?? NaN);
+          const netAmount = Number(body.netAmount ?? body.amount ?? body.net ?? 0);
+          if (Number.isFinite(fromId) && Number.isFinite(toId) && netAmount) {
+            if (toId === meId) netForMe = Math.abs(netAmount);
+            else if (fromId === meId) netForMe = -Math.abs(netAmount);
+          }
+        }
+        if (Number.isFinite(netForMe)) {
+          view.netDurum = netForMe;
+          if (netForMe > 0) view.toplamAlacak = netForMe; else view.toplamBorc = Math.abs(netForMe);
+        }
+      } catch {}
+
+      // Fallback: genel borç-liste uçları
+      if ((view.toplamAlacak || view.toplamBorc || view.netDurum) === 0) {
+        try {
+          const res = await houseApi.getUserDebts(meId, Number(houseId));
+          const body = res?.data?.data ?? res?.data ?? {};
+          if (Array.isArray(body.pairs)) {
+            const pair = body.pairs.find(p =>
+              (Number(p.fromUserId) === meId && Number(p.toUserId) === otherId) ||
+              (Number(p.toUserId) === meId && Number(p.fromUserId) === otherId)
+            );
+            if (pair && Number(pair.netAmount) > 0) {
+              const amt = Number(pair.netAmount);
+              const netForMe = Number(pair.toUserId) === meId ? amt : -amt;
+              view.netDurum = netForMe;
+              if (netForMe > 0) view.toplamAlacak = netForMe; else view.toplamBorc = Math.abs(netForMe);
+            }
+          } else if (Array.isArray(body.kullaniciBazliDurumlar)) {
+            const row = body.kullaniciBazliDurumlar.find(r => Number(r.userId) === otherId);
+            if (row && row.amount != null) {
+              const a = Number(row.amount) || 0; // >0 ben borçlu, <0 karşı taraf borçlu
+              const netForMe = -a;
+              view.netDurum = netForMe;
+              if (netForMe > 0) view.toplamAlacak = netForMe; else view.toplamBorc = Math.abs(netForMe);
+            }
+          } else {
+            // eski toplam alan adları
+            const recv = Number(body.toplamAlacak) || 0;
+            const pay = Number(body.toplamBorc) || 0;
+            view.toplamAlacak = recv; view.toplamBorc = pay; view.netDurum = recv - pay;
+          }
+        } catch {}
+      }
+
+      setData({ data: view });
     } catch (error) {
       Alert.alert('Hata', 'Kullanıcı bilgileri alınamadı.');
     } finally {

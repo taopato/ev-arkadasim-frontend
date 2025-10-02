@@ -24,7 +24,13 @@ export default function SettingsScreen({ navigation }) {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.rowBtn, { backgroundColor: theme.colors.background, borderColor: theme.colors.error?.[600] }]}
+          style={[
+            styles.rowBtn,
+            {
+              backgroundColor: theme.colors.error?.[50] || theme.colors.background,
+              borderColor: theme.colors.error?.[600]
+            }
+          ]}
           activeOpacity={0.85}
           onPress={async () => {
             try {
@@ -35,8 +41,8 @@ export default function SettingsScreen({ navigation }) {
             }
           }}
         >
-          <Text style={[styles.rowTitle, { color: theme.colors.error?.[600] }]}>Çıkış Yap</Text>
-          <Text style={[styles.rowDesc, { color: theme.colors.error?.[600] }]}>Oturumu kapat</Text>
+          <Text style={[styles.rowTitle, { color: theme.colors.error?.[700] || theme.colors.error?.[600] }]}>Çıkış Yap</Text>
+          <Text style={[styles.rowDesc, { color: theme.colors.error?.[700] || theme.colors.error?.[600] }]}>Oturumu kapat</Text>
         </TouchableOpacity>
       </View>
     </View>

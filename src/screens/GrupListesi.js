@@ -108,6 +108,13 @@ export default function GroupListScreen({ navigation, route }) {
     });
   };
 
+  const safeFormatDate = (v) => {
+    const raw = v || v === 0 ? v : (typeof v === 'string' ? v : undefined);
+    const d = raw ? new Date(raw) : null;
+    if (!d || isNaN(d.getTime())) return '—';
+    try { return d.toLocaleDateString('tr-TR'); } catch { return '—'; }
+  };
+
   const renderHouseItem = ({ item }) => (
     <TouchableOpacity
       style={[CommonStyles.menuButton]}
@@ -118,7 +125,7 @@ export default function GroupListScreen({ navigation, route }) {
         <Text style={CommonStyles.buttonIcon}>🏠</Text>
         <Text style={CommonStyles.buttonText}>{item.name}</Text>
         <Text style={CommonStyles.buttonSubtext}>
-          Oluşturulma: {new Date(item.createdAt).toLocaleDateString('tr-TR')}
+          Oluşturulma: {safeFormatDate(item.createdAt || item.created_date || item.createdDate)}
         </Text>
       </View>
     </TouchableOpacity>

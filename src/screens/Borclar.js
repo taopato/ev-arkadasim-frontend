@@ -281,6 +281,6 @@ function makeStyles(theme) {
       marginLeft: 10, alignSelf: 'center', backgroundColor: theme.colors.primary[500],
       paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8,
     },
-    payBtnText: { color: '#fff', fontWeight: '700' },
+    payBtnText: { color: theme.colors.text.onPrimary, fontWeight: '700' },
   });
 }
