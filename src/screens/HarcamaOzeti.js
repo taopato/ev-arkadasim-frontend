@@ -495,7 +495,7 @@ function makeStyles(theme) {
     },
     headerTitle: { fontSize: 20, fontWeight: 'bold', color: theme.colors.text.primary },
     filterButton: { backgroundColor: theme.colors.primary[500], paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-    filterButtonText: { color: 'white', fontWeight: '600' },
+    filterButtonText: { color: theme.colors.text.onPrimary, fontWeight: '600' },
     content: { flex: 1 },
     kpiContainer: { flexDirection: 'row', flexWrap: 'wrap', padding: 16, gap: 12 },
     kpiCard: {

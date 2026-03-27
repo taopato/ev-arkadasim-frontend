@@ -28,7 +28,7 @@ export default function SettingsScreen({ navigation }) {
             styles.rowBtn,
             {
               backgroundColor: theme.colors.error?.[50] || theme.colors.background,
-              borderColor: theme.colors.error?.[600]
+              borderColor: theme.colors.error?.[600] || theme.colors.text.primary
             }
           ]}
           activeOpacity={0.85}
@@ -41,8 +41,8 @@ export default function SettingsScreen({ navigation }) {
             }
           }}
         >
-          <Text style={[styles.rowTitle, { color: theme.colors.error?.[700] || theme.colors.error?.[600] }]}>Çıkış Yap</Text>
-          <Text style={[styles.rowDesc, { color: theme.colors.error?.[700] || theme.colors.error?.[600] }]}>Oturumu kapat</Text>
+          <Text style={[styles.rowTitle, { color: theme.colors.error?.[700] || theme.colors.error?.[600] || theme.colors.text.primary }]}>Çıkış Yap</Text>
+          <Text style={[styles.rowDesc, { color: theme.colors.error?.[700] || theme.colors.error?.[600] || theme.colors.text.secondary }]}>Oturumu kapat</Text>
         </TouchableOpacity>
       </View>
     </View>

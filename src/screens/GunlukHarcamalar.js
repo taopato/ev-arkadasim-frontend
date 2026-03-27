@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, ActionSheetIOS, Alert, Platform } from 'react-native';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import { expensesApi } from '../services/api';
 import { normalizeExpense, NON_BILL_KEYS } from '../utils/expenseClassifier';
 import { getCategoryIcon, getCategoryColor } from '../constants/ExpenseEnums';
 import { useAuth } from '../context/AuthContext';
+import { HeroHeader } from '../shared/ui/premium/HeroHeader';
+import { WeekStrip } from '../shared/ui/premium/WeekStrip';
 
 const ExpensesScreen = ({ route, navigation }) => {
   const { theme } = useTheme();
@@ -12,17 +14,12 @@ const ExpensesScreen = ({ route, navigation }) => {
   const { houseId: routeHouseId } = route.params || {};
   const houseId = routeHouseId || user?.defaultHouseId;
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('tr-TR', {
-      style: 'currency',
-      currency: 'TRY',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
-  };
+  // formatCurrency en altta tekil tanımlanmıştır
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [selectedDayKey, setSelectedDayKey] = useState(null);
+  const [weeklyTotal, setWeeklyTotal] = useState(0);
 
   const getItemDate = (x) => {
     const r = x?._raw || {};
@@ -51,7 +48,23 @@ const ExpensesScreen = ({ route, navigation }) => {
         return true;
       });
 
-      setItems(filtered.sort((a, b) => getItemDate(b) - getItemDate(a)));
+      const sorted = filtered.sort((a, b) => getItemDate(b) - getItemDate(a));
+      setItems(sorted);
+
+      // weekly total
+      const now = new Date();
+      const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      const day = monday.getUTCDay();
+      const diff = (day + 6) % 7;
+      monday.setUTCDate(monday.getUTCDate() - diff);
+      const sunday = new Date(monday);
+      sunday.setUTCDate(monday.getUTCDate() + 7);
+      let sum = 0;
+      for (const it of sorted) {
+        const d = getItemDate(it);
+        if (d >= monday && d < sunday) sum += Number(it.amount || 0);
+      }
+      setWeeklyTotal(sum);
     } catch (e) {
     } finally { setLoading(false); }
   };
@@ -105,20 +118,40 @@ const ExpensesScreen = ({ route, navigation }) => {
     );
   };
 
+  const formatCurrency = (amount) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
+
+  const filteredByDay = useMemo(() => {
+    if (!selectedDayKey) return items;
+    return items.filter(it => {
+      const d = getItemDate(it);
+      const key = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString().slice(0,10);
+      return key === selectedDayKey;
+    });
+  }, [items, selectedDayKey]);
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
       <FlatList
-        data={items}
+        data={filteredByDay}
         keyExtractor={(x, i) => String(x.id ?? i)}
         renderItem={renderItem}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
-        contentContainerStyle={{ padding: 12 }}
+        contentContainerStyle={{ paddingBottom: 12 }}
         ListHeaderComponent={
-          <View style={styles.header}>
-            <Text style={[styles.headerTitle, { color: theme.colors.text.primary }]}>Harcama Listesi</Text>
-            <TouchableOpacity onPress={showHarcamaOptions} activeOpacity={0.85}>
-              <Text style={[styles.link, { color: theme.colors.primary?.[600] }]}>+ Yeni Harcama</Text>
-            </TouchableOpacity>
+          <View>
+            <HeroHeader
+              title="Harcama Listesi"
+              subtitle="Haftalık görünüm"
+              amount={formatCurrency(weeklyTotal)}
+              primaryLabel="+ Ekle"
+              onPrimaryAction={showHarcamaOptions}
+            />
+            <WeekStrip selectedKey={selectedDayKey || undefined} onSelect={(k) => setSelectedDayKey(k)} />
+            <View style={{ paddingHorizontal: 12, paddingTop: 8 }}>
+              <Text style={[styles.link, { color: theme.colors.text.secondary }]}>
+                {selectedDayKey ? 'Seçili gün' : 'Tüm hafta'}
+              </Text>
+            </View>
           </View>
         }
         ListEmptyComponent={!loading ? <Text style={[styles.empty, { color: theme.colors.text.secondary }]}>{houseId ? 'Kayıt yok' : 'Lütfen bir ev grubu seçin'}</Text> : null}

@@ -111,6 +111,20 @@ export const authApi = {
       }
     }
   },
+  googleLogin: async (idToken) => {
+    const res = await api.post('/Auth/GoogleLogin', { idToken });
+    const raw = res?.data || {};
+    const data = raw?.data ?? raw ?? {};
+
+    const pickFirst = (obj, keys) => keys.map(k => obj?.[k]).find(v => v != null);
+    const tokenFromBody = pickFirst(data, ['token', 'accessToken', 'jwt', 'jwtToken']) || pickFirst(raw, ['token', 'accessToken', 'jwt', 'jwtToken']);
+    const authHeader = res?.headers?.authorization || res?.headers?.Authorization;
+    const tokenFromHeader = typeof authHeader === 'string' ? authHeader.replace(/^[Bb]earer\s+/,'') : undefined;
+    const token = tokenFromBody || tokenFromHeader;
+    const user = pickFirst(data, ['user', 'userDto', 'account', 'profile']) || pickFirst(raw, ['user', 'userDto', 'account', 'profile']);
+
+    return { data: { token, user, raw } };
+  },
   sendVerificationCode: (email) => api.post('/Auth/SendVerificationCode', { email }),
   verifyCodeAndRegister: (email, code, fullName, password) =>
     api.post('/Auth/VerifyCodeAndRegister', { email, code, fullName, password }),

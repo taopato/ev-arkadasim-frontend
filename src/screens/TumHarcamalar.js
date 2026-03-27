@@ -20,6 +20,7 @@ import { expensesApi, houseApi } from '../services/api';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import { useCommonStyles } from '../shared/ui/CommonStyles';
 import { normalizeExpense } from '../utils/expenseClassifier';
+import { HeroHeader } from '../shared/ui/premium/HeroHeader';
 import {
   getUTCMonthWindow,
   formatCurrency,
@@ -490,21 +491,13 @@ const TumHarcamalarScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Harcamalar</Text>
-          <Text style={styles.headerSubtitle}>
-            {houseName} • {summary.count} harcama • {formatCurrency(summary.total)}
-          </Text>
-        </View>
-        <TouchableOpacity
-          style={styles.filterButton}
-          onPress={() => setShowFilters(true)}
-        >
-          <Text style={styles.filterButtonText}>Filtre</Text>
-        </TouchableOpacity>
-      </View>
+      <HeroHeader
+        title="Harcamalar"
+        subtitle={`${houseName || ''} • ${summary.count} harcama`}
+        amount={formatCurrency(summary.total)}
+        primaryLabel="Filtre"
+        onPrimaryAction={() => setShowFilters(true)}
+      />
 
       {/* Liste */}
       <FlatList

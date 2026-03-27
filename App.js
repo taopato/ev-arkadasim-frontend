@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 // Colors legacy – artık componentlerde kullanılmıyor
 import { ThemeProvider, useTheme } from './src/shared/theme/ThemeProvider';
+import { premiumTheme } from './src/shared/theme/premiumTheme';
 import { AuthProvider } from './src/context/AuthContext';
 import { Colors as LegacyColors } from './src/constants/Colors';
 
@@ -160,6 +161,7 @@ function ThemedNavigator() {
         headerTitleStyle: { color: headerColors.text?.primary },
         headerTintColor: headerColors.text?.primary,
         headerShadowVisible: false,
+        animation: 'fade',
       }}>
         {/* Login ve Register Ekranları */}
         <Stack.Screen name="Login" component={GirisYap} options={{ title: 'Giriş Yap' }} />
@@ -208,7 +210,7 @@ function ThemedNavigator() {
         <Stack.Screen name="DavetEt" component={DavetEt} options={{ title: 'Arkadaş Davet Et' }} />
         <Stack.Screen name="DavetiyeKabul" component={DavetiyeKabul} options={{ title: 'Davet Kabul Et' }} />
         <Stack.Screen name="OdemeOnayi" component={OdemeOnayi} options={{ title: 'Bekleyen Ödemeler' }} />
-        <Stack.Screen name="Faturalar" component={Faturalar} options={{ title: 'Planlı Giderler' }} />
+        <Stack.Screen name="Faturalar" component={Faturalar} options={{ title: 'Planlı Giderler', animation: 'fade' }} />
         <Stack.Screen name="FaturaEkle" component={FaturaEkle} options={{ title: 'Yeni Fatura' }} />
         <Stack.Screen name="FaturaListesi" component={FaturaListesi} options={{ title: 'Faturalar' }} />
         <Stack.Screen name="FaturaDetayi" component={FaturaDetayi} options={{ title: 'Fatura Detayı' }} />
@@ -226,7 +228,7 @@ function ThemedNavigator() {
         <Stack.Screen name="KisiDetayi" component={KisiDetayi} options={{ title: '👥 İkili Borç/Alacak Detayı' }} />
         {/* Eksik ekran kayıtları */}
         <Stack.Screen name="LedgerDetail" component={DefterDetayi} options={{ title: 'Borç/Alacak Detayları' }} />
-        <Stack.Screen name="BillsOverviewScreen" component={Faturalar} options={{ title: 'Faturalar' }} />
+        <Stack.Screen name="BillsOverviewScreen" component={Faturalar} options={{ title: 'Faturalar', animation: 'fade' }} />
         <Stack.Screen name="UtilityBillCreate" component={DuzenliGiderEkle} options={{ title: 'Düzenli Gider Ekle' }} />
         <Stack.Screen name="PendingContributions" component={BekleyenKatkilar} options={{ title: 'Bekleyen Onaylar' }} />
         {/* Yeni tasarlanan ekranlar */}
@@ -242,7 +244,7 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
+        <ThemeProvider value={premiumTheme}>
           <AuthProvider>
             <ThemedStatusBar />
             <ThemedNavigator />

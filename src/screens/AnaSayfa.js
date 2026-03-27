@@ -1,13 +1,19 @@
 // src/screens/HomeScreen.js
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import { useAuth } from '../context/AuthContext';
+import { HeroHeader } from '../shared/ui/premium/HeroHeader';
+import { WeekStrip } from '../shared/ui/premium/WeekStrip';
+import { expensesApi } from '../services/api';
+import { normalizeExpense } from '../utils/expenseClassifier';
 
 const HomeScreen = ({ navigation }) => {
   const { user, logout } = useAuth();
   const { theme } = useTheme();
   const [billModalVisible, setBillModalVisible] = useState(false);
+  const [weeklyTotal, setWeeklyTotal] = useState(0);
+  const [selectedDayKey, setSelectedDayKey] = useState(null);
 
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
@@ -24,11 +30,51 @@ const HomeScreen = ({ navigation }) => {
     </TouchableOpacity>
   );
 
+  useEffect(() => {
+    const loadWeekly = async () => {
+      try {
+        const houseId = user?.defaultHouseId;
+        if (!houseId) return;
+        const res = await expensesApi.getByHouse(houseId);
+        const data = res?.data?.data ?? res?.data ?? [];
+        const list = Array.isArray(data) ? data.map(normalizeExpense) : [];
+        const now = new Date();
+        const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+        const day = monday.getUTCDay();
+        const diff = (day + 6) % 7;
+        monday.setUTCDate(monday.getUTCDate() - diff);
+        const sunday = new Date(monday);
+        sunday.setUTCDate(monday.getUTCDate() + 7);
+        let sum = 0;
+        for (const it of list) {
+          const v = it?.date || it?._raw?.kayitTarihi || it?._raw?.postDate || it?.createdDate;
+          const d = new Date(v || 0);
+          if (d >= monday && d < sunday) sum += Number(it.amount || 0);
+        }
+        setWeeklyTotal(sum);
+      } catch {}
+    };
+    loadWeekly();
+  }, [user?.defaultHouseId]);
+
+  const formatCurrency = (amount) =>
+    new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(amount || 0));
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
-        <Text style={[styles.hello, { color: theme.colors.text.primary }]}>Merhaba, {user?.fullName || 'Kullanıcı'} 👋</Text>
-        <Text style={[styles.sub, { color: theme.colors.text.secondary }]}>Hızlı işlemler</Text>
+      <ScrollView contentContainerStyle={{ paddingBottom: 16 }}>
+        <HeroHeader
+          title="Toplam harcama (haftalık)"
+          subtitle={`Merhaba, ${user?.fullName || 'Kullanıcı'} 👋`}
+          amount={formatCurrency(weeklyTotal)}
+          primaryLabel="+ Ekle"
+          onPrimaryAction={() => setBillModalVisible(true)}
+        />
+
+        <WeekStrip selectedKey={selectedDayKey || undefined} onSelect={(k) => setSelectedDayKey(k)} />
+
+        <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+          <Text style={[styles.sub, { color: theme.colors.text.secondary }]}>Hızlı işlemler</Text>
 
           <View style={styles.grid}>
           <View style={[styles.gridItemFull]}>
@@ -122,6 +168,7 @@ const HomeScreen = ({ navigation }) => {
             />
           </View>
         </View>
+        </View>
 
         <TouchableOpacity
           style={[styles.btn, { backgroundColor: theme.colors.error?.[600] }]}
@@ -147,7 +194,7 @@ const HomeScreen = ({ navigation }) => {
           onRequestClose={() => setBillModalVisible(false)}
         >
           <View style={[styles.sheetBackdrop]}>
-            <View style={[styles.sheet, { backgroundColor: theme.colors.surface }] }>
+            <View style={[styles.sheet, { backgroundColor: theme.colors.surface }]}>
               <View style={[styles.sheetHandle, { backgroundColor: theme.colors.neutral?.[300] }]} />
               <Text style={[styles.modalTitle, { color: theme.colors.text.primary }]}>Düzenli Gider Ekle</Text>
               <Text style={[styles.modalSub, { color: theme.colors.text.secondary }]}>Kira, internet veya abonelik</Text>

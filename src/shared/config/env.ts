@@ -14,14 +14,14 @@ import Constants from 'expo-constants';
 
 // ==== ❶ BURAYI KENDİ MAKİNENİN IP'Sİ İLE DOLDUR ====
 // (NGROK kullansak da dursun; LAN testinde işine yarar.)
-const HOST_REAL_DEVICE = '192.168.1.150';
+const HOST_REAL_DEVICE = '192.168.1.33';
 
 // Emülatör hostları
 const HOST_DEV_ANDROID = '10.0.2.2';
 const HOST_DEV_IOS = 'localhost';
 
 // Backend portun
-const DEV_PORT = 5118;
+const DEV_PORT = 7118;
 
 // HTTP/HTTPS tercihi (lokal geliştirmede genelde HTTP)
 const USE_HTTPS = false;
@@ -29,8 +29,11 @@ const DEV_PROTOCOL = USE_HTTPS ? 'https' : 'http';
 
 // Emülatörlerde farklı host, gerçek cihazda LAN IP kullan
 const getDevHost = (): string => {
-  if (Platform.OS === 'android' || Platform.OS === 'ios') {
-    return HOST_REAL_DEVICE;
+  if (Platform.OS === 'android') {
+    return Constants.isDevice ? HOST_REAL_DEVICE : HOST_DEV_ANDROID;
+  }
+  if (Platform.OS === 'ios') {
+    return Constants.isDevice ? HOST_REAL_DEVICE : HOST_DEV_IOS;
   }
   return HOST_DEV_IOS; // Web fallback
 };
@@ -41,6 +44,16 @@ const DEV_BASE = `${DEV_PROTOCOL}://${getDevHost()}:${DEV_PORT}`;
 // Production/EAS override imkanları
 const EXTRA_API_URL = (Constants?.expoConfig?.extra as any)?.EXPO_PUBLIC_API_URL as string | undefined;
 const ENV_API_URL = (process.env.EXPO_PUBLIC_API_URL as string) || undefined;
+
+const EXTRA_GOOGLE_WEB_CLIENT_ID = (Constants?.expoConfig?.extra as any)?.GOOGLE_WEB_CLIENT_ID as string | undefined;
+const EXTRA_GOOGLE_IOS_CLIENT_ID = (Constants?.expoConfig?.extra as any)?.GOOGLE_IOS_CLIENT_ID as string | undefined;
+const EXTRA_GOOGLE_ANDROID_CLIENT_ID = (Constants?.expoConfig?.extra as any)?.GOOGLE_ANDROID_CLIENT_ID as string | undefined;
+const EXTRA_GOOGLE_EXPO_CLIENT_ID = (Constants?.expoConfig?.extra as any)?.GOOGLE_EXPO_CLIENT_ID as string | undefined;
+
+const ENV_GOOGLE_WEB_CLIENT_ID = (process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID as string) || undefined;
+const ENV_GOOGLE_IOS_CLIENT_ID = (process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID as string) || undefined;
+const ENV_GOOGLE_ANDROID_CLIENT_ID = (process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID as string) || undefined;
+const ENV_GOOGLE_EXPO_CLIENT_ID = (process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID as string) || undefined;
 
 /* ------------------------------------------------------------------
    NGROK TEST OVERRIDE
@@ -66,6 +79,13 @@ export const BASE_URL: string = SELECTED_BASE;
 
 /* İstersen bazı yerlerde kısa yoldan kullanmak için alternatif de bırakıyorum: */
 export const API_BASE_URL: string = `${SELECTED_BASE}/api`;
+
+export const GOOGLE_CLIENT_IDS = {
+  web: EXTRA_GOOGLE_WEB_CLIENT_ID || ENV_GOOGLE_WEB_CLIENT_ID || '',
+  ios: EXTRA_GOOGLE_IOS_CLIENT_ID || ENV_GOOGLE_IOS_CLIENT_ID || '',
+  android: EXTRA_GOOGLE_ANDROID_CLIENT_ID || ENV_GOOGLE_ANDROID_CLIENT_ID || '',
+  expo: EXTRA_GOOGLE_EXPO_CLIENT_ID || ENV_GOOGLE_EXPO_CLIENT_ID || '',
+};
 
 // Diğer yardımcı sabitler
 export const API_TIMEOUTS = { DEFAULT: 15000, UPLOAD: 30000, DOWNLOAD: 60000 } as const;

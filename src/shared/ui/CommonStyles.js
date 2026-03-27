@@ -24,21 +24,21 @@ export const makeCommonStyles = (theme) => StyleSheet.create({
     marginBottom: 16,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '800',
+    fontSize: (theme.typography?.title?.size ?? 20) + 2,
+    fontWeight: theme.typography?.title?.weight ?? '800',
     color: theme.colors.text.primary,
     marginBottom: 6,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: theme.typography?.subtitle?.size ?? 14,
     color: theme.colors.text.secondary,
   },
 
   // Cards
   card: {
     backgroundColor: theme.colors.surface,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: theme.radius?.lg ?? 16,
+    padding: theme.spacing?.lg ?? 16,
     marginBottom: 16,
     shadowColor: '#000',
     shadowOpacity: 0.05,
@@ -49,24 +49,24 @@ export const makeCommonStyles = (theme) => StyleSheet.create({
 
   // Inputs
   inputContainer: {
-    marginBottom: 14,
+    marginBottom: theme.spacing?.md ?? 14,
   },
   label: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: theme.typography?.label?.size ?? 12,
+    fontWeight: theme.typography?.label?.weight ?? '600',
     color: theme.colors.text.primary,
-    marginBottom: 6,
+    marginBottom: theme.spacing?.xs ?? 6,
   },
 
   // Buttons (menu style)
   menuButton: {
-    borderRadius: 12,
+    borderRadius: theme.radius?.lg ?? 12,
     overflow: 'hidden',
     marginBottom: 12,
   },
   buttonContent: {
-    padding: 14,
-    borderRadius: 12,
+    padding: theme.spacing?.md ?? 14,
+    borderRadius: theme.radius?.lg ?? 12,
     alignItems: 'flex-start',
   },
   buttonIcon: {
@@ -75,12 +75,12 @@ export const makeCommonStyles = (theme) => StyleSheet.create({
     color: theme.colors.text?.onPrimary,
   },
   buttonText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: theme.typography?.button?.size ?? 16,
+    fontWeight: theme.typography?.button?.weight ?? '700',
     color: theme.colors.text?.onPrimary,
   },
   buttonSubtext: {
-    fontSize: 12,
+    fontSize: theme.typography?.subtitle?.size ?? 12,
     marginTop: 2,
     color: theme.colors.text?.onPrimary,
     opacity: 0.9,
@@ -101,12 +101,12 @@ export const makeCommonStyles = (theme) => StyleSheet.create({
     flex: 1,
   },
   listItemTitle: {
-    fontSize: 16,
+    fontSize: theme.typography?.body?.size ?? 16,
     fontWeight: '700',
     color: theme.colors.text.primary,
   },
   listItemSubtitle: {
-    fontSize: 12,
+    fontSize: theme.typography?.subtitle?.size ?? 12,
     color: theme.colors.text.secondary,
     marginTop: 2,
   },
@@ -121,7 +121,7 @@ export const makeCommonStyles = (theme) => StyleSheet.create({
     marginBottom: 8,
   },
   emptyText: {
-    fontSize: 14,
+    fontSize: theme.typography?.body?.size ?? 14,
     color: theme.colors.text.secondary,
   },
 

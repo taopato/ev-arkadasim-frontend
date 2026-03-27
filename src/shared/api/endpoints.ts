@@ -3,6 +3,7 @@ export const endpoints = {
   // Auth endpoints
   auth: {
     login: '/Auth/Login',
+    googleLogin: '/Auth/GoogleLogin',
     sendVerificationCode: '/Auth/SendVerificationCode',
     verifyCodeAndRegister: '/Auth/VerifyCodeAndRegister',
     verifyCodeForReset: '/Auth/VerifyCodeForReset',

@@ -1,23 +1,13 @@
 // src/shared/ui/Card.js
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { useTheme } from '../theme/ThemeProvider';
+import { PremiumCard } from './premium/Card';
 
-export const Card = ({ style, children }) => {
-  const { theme } = useTheme();
-  const dynamic = {
-    backgroundColor: theme.colors.background,
-    borderColor: theme.colors.neutral?.[200],
-  };
-  return <View style={[styles.card, dynamic, style]}>{children}</View>;
+export const Card = ({ style, children, padding, elevation }) => {
+  return (
+    <PremiumCard style={style} padding={padding} elevation={elevation}>
+      {children}
+    </PremiumCard>
+  );
 };
-
-const styles = StyleSheet.create({
-  card: {
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-  },
-});
 
 export default Card;

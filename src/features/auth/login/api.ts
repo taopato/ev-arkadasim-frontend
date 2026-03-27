@@ -16,6 +16,11 @@ export async function login(body: LoginRequest): Promise<AuthResponse> {
   return data;
 }
 
+export async function googleLogin(idToken: string): Promise<AuthResponse> {
+  const { data } = await api.post<AuthResponse>(endpoints.auth.googleLogin, { idToken });
+  return data;
+}
+
 export async function sendVerificationCode(email: string): Promise<{ success: boolean; message: string }> {
   const { data } = await api.post(endpoints.auth.sendVerificationCode, { email });
   return data;

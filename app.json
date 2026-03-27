@@ -26,7 +26,11 @@
     },
     "scheme": "evarkadasim",
     "extra": {
-      "EXPO_PUBLIC_API_URL": "http://192.168.1.150:5118"
+      "EXPO_PUBLIC_API_URL": "http://192.168.1.150:5118",
+      "GOOGLE_WEB_CLIENT_ID": "",
+      "GOOGLE_IOS_CLIENT_ID": "",
+      "GOOGLE_ANDROID_CLIENT_ID": "",
+      "GOOGLE_EXPO_CLIENT_ID": ""
     }
   }
 }
